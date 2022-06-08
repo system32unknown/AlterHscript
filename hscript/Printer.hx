@@ -114,6 +114,8 @@ class Printer {
 			return;
 		}
 		switch( #if hscriptPos e.e #else e #end ) {
+		case EImport(c):
+			add("import " + c);
 		case EConst(c):
 			switch( c ) {
 			case CInt(i): add(i);
@@ -331,7 +333,7 @@ class Printer {
 
 	public static function errorToString( e : Expr.Error ) {
 		var message = switch( #if hscriptPos e.e #else e #end ) {
-			case EInvalidChar(c): "Invalid character: '"+(StringTools.isEof(c) ? "EOF" : String.fromCharCode(c))+"' ("+c+")";
+			case EInvalidChar(c): "Invalid character: '"+(StringTools.isEof(c) ? "EOF (End Of File)" : String.fromCharCode(c))+"' ("+c+")";
 			case EUnexpected(s): "Unexpected token: \""+s+"\"";
 			case EUnterminatedString: "Unterminated string";
 			case EUnterminatedComment: "Unterminated comment";
@@ -341,6 +343,7 @@ class Printer {
 			case EInvalidOp(op): "Invalid operator: "+op;
 			case EInvalidAccess(f): "Invalid access to field " + f;
 			case ECustom(msg): msg;
+			case EInvalidClass(cla): "Invalid class: " + cla + " was not found.";
 		};
 		#if hscriptPos
 		return e.origin + ":" + e.line + ": " + message;

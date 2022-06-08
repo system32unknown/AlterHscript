@@ -347,13 +347,15 @@ class Parser {
 	}
 
 	function parseExpr() {
+
+		var oldPos = readPos;
 		var tk = token();
 		#if hscriptPos
 		var p1 = tokenMin;
 		#end
 		switch( tk ) {
 		case TId(id):
-			var e = parseStructure(id);
+			var e = parseStructure(id, oldPos);
 			if( e == null )
 				e = mk(EIdent(id));
 			return parseExprNext(e);
@@ -579,7 +581,7 @@ class Parser {
 		}
 	}
 
-	function parseStructure(id) {
+	function parseStructure(id, ?oldPos:Int) {
 		#if hscriptPos
 		var p1 = tokenMin;
 		#end
@@ -654,6 +656,57 @@ class Parser {
 			}
 			var inf = parseFunctionDecl();
 			mk(EFunction(inf.args, inf.body, name, inf.ret),p1,pmax(inf.body));
+		case "import":
+			var oldReadPos = readPos;
+			var tk = token();
+			switch( tk ) {
+				case TPOpen:
+					trace("using base thing shit");
+					var tok = token();
+					switch(tok) {
+						case TConst(c):
+							switch(c) {
+								case CString(s):
+									token();
+									ensure(TSemicolon);
+									push(TSemicolon);
+									mk(EImport(s), p1);
+								default:
+									unexpected(tok);
+									null;
+							}
+						default:
+							unexpected(tok);
+							null;
+					}
+				case TId(id):
+					var path = [id];
+					var t = null;
+					while( true ) {
+						t = token();
+						if( t != TDot ) {
+							push(t);
+							break;
+						}
+						t = token();
+						switch( t ) {
+						case TId(id):
+							path.push(id);
+						// case TOp("*"):
+						// 	star = true;
+						default:
+							unexpected(t);
+						}
+					}
+					ensure(TSemicolon);
+					push(TSemicolon);
+					var p = path.join(".");
+					mk(EImport(p),p1);
+				default:
+					unexpected(tk);
+					null;
+				}
+			
 		case "return":
 			var tk = token();
 			push(tk);
