@@ -661,7 +661,6 @@ class Parser {
 			var tk = token();
 			switch( tk ) {
 				case TPOpen:
-					trace("using base thing shit");
 					var tok = token();
 					switch(tok) {
 						case TConst(c):
@@ -692,8 +691,6 @@ class Parser {
 						switch( t ) {
 						case TId(id):
 							path.push(id);
-						// case TOp("*"):
-						// 	star = true;
 						default:
 							unexpected(t);
 						}

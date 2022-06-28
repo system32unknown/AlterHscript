@@ -25,7 +25,8 @@
   * - Added Error handler
   */
   package hscript;
-  import haxe.PosInfos;
+  import haxe.display.Protocol.InitializeResult;
+import haxe.PosInfos;
   import hscript.Expr;
   import haxe.Constraints.IMap;
 
@@ -700,26 +701,34 @@
 		  cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
 	  }
   
+	  public var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
+	  public var setRedirects:Map<String, Dynamic->String->Dynamic->Dynamic> = [];
+
 	  function get( o : Dynamic, f : String ) : Dynamic {
 		  if ( o == null ) error(EInvalidAccess(f));
 		  return {
-			  #if php
-				  // https://github.com/HaxeFoundation/haxe/issues/4915
-				  try {
-					  Reflect.getProperty(o, f);
-				  } catch (e:Dynamic) {
-					  Reflect.field(o, f);
-				  }
-			  #else
-				  Reflect.getProperty(o, f);
-			  #end
+				var redirect:Dynamic->String->Dynamic = null;
+				var cl:String;
+				if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
+					return redirect(o, f);
+				} else {
+					var v = null;
+					if ((v = Reflect.getProperty(o, f)) == null) v = Reflect.getProperty(Type.getClass(o), f);
+					return v;
+				}
 		  }
 	  }
   
 	  function set( o : Dynamic, f : String, v : Dynamic ) : Dynamic {
-		  if( o == null ) error(EInvalidAccess(f));
-		  Reflect.setProperty(o,f,v);
-		  return v;
+			if( o == null ) error(EInvalidAccess(f));
+
+			var redirect:Dynamic->String->Dynamic->Dynamic = null;
+			var cl:String;
+			if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
+				return redirect(o, f, v);
+				
+			Reflect.setProperty(o,f,v);
+			return v;
 	  }
   
 	  function fcall( o : Dynamic, f : String, args : Array<Dynamic> ) : Dynamic {
