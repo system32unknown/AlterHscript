@@ -701,14 +701,25 @@ import haxe.PosInfos;
 		  cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
 	  }
   
-	  public var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
-	  public var setRedirects:Map<String, Dynamic->String->Dynamic->Dynamic> = [];
+	  public static var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
+	  public static var setRedirects:Map<String, Dynamic->String->Dynamic->Dynamic> = [];
 
 	  function get( o : Dynamic, f : String ) : Dynamic {
 		  if ( o == null ) error(EInvalidAccess(f));
 		  return {
 				var redirect:Dynamic->String->Dynamic = null;
-				var cl:String;
+				var cl:String = switch(Type.typeof(o)) {
+					case TNull:
+						"Null";
+					case TInt:
+						"Int";
+					case TFloat:
+						"Float";
+					case TBool:
+						"Bool";
+					case _:
+						null;
+				};
 				if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
 					return redirect(o, f);
 				} else {
@@ -723,7 +734,18 @@ import haxe.PosInfos;
 			if( o == null ) error(EInvalidAccess(f));
 
 			var redirect:Dynamic->String->Dynamic->Dynamic = null;
-			var cl:String;
+			var cl:String = switch(Type.typeof(o)) {
+				case TNull:
+					"Null";
+				case TInt:
+					"Int";
+				case TFloat:
+					"Float";
+				case TBool:
+					"Bool";
+				case _:
+					null;
+			};
 			if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
 				return redirect(o, f, v);
 				
