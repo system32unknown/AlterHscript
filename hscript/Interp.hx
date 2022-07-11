@@ -26,6 +26,7 @@
  */
 package hscript;
 
+import haxe.EnumTools;
 import haxe.display.Protocol.InitializeResult;
 import haxe.PosInfos;
 import hscript.Expr;
@@ -40,6 +41,11 @@ private enum Stop {
 }
 
 class Interp {
+	public var scriptObject(default, set):Dynamic;
+	public function set_scriptObject(v:Dynamic) {
+		__instanceFields = Type.getInstanceFields(Type.getClass(v));
+		return scriptObject = v;
+	}
 	public var errorHandler:Error->Void;
 	#if haxe3
 	public var variables:Map<String, Dynamic>;
@@ -58,6 +64,7 @@ class Interp {
 	var declared:Array<{n:String, old:{r:Dynamic, depth:Int}, depth:Int}>;
 	var returnValue:Dynamic;
 
+	var __instanceFields:Array<String> = [];
 	#if hscriptPos
 	var curExpr:Expr;
 	#end
@@ -155,13 +162,28 @@ class Interp {
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
 				var l = locals.get(id);
-				if (l == null)
-					setVar(id, v)
-				else {
+				if (l == null) {
+					if (!variables.exists(id) && scriptObject != null) {
+						if (Type.typeof(scriptObject) == TObject) {
+							Reflect.setField(scriptObject, id, v);
+						} else {
+							if (__instanceFields.contains(id)) {
+								Reflect.setProperty(scriptObject, id, v);
+							} else if (__instanceFields.contains('set_$id')) { // setter
+								Reflect.getProperty(scriptObject, 'set_$id')(v);
+							} else {
+								setVar(id, v);
+							}
+						}
+					} else {
+						setVar(id, v);
+					}
+				} else {
 					l.r = v;
-					if (l.depth == 0) setVar(id, v);
+					if (l.depth == 0) {
+						setVar(id, v);
+					}
 				}
-					
 				// TODO
 			case EField(e, f):
 				v = set(expr(e), f, v);
@@ -343,8 +365,26 @@ class Interp {
 		if (l != null)
 			return l.r;
 		var v = variables.get(id);
-		if (v == null && !variables.exists(id) && doException)
-			error(EUnknownVariable(id));
+		if (v == null && !variables.exists(id)) {
+
+			if (scriptObject != null) {
+				// search in object
+				if (id == "this") {
+					return scriptObject;
+				} else if ((Type.typeof(scriptObject) == TObject) && Reflect.hasField(scriptObject, id)) {
+					return Reflect.field(scriptObject, id);
+				} else {
+					if (__instanceFields.contains(id)) {
+						return Reflect.getProperty(scriptObject, id);
+					} else if (__instanceFields.contains('get_$id')) { // getter
+						return Reflect.getProperty(scriptObject, 'get_$id')();
+					}
+				}
+			}
+			if (doException)
+				error(EUnknownVariable(id));
+			
+		}
 		return v;
 	}
 
