@@ -213,8 +213,15 @@ class Interp {
 			case EIdent(id):
 				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
-				if (l == null)
-					setVar(id, v)
+				if (l == null) {
+					if (__instanceFields.contains(id)) {
+						Reflect.setProperty(scriptObject, id, v);
+					} else if (__instanceFields.contains('set_$id')) { // setter
+						Reflect.getProperty(scriptObject, 'set_$id')(v);
+					} else {
+						setVar(id, v);
+					}
+				}
 				else
 					l.r = v;
 			case EField(e, f):
