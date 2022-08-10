@@ -324,6 +324,8 @@ class Interp {
 					returnValue = null;
 					return v;
 			}
+		} catch(e) {
+			error(ECustom('${e.toString()}'));
 		}
 		return null;
 	}
@@ -509,7 +511,12 @@ class Interp {
 				returnValue = e == null ? null : expr(e);
 				throw SReturn;
 			case EFunction(params, fexpr, name, _):
-				var capturedLocals = duplicate(locals);
+				var __capturedLocals = duplicate(locals);
+				var capturedLocals:Map<String, {r:Dynamic, depth:Int}> = [];
+				for(k=>e in __capturedLocals)
+					if (e != null && e.depth > 0)
+						capturedLocals.set(k, e);
+
 				var me = this;
 				var hasOpt = false, minParams = 0;
 				for (p in params)
