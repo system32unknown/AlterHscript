@@ -64,6 +64,8 @@ class Interp {
 	var declared:Array<{n:String, old:{r:Dynamic, depth:Int}, depth:Int}>;
 	var returnValue:Dynamic;
 
+	public var importEnabled:Bool = true;
+
 	var __instanceFields:Array<String> = [];
 	#if hscriptPos
 	var curExpr:Expr;
@@ -404,6 +406,8 @@ class Interp {
 		#end
 		switch (e) {
 			case EImport(c):
+				if (!importEnabled)
+					return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
 				var cl = Type.resolveClass(realClassName);
