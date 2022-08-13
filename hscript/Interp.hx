@@ -65,6 +65,9 @@ class Interp {
 	var returnValue:Dynamic;
 
 	public var importEnabled:Bool = true;
+	public var importBlocklist:Array<String> = [
+		// "flixel.FlxG"
+	];
 
 	var __instanceFields:Array<String> = [];
 	#if hscriptPos
@@ -410,6 +413,9 @@ class Interp {
 					return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
+
+				if (importBlocklist.contains(realClassName))
+					return null; 
 				var cl = Type.resolveClass(realClassName);
 				var en = Type.resolveEnum(realClassName);
 
