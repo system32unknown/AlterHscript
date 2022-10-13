@@ -283,7 +283,7 @@ class Parser {
 		case EUnop(_,prefix,e): !prefix && isBlock(e);
 		case EWhile(_,e): isBlock(e);
 		case EDoWhile(_,e): isBlock(e);
-		case EFor(_,_,_,e): isBlock(e);
+		case EFor(_,_,e): isBlock(e);
 		case EReturn(e): e != null && isBlock(e);
 		case ETry(_, _, _, e): isBlock(e);
 		case EMeta(_, _, e): isBlock(e);
@@ -534,8 +534,8 @@ class Parser {
 	function mapCompr( tmp : String, e : Expr ) {
 		if( e == null ) return null;
 		var edef = switch( expr(e) ) {
-		case EFor(k, v, it, e2):
-			EFor(k, v, it, mapCompr(tmp, e2));
+		case EFor(v, it, e2):
+			EFor(v, it, mapCompr(tmp, e2));
 		case EWhile(cond, e2):
 			EWhile(cond, mapCompr(tmp, e2));
 		case EDoWhile(cond, e2):
@@ -636,22 +636,11 @@ class Parser {
 		case "for":
 			ensure(TPOpen);
 			var vname = getIdent();
-			var key:String = null;
-			var tk = token();
-			switch(tk) {
-				case TOp("=>"):
-					key = vname;
-					vname = getIdent();
-					ensureToken(TId("in"));
-				case TId("in"):
-
-				default:
-					unexpected(tk);
-			}
+			ensureToken(TId("in"));
 			var eiter = parseExpr();
 			ensure(TPClose);
 			var e = parseExpr();
-			mk(EFor(key, vname,eiter,e),p1,pmax(e));
+			mk(EFor(vname,eiter,e),p1,pmax(e));
 		case "break": mk(EBreak);
 		case "continue": mk(EContinue);
 		case "else": unexpected(TId(id));

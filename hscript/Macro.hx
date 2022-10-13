@@ -196,7 +196,7 @@ class Macro {
 				EWhile(convert(c), convert(e), true);
 			case EDoWhile(c, e):
 				EWhile(convert(c), convert(e), false);
-			case EFor(k, v, it, efor):
+			case EFor(v, it, efor):
 				#if (haxe_ver >= 4)
 					var p = #if hscriptPos { file : p.file, min : e.pmin, max : e.pmax } #else p #end;
 					EFor({ expr : EBinop(OpIn,{ expr : EConst(CIdent(v)), pos : p },convert(it)), pos : p }, convert(efor));
