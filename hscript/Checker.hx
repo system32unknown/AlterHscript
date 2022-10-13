@@ -1078,7 +1078,7 @@ class Checker {
 				return et;
 			default:
 			}
-		case EFor(v, it, e):
+		case EFor(k, v, it, e):
 			var locals = saveLocals();
 			var itt = typeExpr(it, Value);
 			var vt = switch( follow(itt) ) {

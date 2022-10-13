@@ -172,6 +172,7 @@ class Interp {
 						if (Type.typeof(scriptObject) == TObject) {
 							Reflect.setField(scriptObject, id, v);
 						} else {
+							#if !web
 							if (__instanceFields.contains(id)) {
 								Reflect.setProperty(scriptObject, id, v);
 							} else if (__instanceFields.contains('set_$id')) { // setter
@@ -179,6 +180,13 @@ class Interp {
 							} else {
 								setVar(id, v);
 							}
+							#else
+							try {
+								Reflect.setProperty(scriptObject, id, v);
+							} catch(e) {
+								setVar(id, v);
+							}
+							#end
 						}
 					} else {
 						setVar(id, v);
@@ -219,6 +227,7 @@ class Interp {
 				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
 				if (l == null) {
+					#if !web
 					if (__instanceFields.contains(id)) {
 						Reflect.setProperty(scriptObject, id, v);
 					} else if (__instanceFields.contains('set_$id')) { // setter
@@ -226,6 +235,13 @@ class Interp {
 					} else {
 						setVar(id, v);
 					}
+					#else
+					try {
+						Reflect.setProperty(scriptObject, id, v);
+					} catch(e) {
+						setVar(id, v);
+					}
+					#end
 				}
 				else
 					l.r = v;
@@ -330,7 +346,7 @@ class Interp {
 					return v;
 			}
 		} catch(e) {
-			error(ECustom('${e.toString()}'));
+			error(ECustom('${Std.string(e)}'));
 		}
 		return null;
 	}
@@ -510,8 +526,8 @@ class Interp {
 			case EDoWhile(econd, e):
 				doWhileLoop(econd, e);
 				return null;
-			case EFor(v, it, e):
-				forLoop(v, it, e);
+			case EFor(k, v, it, e):
+				forLoop(k, v, it, e);
 				return null;
 			case EBreak:
 				throw SBreak;
@@ -751,24 +767,47 @@ class Interp {
 
 	function makeIterator(v:Dynamic):Iterator<Dynamic> {
 		#if ((flash && !flash9) || (php && !php7 && haxe_ver < '4.0.0'))
-		if (v.iterator != null)
-			v = v.iterator();
+		if (v.keyValueIterator != null)
+			v = v.keyValueIterator();
 		#else
 		try
-			v = v.iterator()
+			v = v.keyValueIterator()
 		catch (e:Dynamic) {};
 		#end
+		if (v.hasNext == null || v.next == null) {
+			#if ((flash && !flash9) || (php && !php7 && haxe_ver < '4.0.0'))
+			if (v.iterator != null)
+				v = v.iterator();
+			#else
+			try
+				v = v.iterator()
+			catch (e:Dynamic) {};
+			#end
+		}
 		if (v.hasNext == null || v.next == null)
 			error(EInvalidIterator(v));
 		return v;
 	}
 
-	function forLoop(n, it, e) {
+	function forLoop(k, n, it, e) {
 		var old = declared.length;
+		if (k != null) declared.push({n: k, old: locals.get(k), depth: depth});
 		declared.push({n: n, old: locals.get(n), depth: depth});
 		var it = makeIterator(expr(it));
 		while (it.hasNext()) {
-			locals.set(n, {r: it.next(), depth: depth});
+			var next = it.next();
+
+			if (k != null) {
+				if (next != null && next is Dynamic && Reflect.hasField(next, "key") && Reflect.hasField(next, "value")) {
+					trace("is key iterator");
+					locals.set(k, {r: next.key, depth: depth});
+					locals.set(n, {r: next.value, depth: depth});
+				} else {
+					error(EInvalidKeyValueIterator(Std.string(it)));
+					return;
+				}
+			} else
+				locals.set(n, {r: next, depth: depth});
 			try {
 				expr(e);
 			} catch (err:Stop) {
@@ -796,8 +835,8 @@ class Interp {
 		cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
 	}
 
-	public static var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
-	public static var setRedirects:Map<String, Dynamic->String->Dynamic->Dynamic> = [];
+	public static var getRedirects:Map<String, (Dynamic->String->Dynamic)> = [];
+	public static var setRedirects:Map<String, (Dynamic->String->Dynamic->Dynamic)> = [];
 
 	function get(o:Dynamic, f:String):Dynamic {
 		if (o == null)
@@ -816,12 +855,13 @@ class Interp {
 				case _:
 					null;
 			};
-			if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
+			var cla = Type.getClass(o);
+			if (cla != null && getRedirects.exists(cl = Type.getClassName(cla)) && (redirect = getRedirects[cl]) != null) {
 				return redirect(o, f);
 			} else {
 				var v = null;
-				if ((v = Reflect.getProperty(o, f)) == null)
-					v = Reflect.getProperty(Type.getClass(o), f);
+				if ((v = Reflect.getProperty(o, f)) == null && cla != null)
+					v = Reflect.getProperty(cla, f);
 				return v;
 			}
 		}
@@ -844,7 +884,8 @@ class Interp {
 			case _:
 				null;
 		};
-		if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
+		var cla = Type.getClass(o);
+		if (cla != null && setRedirects.exists(cl = Type.getClassName(cla)) && (redirect = setRedirects[cl]) != null)
 			return redirect(o, f, v);
 
 		Reflect.setProperty(o, f, v);
