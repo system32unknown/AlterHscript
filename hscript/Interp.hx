@@ -818,6 +818,9 @@ class Interp {
 			};
 			if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
 				return redirect(o, f);
+			} else if (o is IHScriptCustomBehaviour) {
+				var obj = cast(o, IHScriptCustomBehaviour);
+				return obj.hget(f);
 			} else {
 				var v = null;
 				if ((v = Reflect.getProperty(o, f)) == null)
@@ -846,6 +849,10 @@ class Interp {
 		};
 		if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
 			return redirect(o, f, v);
+		else if (o is IHScriptCustomBehaviour) {
+			var obj = cast(o, IHScriptCustomBehaviour);
+			return obj.hset(f, v);
+		} 
 
 		Reflect.setProperty(o, f, v);
 		return v;
