@@ -168,7 +168,12 @@ class Interp {
 	}
 
 	function setVar(name:String, v:Dynamic) {
-		variables.set(name, v);
+		if (staticVariables.exists(name))
+			staticVariables.set(name, v);
+		else if (publicVariables.exists(name))
+			publicVariables.set(name, v);
+		else
+			variables.set(name, v);
 	}
 
 	function assign(e1:Expr, e2:Expr):Dynamic {
