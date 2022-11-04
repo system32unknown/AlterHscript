@@ -70,6 +70,10 @@ class Interp {
 	var returnValue:Dynamic;
 
 	public var importEnabled:Bool = true;
+
+	public var allowStaticVariables:Bool = false;
+	public var allowPublicVariables:Bool = false;
+
 	public var importBlocklist:Array<String> = [
 		// "flixel.FlxG"
 	];
@@ -168,9 +172,9 @@ class Interp {
 	}
 
 	function setVar(name:String, v:Dynamic) {
-		if (staticVariables.exists(name))
+		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
-		else if (publicVariables.exists(name))
+		else if (allowPublicVariables && publicVariables.exists(name))
 			publicVariables.set(name, v);
 		else
 			variables.set(name, v);
@@ -608,7 +612,7 @@ class Interp {
 				if (name != null) {
 					if (depth == 0) {
 						// global function
-						(isStatic == true ? staticVariables : (isPublic ? publicVariables : variables)).set(name, f);
+						((isStatic && allowStaticVariables) ? staticVariables : ((isPublic && allowPublicVariables) ? publicVariables : variables)).set(name, f);
 					} else {
 						// function-in-function is a local function
 						declared.push({n: name, old: locals.get(name), depth: depth});
