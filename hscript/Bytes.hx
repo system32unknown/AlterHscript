@@ -140,6 +140,8 @@ class Bytes {
 		#end
 		bout.addByte(Type.enumIndex(e));
 		switch( e ) {
+		case EImport(c):
+			// TODO
 		case EConst(c):
 			doEncodeConst(c);
 		case EIdent(v):
