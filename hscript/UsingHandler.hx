@@ -94,8 +94,6 @@ class UsingHandler {
                     default:
                 }
 
-            var p = new Printer();
-            trace(p.printTypeDefinition(shadowClass));
             Context.defineModule(cl.module, [shadowClass], Context.getLocalImports());
         }
 
