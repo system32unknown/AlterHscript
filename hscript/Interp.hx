@@ -442,6 +442,9 @@ class Interp {
 				if (importBlocklist.contains(realClassName))
 					return null; 
 				var cl = Type.resolveClass(realClassName);
+				if (cl == null)
+					cl = Type.resolveClass('${realClassName}_HSC');
+
 				var en = Type.resolveEnum(realClassName);
 
 				if (cl == null && en == null) {
