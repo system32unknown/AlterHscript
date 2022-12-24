@@ -19,10 +19,6 @@ class UsingHandler {
         this.usedClass = usedClass;
     }
 
-    public function testingStuff() {
-
-    }
-
     public static function init() {
         Compiler.addGlobalMetadata('', '@:build(hscript.UsingHandler.build())');
     }
