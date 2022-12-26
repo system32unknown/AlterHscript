@@ -335,20 +335,31 @@ class Interp {
 
 	function exprReturn(e):Dynamic {
 		try {
-			return expr(e);
-		} catch (e:Stop) {
-			switch (e) {
-				case SBreak:
-					throw "Invalid break";
-				case SContinue:
-					throw "Invalid continue";
-				case SReturn:
-					var v = returnValue;
-					returnValue = null;
-					return v;
+			try {
+				return expr(e);
+			} catch (e:Stop) {
+				switch (e) {
+					case SBreak:
+						throw "Invalid break";
+					case SContinue:
+						throw "Invalid continue";
+					case SReturn:
+						var v = returnValue;
+						returnValue = null;
+						return v;
+				}
+			} catch(e) {
+				error(ECustom('${e.toString()}'));
+				return null;
 			}
+		} catch(e:Error) {
+			if (errorHandler != null)
+				errorHandler(e);
+			else 
+				throw e;
+			return null;
 		} catch(e) {
-			error(ECustom('${e.toString()}'));
+			trace(e);
 		}
 		return null;
 	}
@@ -374,9 +385,7 @@ class Interp {
 	inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
-		if (errorHandler != null)
-			errorHandler(e);
-		else if (rethrow) {
+		if (rethrow) {
 			this.rethrow(e);
 		} else {
 			throw e;
