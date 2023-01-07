@@ -20,7 +20,8 @@ class UsingHandler {
     }
 
     public static function init() {
-        Compiler.addGlobalMetadata('', '@:build(hscript.UsingHandler.build())');
+        Compiler.addGlobalMetadata('flixel', '@:build(hscript.UsingHandler.build())');
+        Compiler.addGlobalMetadata('openfl.display.BlendMode', '@:build(hscript.UsingHandler.build())');
     }
 
     public static function build():Array<Field> {
@@ -29,7 +30,7 @@ class UsingHandler {
         if (clRef == null) return fields;
         var cl = clRef.get();
 
-        if (cl.name.startsWith("Flx") && cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+        if (/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
             var metas = cl.meta.get();
 
             var shadowClass = macro class {
