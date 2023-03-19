@@ -23,6 +23,8 @@
 /*
  * YoshiCrafter Engine fixes:
  * - Added Error handler
+ * - Added Imports
+ * - Added @:bypassAccessor
  */
 package hscript;
 
@@ -68,6 +70,8 @@ class Interp {
 	var inTry:Bool;
 	var declared:Array<{n:String, old:{r:Dynamic, depth:Int}, depth:Int}>;
 	var returnValue:Dynamic;
+
+	var isBypassAccessor:Bool = false;
 
 	public var importEnabled:Bool = true;
 
@@ -355,7 +359,7 @@ class Interp {
 		} catch(e:Error) {
 			if (errorHandler != null)
 				errorHandler(e);
-			else 
+			else
 				throw e;
 			return null;
 		} catch(e) {
@@ -431,7 +435,6 @@ class Interp {
 			}
 			if (doException)
 				error(EUnknownVariable(id));
-			
 		}
 		return v;
 	}
@@ -449,7 +452,7 @@ class Interp {
 				var realClassName = splitClassName.join(".");
 
 				if (importBlocklist.contains(realClassName))
-					return null; 
+					return null;
 				var cl = Type.resolveClass(realClassName);
 				if (cl == null)
 					cl = Type.resolveClass('${realClassName}_HSC');
@@ -464,7 +467,15 @@ class Interp {
 						// ENUM!!!!
 						var enumThingy = {};
 						for (c in en.getConstructors()) {
-							Reflect.setField(enumThingy, c, en.createByName(c));
+							try {
+								Reflect.setField(enumThingy, c, en.createByName(c));
+							} catch(e) {
+								try {
+									Reflect.setField(enumThingy, c, Reflect.field(en, c));
+								} catch(ex) {
+									throw e;
+								}
+							}
 						}
 						variables.set(splitClassName[splitClassName.length - 1], enumThingy);
 					} else {
@@ -488,7 +499,8 @@ class Interp {
 			case EVar(n, _, e, isPublic, isStatic):
 				declared.push({n: n, old: locals.get(n), depth: depth});
 				locals.set(n, {r: (e == null) ? null : expr(e), depth: depth});
-				if (depth == 0) (isStatic == true ? staticVariables : (isPublic ? publicVariables : variables)).set(n, locals[n].r);
+				if (depth == 0)
+					(isStatic == true ? staticVariables : (isPublic ? publicVariables : variables)).set(n, locals[n].r);
 				return null;
 			case EParent(e):
 				return expr(e);
@@ -634,8 +646,16 @@ class Interp {
 					}
 				}
 				return f;
-			case EArrayDecl(arr):
-				if (arr.length > 0 && Tools.expr(arr[0]).match(EBinop("=>", _))) {
+			case EArrayDecl(arr, wantedType):
+				var isMap = false;
+				var isTypeMap = false;
+				if(!isMap && wantedType != null) {
+					isMap = wantedType.match(CTPath(["Map"], [_, _]));
+					isTypeMap = true;
+				} else {
+					isMap = arr.length > 0 && Tools.expr(arr[0]).match(EBinop("=>", _));
+				}
+				if (isMap) {
 					var isAllString:Bool = true;
 					var isAllInt:Bool = true;
 					var isAllObject:Bool = true;
@@ -657,6 +677,22 @@ class Interp {
 							default: throw("=> expected");
 						}
 					}
+
+					if(isTypeMap) {
+						if(wantedType != null) {
+							isAllString = wantedType.match(CTPath(["Map"], [CTPath(["String"], _), _]));
+							isAllInt = wantedType.match(CTPath(["Map"], [CTPath(["Int"], _), _]));
+							if(isAllString || isAllInt) {
+								isAllObject = false;
+								isAllEnum = false;
+							} else {
+								if(!isAllObject && !isAllEnum) {
+									throw("Unknown Type Key");
+								}
+							}
+						}
+					}
+
 					var map:Dynamic = {
 						if (isAllInt)
 							new haxe.ds.IntMap<Dynamic>();
@@ -742,8 +778,15 @@ class Interp {
 				if (!match)
 					val = def == null ? null : expr(def);
 				return val;
-			case EMeta(_, _, e):
-				return expr(e);
+			case EMeta(a, b, e):
+				var oldAccessor = isBypassAccessor;
+				if(a == ":bypassAccessor") {
+					isBypassAccessor = true;
+				}
+				var val = expr(e);
+
+				isBypassAccessor = oldAccessor;
+				return val;
 			case ECheckType(e, _):
 				return expr(e);
 		}
@@ -860,8 +903,15 @@ class Interp {
 				return obj.hget(f);
 			} else {
 				var v = null;
-				if ((v = Reflect.getProperty(o, f)) == null)
-					v = Reflect.getProperty(Type.getClass(o), f);
+				if(isBypassAccessor) {
+					if ((v = Reflect.field(o, f)) == null)
+						v = Reflect.field(Type.getClass(o), f);
+				}
+
+				if(v == null) {
+					if ((v = Reflect.getProperty(o, f)) == null)
+						v = Reflect.getProperty(Type.getClass(o), f);
+				}
 				return v;
 			}
 		}
@@ -889,9 +939,12 @@ class Interp {
 		else if (o is IHScriptCustomBehaviour) {
 			var obj = cast(o, IHScriptCustomBehaviour);
 			return obj.hset(f, v);
-		} 
-
-		Reflect.setProperty(o, f, v);
+		}
+		if(isBypassAccessor) {
+			Reflect.setField(o, f, v);
+		} else {
+			Reflect.setProperty(o, f, v);
+		}
 		return v;
 	}
 

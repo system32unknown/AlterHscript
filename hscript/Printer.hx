@@ -236,7 +236,7 @@ class Printer {
 			add("[");
 			expr(index);
 			add("]");
-		case EArrayDecl(el):
+		case EArrayDecl(el, _):
 			add("[");
 			var first = true;
 			for( e in el ) {

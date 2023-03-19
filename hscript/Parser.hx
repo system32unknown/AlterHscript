@@ -275,19 +275,19 @@ class Parser {
 	function isBlock(e) {
 		if( e == null ) return false;
 		return switch( expr(e) ) {
-		case EBlock(_), EObject(_), ESwitch(_): true;
-		case EFunction(_,e,_,_,_,_): isBlock(e);
-		case EVar(_, t, e, _,_): e != null ? isBlock(e) : t != null ? t.match(CTAnon(_)) : false;
-		case EIf(_,e1,e2): if( e2 != null ) isBlock(e2) else isBlock(e1);
-		case EBinop(_,_,e): isBlock(e);
-		case EUnop(_,prefix,e): !prefix && isBlock(e);
-		case EWhile(_,e): isBlock(e);
-		case EDoWhile(_,e): isBlock(e);
-		case EFor(_,_,e): isBlock(e);
-		case EReturn(e): e != null && isBlock(e);
-		case ETry(_, _, _, e): isBlock(e);
-		case EMeta(_, _, e): isBlock(e);
-		default: false;
+			case EBlock(_), EObject(_), ESwitch(_): true;
+			case EFunction(_,e,_,_,_,_): isBlock(e);
+			case EVar(_, t, e, _,_): e != null ? isBlock(e) : t != null ? t.match(CTAnon(_)) : false;
+			case EIf(_,e1,e2): if( e2 != null ) isBlock(e2) else isBlock(e1);
+			case EBinop(_,_,e): isBlock(e);
+			case EUnop(_,prefix,e): !prefix && isBlock(e);
+			case EWhile(_,e): isBlock(e);
+			case EDoWhile(_,e): isBlock(e);
+			case EFor(_,_,e): isBlock(e);
+			case EReturn(e): e != null && isBlock(e);
+			case ETry(_, _, _, e): isBlock(e);
+			case EMeta(_, _, e): isBlock(e);
+			default: false;
 		}
 	}
 
@@ -318,29 +318,29 @@ class Parser {
 			var tk = token();
 			var id = null;
 			switch( tk ) {
-			case TId(i): id = i;
-			case TConst(c):
-				if( !allowJSON )
+				case TId(i): id = i;
+				case TConst(c):
+					if( !allowJSON )
+						unexpected(tk);
+					switch( c ) {
+						case CString(s): id = s;
+						default: unexpected(tk);
+					}
+				case TBrClose:
+					break;
+				default:
 					unexpected(tk);
-				switch( c ) {
-				case CString(s): id = s;
-				default: unexpected(tk);
-				}
-			case TBrClose:
-				break;
-			default:
-				unexpected(tk);
-				break;
+					break;
 			}
 			ensure(TDoubleDot);
 			fl.push({ name : id, e : parseExpr() });
 			tk = token();
 			switch( tk ) {
-			case TBrClose:
-				break;
-			case TComma:
-			default:
-				unexpected(tk);
+				case TBrClose:
+					break;
+				case TComma:
+				default:
+					unexpected(tk);
 			}
 		}
 		return parseExprNext(mk(EObject(fl),p1));
@@ -372,27 +372,27 @@ class Parser {
 			var e = parseExpr();
 			tk = token();
 			switch( tk ) {
-			case TPClose:
-				return parseExprNext(mk(EParent(e),p1,tokenMax));
-			case TDoubleDot:
-				var t = parseType();
-				tk = token();
-				switch( tk ) {
 				case TPClose:
-					return parseExprNext(mk(ECheckType(e,t),p1,tokenMax));
+					return parseExprNext(mk(EParent(e),p1,tokenMax));
+				case TDoubleDot:
+					var t = parseType();
+					tk = token();
+					switch( tk ) {
+						case TPClose:
+							return parseExprNext(mk(ECheckType(e,t),p1,tokenMax));
+						case TComma:
+							switch( expr(e) ) {
+								case EIdent(v): return parseLambda([{ name : v, t : t }], pmin(e));
+								default:
+							}
+						default:
+					}
 				case TComma:
 					switch( expr(e) ) {
-					case EIdent(v): return parseLambda([{ name : v, t : t }], pmin(e));
-					default:
+						case EIdent(v): return parseLambda([{name:v}], pmin(e));
+						default:
 					}
 				default:
-				}
-			case TComma:
-				switch( expr(e) ) {
-				case EIdent(v): return parseLambda([{name:v}], pmin(e));
-				default:
-				}
-			default:
 			}
 			return unexpected(tk);
 		case TBrOpen:
@@ -417,9 +417,9 @@ class Parser {
 						push(tk2);
 						push(tk);
 						switch( tk2 ) {
-						case TDoubleDot:
-							return parseExprNext(parseObject(p1));
-						default:
+							case TDoubleDot:
+								return parseExprNext(parseObject(p1));
+							default:
 						}
 					default:
 						push(tk);
@@ -445,12 +445,12 @@ class Parser {
 				if( e == null )
 					return makeUnop(op,e);
 				switch( expr(e) ) {
-				case EConst(CInt(i)):
-					return mk(EConst(CInt(-i)), start, pmax(e));
-				case EConst(CFloat(f)):
-					return mk(EConst(CFloat(-f)), start, pmax(e));
-				default:
-					return makeUnop(op,e);
+					case EConst(CInt(i)):
+						return mk(EConst(CInt(-i)), start, pmax(e));
+					case EConst(CFloat(f)):
+						return mk(EConst(CFloat(-f)), start, pmax(e));
+					default:
+						return makeUnop(op,e);
 				}
 			}
 			if( opPriority.get(op) < 0 )
@@ -466,19 +466,19 @@ class Parser {
 				if( tk == TComma )
 					tk = token();
 			}
-			if( a.length == 1 && a[0] != null )
+			if( a.length == 1 && a[0] != null ) // What is this for???
 				switch( expr(a[0]) ) {
-				case EFor(_), EWhile(_), EDoWhile(_):
-					var tmp = "__a_" + (uid++);
-					var e = mk(EBlock([
-						mk(EVar(tmp, null, mk(EArrayDecl([]), p1)), p1),
-						mapCompr(tmp, a[0]),
-						mk(EIdent(tmp),p1),
-					]),p1);
-					return parseExprNext(e);
-				default:
+					case EFor(_), EWhile(_), EDoWhile(_):
+						var tmp = "__a_" + (uid++);
+						var e = mk(EBlock([
+							mk(EVar(tmp, null, mk(EArrayDecl([]), p1)), p1),
+							mapCompr(tmp, a[0]),
+							mk(EIdent(tmp),p1),
+						]),p1);
+						return parseExprNext(e);
+					default:
 				}
-			return parseExprNext(mk(EArrayDecl(a), p1));
+			return parseExprNext(mk(EArrayDecl(a, nextType), p1));
 		case TMeta(id) if( allowMetadata ):
 			var args = parseMetaArgs();
 			return mk(EMeta(id, args, parseExpr()),p1);
@@ -583,6 +583,7 @@ class Parser {
 
 	var nextIsStatic:Bool = false;
 	var nextIsPublic:Bool = false;
+	var nextType:CType = null;
 	function parseStructure(id, ?oldPos:Int) {
 		#if hscriptPos
 		var p1 = tokenMin;
@@ -653,15 +654,19 @@ class Parser {
 			var ident = getIdent();
 			var tk = token();
 			var t = null;
+			nextType = null;
 			if( tk == TDoubleDot && allowTypes ) {
 				t = parseType();
 				tk = token();
+
+				nextType = t;
 			}
 			var e = null;
 			if( Type.enumEq(tk,TOp("=")) )
 				e = parseExpr();
 			else
 				push(tk);
+			nextType = null;
 			mk(EVar(ident,t,e,nextIsPublic,nextIsStatic),p1,(e == null) ? tokenMax : pmax(e));
 		case "while":
 			var econd = parseExpr();
