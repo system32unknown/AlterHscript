@@ -15,7 +15,8 @@ class ClassExtendMacro {
 	public var usedClass:Class<Dynamic>;
 	public var className:String;
 
-	public static inline final CLASS_PREFIX = "_HX_SUPER__";
+	public static inline final FUNC_PREFIX = "_HX_SUPER__";
+	public static inline final CLASS_SUFFIX = "_HSX";
 
 	public function new(className:String, usedClass:Class<Dynamic>) {
 		this.className = className;
@@ -34,10 +35,12 @@ class ClassExtendMacro {
 		if (clRef == null) return fields;
 		var cl = clRef.get();
 
-		//return fields;
-
-		if (!cl.name.endsWith("_Impl_")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX)) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
 			var metas = cl.meta.get();
+
+			if(cl.params.length > 0) {
+				return fields;
+			}
 
 			var shadowClass = macro class {
 
@@ -56,18 +59,7 @@ class ClassExtendMacro {
 						name: "T" + Std.int(k+1)
 					}];
 			};
-			shadowClass.name = '${cl.name}_HSX'; // Hscript Extra
-
-			//trace(cast(cl.kind, TypeDefinition));
-
-			//var clk:TypeDefinition = cast cl.kind;
-
-			//trace(clk);
-			trace(cl.name, cl.kind.getName(), cl.kind.getParameters());
-
-			if(cl.params.length > 0) {
-				return fields;
-			}
+			shadowClass.name = cl.name + CLASS_SUFFIX; // Hscript Extra
 
 			var superClass:haxe.macro.TypePath = {
 				pack: cl.pack,
@@ -75,16 +67,16 @@ class ClassExtendMacro {
 				//params: shadowClass.params
 			}
 			shadowClass.kind = TDClass(superClass, [], false, false, false);
-			//shadowClass.extends
+
 			var newFuncNames = [];
 
 			for(f in fields)
 				switch(f.kind) {
 					case FFun(fun):
-						if (!f.access.contains(AStatic) && f.access.contains(AOverride)) {
+						if (!f.access.contains(AStatic) && f.name != "new" && !f.access.contains(ADynamic)) { /* || !cl.name.endsWith(CLASS_SUFFIX)*/
 							if (fun.expr != null) {
 								//trace(fun.expr);
-								var newFuncName = CLASS_PREFIX + f.name;
+								var newFuncName = FUNC_PREFIX + f.name;
 
 								var newAccess = f.access.copy();
 								var needsOverride = false;
@@ -106,54 +98,42 @@ class ClassExtendMacro {
 
 								var name = f.name;
 
-								trace("");
-								trace(fun.args);
+								//trace("");
+								///trace(fun.args);
 
-								var args:Array<String> = [];
+								var myFunc:Function = null;
 
-								//if(fun.args.length <= 1) {
-								//	if(fun.args.length == 1) {
-								//		if(!fun.args[0].type.match(TPath({name: "Float"}))) {
-								//			continue;
-								//		}
-								//	}
-								//}
+								if(fun.ret.match(TPath({name: "Void"}))) {
+									myFunc = {
+										expr: macro super.$name(),
+										ret: fun.ret,
+										args: fun.args,
+										params: fun.params,
+									};
 
-								for(arg in fun.args) {
-									args.push(arg.name);
+									var arguments = myFunc.expr.expr.getParameters()[1];
+
+									for(i=>arg in fun.args) {
+										arguments[i] = macro $i{arg.name};
+									}
+								} else {
+									myFunc = {
+										expr: macro return super.$name(),
+										ret: fun.ret,
+										args: fun.args,
+										params: fun.params,
+									};
+
+									var aa = myFunc.expr.expr.getParameters();
+									var aa:ExprDef = cast aa[0].expr;
+									var arguments = aa.getParameters()[1];
+
+									//trace(arguments);
+
+									for(i=>arg in fun.args) {
+										arguments[i] = macro $i{arg.name};
+									}
 								}
-
-								var myFunc:Function = /*fun.args.length > 0 ?
-								{
-									expr: macro return super.$name(
-										Width
-									),
-									//expr: macro return super.$name($b{[for(arg in fun.args) macro $v{arg.name} ]}),
-									ret: fun.ret,
-									args: fun.args
-								}
-								:*/{
-									expr: macro return super.$name(/*$a{[for(arg in fun.args) macro $i{arg.name}]}*/),//macro return super.$name(),
-									//expr: macro return $p{["super",name]}(/*$a{[for(arg in fun.args) macro $i{arg.name}]}*/),//macro return super.$name(),
-									ret: fun.ret,
-									args: fun.args
-								};
-
-								var aa = myFunc.expr;
-								var aa = aa.expr.getParameters();
-								var aa:ExprDef = cast aa[0].expr;
-								var arguments = aa.getParameters()[1];
-
-								trace(arguments);
-
-								for(i=>arg in fun.args) {
-									arguments[i] = macro $i{arg.name};
-								}
-
-								trace(arguments);
-
-								//expr: macro return super.$name(macro $p{args}),
-								// //macro return $p{["super", "super", name]}(),
 
 								newFuncNames.push(name);
 
@@ -163,41 +143,11 @@ class ClassExtendMacro {
 									meta: [],
 									access: newAccess,
 									kind: FFun(myFunc),
-									//kind: FVar(macro:String, macro "my default"),
 									pos: Context.currentPos()
 								};
 								shadowClass.fields.push(newField);
 							}
 						}
-					/*case FProp(get, set, t, e):
-						if (get == "default" && (set == "never" || set == "null"))
-							shadowClass.fields.push(f);*/
-					/*case FVar(t, e):
-						if (f.access.contains(AStatic) || cl.meta.has(":enum") || f.name.toUpperCase() == f.name) {
-							var name:String = f.name;
-							var enumType:String = cl.name;
-							var pack = cl.module.split(".");
-							pack.pop();
-							var complexType:ComplexType = t != null ? t : (name.contains("REGEX") ? TPath({
-								name: "EReg",
-								pack: []
-							}) : TPath({
-								name: cl.name.substr(0, cl.name.length - 6),
-								pack: pack}));
-							var field:Field = {
-								pos: f.pos,
-								name: f.name,
-								meta: f.meta,
-								kind: FVar(complexType, {
-									pos: Context.currentPos(),
-									expr: ECast(e, complexType)
-								}),
-								doc: f.doc,
-								access: [APublic, AStatic]
-							}
-
-							shadowClass.fields.push(field);
-						}*/
 					default:
 				}
 
