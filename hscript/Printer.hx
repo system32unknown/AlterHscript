@@ -116,6 +116,21 @@ class Printer {
 		switch( #if hscriptPos e.e #else e #end ) {
 		case EImport(c):
 			add("import " + c);
+		case EClass(name, fields, extend, interfaces):
+			add('class $name');
+			if (extend != null)
+				add(' extends $extend');
+			for(_interface in interfaces) {
+				add(' implements $_interface');
+			}
+			add(' {\n');
+			tabs += "\t";
+			//for(field in fields) {
+			//	expr(field);
+			//}
+
+			tabs = tabs.substr(1);
+			add("}");
 		case EConst(c):
 			switch( c ) {
 			case CInt(i): add(i);
@@ -124,7 +139,7 @@ class Printer {
 			}
 		case EIdent(v):
 			add(v);
-		case EVar(n, t, e):
+		case EVar(n, t, e): // TODO: static, public, override
 			add("var " + n);
 			addType(t);
 			if( e != null ) {
@@ -209,7 +224,7 @@ class Printer {
 			add("break");
 		case EContinue:
 			add("continue");
-		case EFunction(params, e, name, ret):
+		case EFunction(params, e, name, ret): // TODO: static, public, override
 			add("function");
 			if( name != null )
 				add(" " + name);

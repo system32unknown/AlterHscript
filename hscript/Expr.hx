@@ -57,7 +57,7 @@ enum Expr {
 	EFor( v : String, it : Expr, e : Expr );
 	EBreak;
 	EContinue;
-	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool);
+	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool);
 	EReturn( ?e : Expr );
 	EArray( e : Expr, index : Expr );
 	EArrayDecl( e : Array<Expr>, ?wantedType: CType);
@@ -70,7 +70,9 @@ enum Expr {
 	EDoWhile( cond : Expr, e : Expr);
 	EMeta( name : String, args : Array<Expr>, e : Expr );
 	ECheckType( e : Expr, t : CType );
+
 	EImport( c : String );
+	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
 }
 
 typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };

@@ -142,6 +142,8 @@ class Bytes {
 		switch( e ) {
 		case EImport(c):
 			// TODO
+		case EClass(_, _, _, _):
+			// TODO
 		case EConst(c):
 			doEncodeConst(c);
 		case EIdent(v):

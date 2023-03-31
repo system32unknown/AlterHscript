@@ -446,6 +446,9 @@ class Interp {
 		var e = e.e;
 		#end
 		switch (e) {
+			case EClass(name, fields, extend, interfaces):
+				trace(fields);
+				//trace(Printer.toString(fields));
 			case EImport(c):
 				if (!importEnabled)
 					return null;
@@ -570,7 +573,7 @@ class Interp {
 			case EReturn(e):
 				returnValue = e == null ? null : expr(e);
 				throw SReturn;
-			case EFunction(params, fexpr, name, _, isPublic, isStatic):
+			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride):
 				var __capturedLocals = duplicate(locals);
 				var capturedLocals:Map<String, {r:Dynamic, depth:Int}> = [];
 				for(k=>e in __capturedLocals)

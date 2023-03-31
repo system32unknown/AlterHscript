@@ -28,6 +28,7 @@ class Tools {
 		switch( expr(e) ) {
 		case EConst(_), EIdent(_):
 		case EImport(c): f(e);
+		case EClass(_, e, _, _): for( a in e ) f(a);
 		case EVar(_, _, e): if( e != null ) f(e);
 		case EParent(e): f(e);
 		case EBlock(el): for( e in el ) f(e);
@@ -89,6 +90,7 @@ class Tools {
 		case EMeta(name, args, e): EMeta(name, args == null ? null : [for( a in args ) f(a)], f(e));
 		case ECheckType(e,t): ECheckType(f(e), t);
 		case EImport(c): EImport(c);
+		case EClass(name, el, extend, interfaces): EClass(name, [for( e in el ) f(e)], extend, interfaces);
 		}
 		return mk(edef, e);
 	}

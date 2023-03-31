@@ -24,6 +24,7 @@ class ClassExtendMacro {
 	}
 
 	public static function init() {
+		//Compiler.addGlobalMetadata('funkin', '@:build(hscript.ClassExtendMacro.build())');
 		Compiler.addGlobalMetadata('flixel', '@:build(hscript.ClassExtendMacro.build())');
 		//Compiler.addGlobalMetadata('openfl.display.BlendMode', '@:build(hscript.UsingHandler.build())');
 		trace("TEST");
@@ -35,7 +36,7 @@ class ClassExtendMacro {
 		if (clRef == null) return fields;
 		var cl = clRef.get();
 
-		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX)) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("__Softcoded")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
 			var metas = cl.meta.get();
 
 			if(cl.params.length > 0) {
@@ -74,6 +75,7 @@ class ClassExtendMacro {
 				switch(f.kind) {
 					case FFun(fun):
 						if (!f.access.contains(AStatic) && f.name != "new" && !f.access.contains(ADynamic)) { /* || !cl.name.endsWith(CLASS_SUFFIX)*/
+							if (fun.params.length > 0) continue;
 							if (fun.expr != null) {
 								//trace(fun.expr);
 								var newFuncName = FUNC_PREFIX + f.name;
