@@ -121,6 +121,7 @@ enum Error {
 	EInvalidAccess( f : String );
 	ECustom( msg : String );
 	EInvalidClass( className : String);
+	EAlreadyExistingClass( className : String);
 }
 
 

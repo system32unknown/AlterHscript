@@ -359,6 +359,7 @@ class Printer {
 			case EInvalidAccess(f): "Invalid access to field " + f;
 			case ECustom(msg): msg;
 			case EInvalidClass(cla): "Invalid class: " + cla + " was not found.";
+			case EAlreadyExistingClass(cla): 'Custom Class named $cla already exists.';
 		};
 		#if hscriptPos
 		return e.origin + ":" + e.line + ": " + message;

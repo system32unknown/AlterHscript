@@ -52,6 +52,7 @@ class Interp {
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
 	#if haxe3
+	public var customClasses:Map<String, Dynamic>;
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
@@ -59,6 +60,7 @@ class Interp {
 	var locals:Map<String, {r:Dynamic, depth:Int}>;
 	var binops:Map<String, Expr->Expr->Dynamic>;
 	#else
+	public var customClasses:Hash<Dynamic>;
 	public var variables:Hash<Dynamic>;
 	public var publicVariables:Hash<Dynamic>;
 	public var staticVariables:Hash<Dynamic>;
@@ -101,10 +103,12 @@ class Interp {
 
 	private function resetVariables() {
 		#if haxe3
+		customClasses = new Map<String, Dynamic>();
 		variables = new Map<String, Dynamic>();
 		publicVariables = new Map<String, Dynamic>();
 		staticVariables = new Map<String, Dynamic>();
 		#else
+		customClasses = new Hash();
 		variables = new Hash();
 		publicVariables = new Hash();
 		staticVariables = new Hash();
@@ -174,6 +178,7 @@ class Interp {
 		assignOp("<<=", function(v1, v2) return v1 << v2);
 		assignOp(">>=", function(v1, v2) return v1 >> v2);
 		assignOp(">>>=", function(v1, v2) return v1 >>> v2);
+		assignOp("is", function(v1, v2) return Std.isOfType(v1, v2));
 	}
 
 	function setVar(name:String, v:Dynamic) {
@@ -407,36 +412,32 @@ class Interp {
 	}
 
 	function resolve(id:String, doException:Bool = true):Dynamic {
+		id = StringTools.trim(id);
 		var l = locals.get(id);
 		if (l != null)
 			return l.r;
 
 		var v = variables.get(id);
-		//  !publicVariables.exists(id)
-		if (staticVariables.exists(id)) {
-			return staticVariables.get(id);
-		} else if (publicVariables.exists(id)) {
-			return publicVariables.get(id);
-		} else if (variables.exists(id)) {
-			return variables.get(id);
-		} else {
-			if (scriptObject != null) {
-				// search in object
-				if (id == "this") {
-					return scriptObject;
-				} else if ((Type.typeof(scriptObject) == TObject) && Reflect.hasField(scriptObject, id)) {
-					return Reflect.field(scriptObject, id);
-				} else {
-					if (__instanceFields.contains(id)) {
-						return Reflect.getProperty(scriptObject, id);
-					} else if (__instanceFields.contains('get_$id')) { // getter
-						return Reflect.getProperty(scriptObject, 'get_$id')();
-					}
+		for(map in [customClasses, staticVariables, publicVariables, variables])
+			if (map.exists(id))
+				return map[id];
+
+		if (scriptObject != null) {
+			// search in object
+			if (id == "this") {
+				return scriptObject;
+			} else if ((Type.typeof(scriptObject) == TObject) && Reflect.hasField(scriptObject, id)) {
+				return Reflect.field(scriptObject, id);
+			} else {
+				if (__instanceFields.contains(id)) {
+					return Reflect.getProperty(scriptObject, id);
+				} else if (__instanceFields.contains('get_$id')) { // getter
+					return Reflect.getProperty(scriptObject, 'get_$id')();
 				}
 			}
-			if (doException)
-				error(EUnknownVariable(id));
 		}
+		if (doException)
+			error(EUnknownVariable(id));
 		return v;
 	}
 
@@ -448,10 +449,12 @@ class Interp {
 		switch (e) {
 			case EClass(name, fields, extend, interfaces):
 				trace(fields);
-				//trace(Printer.toString(fields));
 				for(field in fields) {
 					trace(Printer.toString(field));
 				}
+				if (customClasses.exists(name))
+					error(EAlreadyExistingClass(name));
+				customClasses.set(name, new CustomClassHandler(this, name, fields, extend, interfaces));
 			case EImport(c):
 				if (!importEnabled)
 					return null;
@@ -965,24 +968,13 @@ class Interp {
 
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
 		var cl:String = cast cl;
-		var c = Type.resolveClass(cl);
-		if (c == null) {
-			c = resolve(cl);
-
-			//if ((c is TemplateClassGenerator)) {
-			//	return Reflect.callMethod(c, c._hnew, args);
-			//}
-		}
-		return Type.createInstance(c, args);
+		var c:Dynamic = resolve(cl);
+		if (c == null)
+			c = Type.resolveClass(cl);
+		return (c is IHScriptCustomConstructor) ? cast(c, IHScriptCustomConstructor).hnew(args) : Type.createInstance(c, args);
 	}
 }
 
 class TemplateClass {
 
-}
-
-class TemplateClassGenerator {
-	function _hnew() {
-		
-	}
 }
