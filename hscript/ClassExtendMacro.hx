@@ -154,7 +154,7 @@ class ClassExtendMacro {
 				}
 
 			if(shadowClass.fields.length > 0) {
-				trace("Defining Class: " + shadowClass.name + " containing " + newFuncNames);
+				//trace("Defining Class: " + shadowClass.name + " containing " + newFuncNames);
 				Context.defineModule(cl.module, [shadowClass], Context.getLocalImports());
 			}
 		}

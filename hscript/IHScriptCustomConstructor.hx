@@ -1,5 +1,5 @@
 package hscript;
 
 interface IHScriptCustomConstructor {
-    public function hnew(args:Array<Dynamic>):Dynamic;
+	public function hnew(args:Array<Dynamic>):Dynamic;
 }

@@ -675,15 +675,15 @@ class Interp {
 					for (e in arr) {
 						switch (Tools.expr(e)) {
 							case EBinop("=>", eKey, eValue): {
-									var key:Dynamic = expr(eKey);
-									var value:Dynamic = expr(eValue);
-									isAllString = isAllString && (key is String);
-									isAllInt = isAllInt && (key is Int);
-									isAllObject = isAllObject && Reflect.isObject(key);
-									isAllEnum = isAllEnum && Reflect.isEnumValue(key);
-									keys.push(key);
-									values.push(value);
-								}
+								var key:Dynamic = expr(eKey);
+								var value:Dynamic = expr(eValue);
+								isAllString = isAllString && (key is String);
+								isAllInt = isAllInt && (key is Int);
+								isAllObject = isAllObject && Reflect.isObject(key);
+								isAllEnum = isAllEnum && Reflect.isEnumValue(key);
+								keys.push(key);
+								values.push(value);
+							}
 							default: throw("=> expected");
 						}
 					}
@@ -973,8 +973,4 @@ class Interp {
 			c = Type.resolveClass(cl);
 		return (c is IHScriptCustomConstructor) ? cast(c, IHScriptCustomConstructor).hnew(args) : Type.createInstance(c, args);
 	}
-}
-
-class TemplateClass {
-
 }
