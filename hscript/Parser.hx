@@ -277,6 +277,7 @@ class Parser {
 		return switch( expr(e) ) {
 			case EBlock(_), EObject(_), ESwitch(_): true;
 			case EFunction(_,e,_,_,_,_): isBlock(e);
+			case EClass(_,e,_,_): true;
 			case EVar(_, t, e, _,_): e != null ? isBlock(e) : t != null ? t.match(CTAnon(_)) : false;
 			case EIf(_,e1,e2): if( e2 != null ) isBlock(e2) else isBlock(e1);
 			case EBinop(_,_,e): isBlock(e);

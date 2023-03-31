@@ -449,6 +449,9 @@ class Interp {
 			case EClass(name, fields, extend, interfaces):
 				trace(fields);
 				//trace(Printer.toString(fields));
+				for(field in fields) {
+					trace(Printer.toString(field));
+				}
 			case EImport(c):
 				if (!importEnabled)
 					return null;
@@ -961,9 +964,25 @@ class Interp {
 	}
 
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
+		var cl:String = cast cl;
 		var c = Type.resolveClass(cl);
-		if (c == null)
+		if (c == null) {
 			c = resolve(cl);
+
+			//if ((c is TemplateClassGenerator)) {
+			//	return Reflect.callMethod(c, c._hnew, args);
+			//}
+		}
 		return Type.createInstance(c, args);
+	}
+}
+
+class TemplateClass {
+
+}
+
+class TemplateClassGenerator {
+	function _hnew() {
+		
 	}
 }
