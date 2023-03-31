@@ -50,6 +50,7 @@ class Interp {
 		return scriptObject = v;
 	}
 	public var errorHandler:Error->Void;
+	public var importFailedCallback:Array<String>->Bool;
 	#if haxe3
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
@@ -460,8 +461,8 @@ class Interp {
 				var en = Type.resolveEnum(realClassName);
 
 				if (cl == null && en == null) {
-					// LogsOverlay.trace('Class / Enum at $realClassName does not exist.');
-					error(EInvalidClass(realClassName));
+					if (importFailedCallback == null || !importFailedCallback(splitClassName))
+						error(EInvalidClass(realClassName));
 				} else {
 					if (en != null) {
 						// ENUM!!!!
