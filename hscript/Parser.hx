@@ -741,7 +741,6 @@ class Parser {
 			var inf = parseFunctionDecl();
 
 			var tk = token();
-			trace(tk);
 			push(tk);
 			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride),p1,pmax(inf.body));
 		case "import":
@@ -817,7 +816,6 @@ class Parser {
 									error(ECustom('Cannot extend a class twice.'), 0, 0);
 								}
 								extend = path.join(".");
-								trace(extend);
 							default:
 								error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
 						}
@@ -866,21 +864,10 @@ class Parser {
 			while( !maybe(TBrClose) ) {
 				if(token() == TSemicolon) continue;
 				var a = parseExpr();
-				//while( !maybe(TSemicolon) ) {
-				//	token();
-				//}
-				trace(Printer.toString(a));
 				fields.push(a);
 			}
 
-			trace("Parse Body", fields);
-
-			//trace(token());
-
-			//var body = parseExpr();
-			//ensure(TBrClose);
 			var tk = token();
-			trace(tk);
 			push(tk);
 			mk(EClass(name, fields, extend, interfaces), p1);
 

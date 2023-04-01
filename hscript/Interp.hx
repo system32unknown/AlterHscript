@@ -448,10 +448,6 @@ class Interp {
 		#end
 		switch (e) {
 			case EClass(name, fields, extend, interfaces):
-				trace(fields);
-				for(field in fields) {
-					trace(Printer.toString(field));
-				}
 				if (customClasses.exists(name))
 					error(EAlreadyExistingClass(name));
 				customClasses.set(name, new CustomClassHandler(this, name, fields, extend, interfaces));
