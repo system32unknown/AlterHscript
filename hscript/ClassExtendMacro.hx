@@ -1,12 +1,11 @@
 package hscript;
 
-import Type.ValueType;
+import haxe.macro.Type.ClassType;
 #if macro
-import haxe.macro.ComplexTypeTools;
+import Type.ValueType;
+import haxe.macro.Expr.Function;
 import haxe.macro.Expr;
-import haxe.macro.Context;
-import haxe.macro.Printer;
-import haxe.macro.Compiler;
+import haxe.macro.*;
 import Sys;
 
 using StringTools;
@@ -37,40 +36,16 @@ class ClassExtendMacro {
 		var cl = clRef.get();
 
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
-		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("__Softcoded")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("__Softcoded") && !cl.name.endsWith("_HSC")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
 			var metas = cl.meta.get();
-
-			var hasInterp = false;
+			
 			if(cl.params.length > 0) {
 				return fields;
-			} else if (cl.superClass != null) {
-				var sClass = cl;
-				var inModifiedModule = false;
-				while(sClass != null) {
-					if (sClass.superClass != null) {
-						if (sClass.superClass.params != null && sClass.superClass.params.length > 0)
-							return fields;
-						if (!inModifiedModule)
-							for(e in applyOn)
-								if (sClass.superClass.t.get().module.startsWith(e)) {
-									inModifiedModule = true;
-									hasInterp = true;
-									break;
-								}
-					}
-
-					if (!hasInterp)
-						for(f in sClass.fields.get())
-							if (f.name == "__interp") {
-								hasInterp = true;
-								break;
-							}
-					sClass = sClass.superClass != null ? sClass.superClass.t.get() : null;
-					
-				}
-				if (sClass != null)
-					return fields;
 			}
+			
+			var shadowClass = macro class {
+
+			};
 
 			for(f in fields.copy()) {
 				if (f.name == "new")
@@ -82,113 +57,247 @@ class ClassExtendMacro {
 
 				switch(f.kind) {
 					case FFun(fun):
-						var expr = fun.expr;
-						var newExpr = fun.ret.match(TPath({name: "Void"})) ? (macro {
-							var name = ${{
-								pos: Context.currentPos(),
-								expr: EConst(CString(f.name, DoubleQuotes))
-							}};
-							var v:Dynamic;
-							if (__interp != null && (v = __interp.resolve(name, false)) != null && Reflect.isFunction(v)) {
-								${{
-									expr: ECall({
-										pos: Context.currentPos(),
-										expr: EConst(CIdent("v"))
-									}, fun.args != null ? [for(a in fun.args) {
-										pos: Context.currentPos(),
-										expr: EConst(CIdent(a.name))
-									}] : []),
-									pos: Context.currentPos()
-								}}
-							}
-							else {
-								${{
-									expr: ECall({
-										pos: Context.currentPos(),
-										expr: EConst(CIdent('$FUNC_PREFIX${f.name}'))
-									}, fun.args != null ? [for(a in fun.args) {
-										pos: Context.currentPos(),
-										expr: EConst(CIdent(a.name))
-									}] : []),
-									pos: Context.currentPos()
-								}}
-							}
-						}) : (macro {
-							var name = ${{
-								pos: Context.currentPos(),
-								expr: EConst(CString(f.name, DoubleQuotes))
-							}};
-							var v:Dynamic;
-							if (__interp != null && (v = __interp.resolve(name, false)) != null && Reflect.isFunction(v)) {
-								return ${{
-									expr: ECall({
-										pos: Context.currentPos(),
-										expr: EConst(CIdent("v"))
-									}, fun.args != null ? [for(a in fun.args) {
-										pos: Context.currentPos(),
-										expr: EConst(CIdent(a.name))
-									}] : []),
-									pos: Context.currentPos()
-								}}
-							}
-							else {
-								return ${{
-									expr: ECall({
-										pos: Context.currentPos(),
-										expr: EConst(CIdent('$FUNC_PREFIX${f.name}'))
-									}, fun.args != null ? [for(a in fun.args) {
-										pos: Context.currentPos(),
-										expr: EConst(CIdent(a.name))
-									}] : []),
-									pos: Context.currentPos()
-								}}
-							}
-						});
-						fun.expr = newExpr;
+						if (fun.params != null && fun.params.length > 0)
+							continue;
 
-						if (f.access.contains(AOverride) && hasInterp)
-							cleanExpr(expr, f.name, '$FUNC_PREFIX${f.name}');	
+						var overrideExpr:Expr;
+						var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
+						
+						if (returns) {
+							overrideExpr = macro {
+								var name:String = ${{
+									expr: EConst(CString(f.name)),
+									pos: Context.currentPos()
+								}};
+								var v;
 
-						var newFunc:Function = {
-							args: fun.args,
-							ret: fun.ret,
-							params: fun.params,
-							expr: macro {
-								@:privateAccess
-								${expr}
-							}
+								if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
+									return ${{
+										expr: ECall({
+											pos: Context.currentPos(),
+											expr: EConst(CIdent("v"))
+										}, fun.args != null ? [for(a in fun.args) {
+											pos: Context.currentPos(),
+											expr: EConst(CIdent(a.name))
+										}] : []),
+										pos: Context.currentPos()
+									}}
+								}
+								return ${{
+										expr: ECall({
+											pos: Context.currentPos(),
+											expr: EField({
+												pos: Context.currentPos(),
+												expr: EConst(CIdent("super"))
+											}, f.name)
+										}, fun.args != null ? [for(a in fun.args) {
+											pos: Context.currentPos(),
+											expr: EConst(CIdent(a.name))
+										}] : []),
+										pos: Context.currentPos()
+									}}
+							};
+						} else {
+							overrideExpr = macro {
+								var name:String = ${{
+									expr: EConst(CString(f.name)),
+									pos: Context.currentPos()
+								}};
+								var v:Dynamic;
+
+								if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
+									${{
+										expr: ECall({
+											pos: Context.currentPos(),
+											expr: EConst(CIdent("v"))
+										}, fun.args != null ? [for(a in fun.args) {
+											pos: Context.currentPos(),
+											expr: EConst(CIdent(a.name))
+										}] : []),
+										pos: Context.currentPos()
+									}}
+								} else {
+									${{
+										expr: ECall({
+											pos: Context.currentPos(),
+											expr: EField({
+												pos: Context.currentPos(),
+												expr: EConst(CIdent("super"))
+											}, f.name)
+										}, fun.args != null ? [for(a in fun.args) {
+											pos: Context.currentPos(),
+											expr: EConst(CIdent(a.name))
+										}] : []),
+										pos: Context.currentPos()
+									}}
+								}
+							};
+						}
+
+						var superFuncExpr:Expr = returns ? (macro return ${{
+							expr: ECall({
+								pos: Context.currentPos(),
+								expr: EField({
+									pos: Context.currentPos(),
+									expr: EConst(CIdent("super"))
+								}, f.name)
+							}, fun.args != null ? [for(a in fun.args) {
+								pos: Context.currentPos(),
+								expr: EConst(CIdent(a.name))
+							}] : []),
+							pos: Context.currentPos()
+						}}) : {
+							expr: ECall({
+								pos: Context.currentPos(),
+								expr: EField({
+									pos: Context.currentPos(),
+									expr: EConst(CIdent("super"))
+								}, f.name)
+							}, fun.args != null ? [for(a in fun.args) {
+								pos: Context.currentPos(),
+								expr: EConst(CIdent(a.name))
+							}] : []),
+							pos: Context.currentPos()
 						};
 
-						fields.push({
-							name: '$FUNC_PREFIX${f.name}',
-							pos: f.pos,
-							kind: FFun(newFunc),
-							access: f.access.copy()
-						});
+						var func:Function = {
+							ret: fun.ret,
+							params: fun.params.copy(),
+							expr: overrideExpr,
+							args: fun.args.copy()
+						};
 
-						if (!hasInterp)
-							fields[fields.length - 1].access.remove(AOverride);
+						var overrideField:Field = {
+							name: f.name,
+							access: f.access.copy(),
+							kind: FFun(func),
+							pos: Context.currentPos(),
+							doc: f.doc,
+							meta: f.meta.copy()
+						};
+						
+						if (!overrideField.access.contains(AOverride))
+							overrideField.access.push(AOverride);
+
+						var superField:Field = {
+							name: '$FUNC_PREFIX${f.name}',
+							pos: Context.currentPos(),
+							kind: FFun({
+								ret: fun.ret,
+								params: fun.params.copy(),
+								expr: superFuncExpr,
+								args: fun.args.copy()
+							}),
+							access: f.access.copy()
+						};
+						if (superField.access.contains(AOverride))
+							superField.access.remove(AOverride);
+						shadowClass.fields.push(overrideField);
+						shadowClass.fields.push(superField);
 					default:
 						// fuck off >:(
 
 				}
 			}
 
-			if (!hasInterp) {
-				fields.push({
-					name: "__interp",
-					pos: Context.currentPos(),
-					kind: FVar(TPath({
-						pack: ['hscript'],
-						name: 'Interp'
-					}))
-				});
+			shadowClass.kind = TDClass({
+				pack: cl.pack.copy(),
+				name: cl.name
+			}, [], false, true, false);
+			shadowClass.name = '${cl.name}$CLASS_SUFFIX';
+			shadowClass.meta = [{
+				name: ':dox',
+				pos: Context.currentPos(),
+				params: [
+					{
+						expr: EConst(CIdent("hide")),
+						pos: Context.currentPos()
+					}
+				]
+			}];
+			var imports = Context.getLocalImports().copy();
+			var module = Context.getModule(Context.getLocalModule());
+			for(t in module) {
+				switch(t) {
+					case TInst(t, params):
+						if (t != null) {
+							var e = t.get();
+							processModule(shadowClass, e.module, e.name);
+							processImport(imports, e.module, e.name);
+						}
+					case TEnum(t, params):
+						if (t != null) {
+							var e = t.get();
+							processModule(shadowClass, e.module, e.name);
+							processImport(imports, e.module, e.name);
+						}
+					case TType(t, params):
+						if (t != null) {
+							var e = t.get();
+							processModule(shadowClass, e.module, e.name);
+							processImport(imports, e.module, e.name);
+						}
+					case TAbstract(t, params):
+						if (t != null) {
+							var e = t.get();
+							processModule(shadowClass, e.module, e.name);
+							processImport(imports, e.module, e.name);
+						}
+					default:
+						// not needed?
+				}
 			}
+
+			// var p = new Printer();
+			// trace(p.printTypeDefinition(shadowClass));
+
+			shadowClass.fields.push({
+				name: "__interp",
+				pos: Context.currentPos(),
+				kind: FVar(TPath({
+					pack: ['hscript'],
+					name: 'Interp'
+				}))
+			});
+
+			var t:ClassType;
+			Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
 		}
 
 		return fields;
 	}
 
+	public static function processModule(shadowClass:TypeDefinition, module:String, n:String) {
+		if (n.endsWith("_Impl_"))
+			n = n.substr(0, n.length - 6);
+		if (module.endsWith("_Impl_"))
+			module = module.substr(0, module.length - 6);
+		
+		shadowClass.meta.push(
+			{
+				name: ':access',
+				params: [
+					Context.parse(module.endsWith('.${n}') ? module : '${module}.${n}', Context.currentPos())
+				],
+				pos: Context.currentPos()
+			}
+		);
+	}
+	public static function processImport(imports:Array<ImportExpr>, module:String, n:String) {
+		if (n.endsWith("_Impl_"))
+			n = n.substr(0, n.length - 6);
+		if (module.endsWith("_Impl_"))
+			module = module.substr(0, module.length - 6);
+		
+		imports.push({
+			path: [for(m in module.split(".")) {
+				name: m,
+				pos: Context.currentPos()
+			}],
+			mode: INormal
+		});
+	}
+	
 	public static function cleanExpr(expr:Expr, oldFunc:String, newFunc:String) {
 		if (expr == null) return;
 		if (expr.expr == null) return;
