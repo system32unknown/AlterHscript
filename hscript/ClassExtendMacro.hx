@@ -18,6 +18,7 @@ class ClassExtendMacro {
 	public static inline final CLASS_SUFFIX = "_HSX";
 
 	public static var applyOn:Array<String> = ["flixel", "funkin"];
+	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass"];
 
 	public function new(className:String, usedClass:Class<Dynamic>) {
 		this.className = className;
@@ -25,6 +26,7 @@ class ClassExtendMacro {
 	}
 
 	public static function init() {
+		Compiler.addGlobalMetadata('funkin', '@:build(hscript.ClassExtendMacro.build())');
 		Compiler.addGlobalMetadata('flixel', '@:build(hscript.ClassExtendMacro.build())');
 		trace("TEST");
 	}
@@ -38,6 +40,10 @@ class ClassExtendMacro {
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
 		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("__Softcoded") && !cl.name.endsWith("_HSC")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
 			var metas = cl.meta.get();
+
+			for(m in metas)
+				if (unallowedMetas.contains(m.name))
+					return fields;
 			
 			if(cl.params.length > 0) {
 				return fields;
