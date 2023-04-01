@@ -24,11 +24,10 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 			interp.execute(expr);
 		}
 
-		var cl = extend == null ? TemplateClass : Type.resolveClass('${name}_HSX');
+		var cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
 		var _class = Type.createInstance(cl, args);
-		//interp.variables.set("this", interp.variables);
 
-		_class.interp = interp;
+		_class.__interp = interp;
 
 		var newFunc = interp.variables.get("new");
 		if(newFunc != null) {
@@ -49,23 +48,23 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 }
 
 class TemplateClass implements IHScriptCustomBehaviour {
-	public var interp:Interp;
+	public var __interp:Interp;
 
 	public function hset(name:String, val:Dynamic):Dynamic {
 		if(Reflect.hasField(this, name)) {
 			Reflect.setProperty(this, name, val);
 			return Reflect.getProperty(this, name); // Incase it overwrites the return value
 		}
-		if(this.interp.variables.exists("set_" + name)) {
-			return this.interp.variables.get("set_" + name)(val); // TODO: Prevent recursion from setting it in the function
+		if(this.__interp.variables.exists("set_" + name)) {
+			return this.__interp.variables.get("set_" + name)(val); // TODO: Prevent recursion from setting it in the function
 		}
-		this.interp.variables.set(name, val);
+		this.__interp.variables.set(name, val);
 		return val;
 	}
     public function hget(name:String):Dynamic {
 		if(Reflect.hasField(this, name)) {
 			return Reflect.getProperty(this, name);
 		}
-		return this.interp.variables.get(name);
+		return this.__interp.variables.get(name);
 	}
 }

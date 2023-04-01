@@ -411,7 +411,7 @@ class Interp {
 		#end
 	}
 
-	function resolve(id:String, doException:Bool = true):Dynamic {
+	public function resolve(id:String, doException:Bool = true):Dynamic {
 		id = StringTools.trim(id);
 		var l = locals.get(id);
 		if (l != null)
