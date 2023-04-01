@@ -26,8 +26,10 @@ class ClassExtendMacro {
 	}
 
 	public static function init() {
+		#if !display
 		Compiler.addGlobalMetadata('funkin', '@:build(hscript.ClassExtendMacro.build())');
 		Compiler.addGlobalMetadata('flixel', '@:build(hscript.ClassExtendMacro.build())');
+		#end
 	}
 
 	public static function build():Array<Field> {
