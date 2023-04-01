@@ -109,7 +109,6 @@ class Parser {
 
 	#end
 
-
 	public function new() {
 		line = 1;
 		opChars = "+*/-=!><&|^%~";
@@ -125,7 +124,8 @@ class Parser {
 			["&&"],
 			["||"],
 			["=","+=","-=","*=","/=","%=","<<=",">>=",">>>=","|=","&=","^=","=>"],
-			["->"]
+			["->"],
+			["is"]
 		];
 		#if haxe3
 		opPriority = new Map();

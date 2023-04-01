@@ -28,7 +28,6 @@ class ClassExtendMacro {
 	public static function init() {
 		Compiler.addGlobalMetadata('funkin', '@:build(hscript.ClassExtendMacro.build())');
 		Compiler.addGlobalMetadata('flixel', '@:build(hscript.ClassExtendMacro.build())');
-		trace("TEST");
 	}
 
 	public static function build():Array<Field> {
@@ -44,11 +43,11 @@ class ClassExtendMacro {
 			for(m in metas)
 				if (unallowedMetas.contains(m.name))
 					return fields;
-			
+
 			if(cl.params.length > 0) {
 				return fields;
 			}
-			
+
 			var shadowClass = macro class {
 
 			};
@@ -68,26 +67,28 @@ class ClassExtendMacro {
 
 						var overrideExpr:Expr;
 						var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
-						
+
 						if (returns) {
 							overrideExpr = macro {
 								var name:String = ${{
 									expr: EConst(CString(f.name)),
 									pos: Context.currentPos()
 								}};
-								var v;
+								var v:Dynamic = null;
 
-								if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
-									return ${{
-										expr: ECall({
-											pos: Context.currentPos(),
-											expr: EConst(CIdent("v"))
-										}, fun.args != null ? [for(a in fun.args) {
-											pos: Context.currentPos(),
-											expr: EConst(CIdent(a.name))
-										}] : []),
-										pos: Context.currentPos()
-									}}
+								if (__interp != null) {
+									if (__interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
+										return ${{
+											expr: ECall({
+												pos: Context.currentPos(),
+												expr: EConst(CIdent("v"))
+											}, fun.args != null ? [for(a in fun.args) {
+												pos: Context.currentPos(),
+												expr: EConst(CIdent(a.name))
+											}] : []),
+											pos: Context.currentPos()
+										}}
+									}
 								}
 								return ${{
 										expr: ECall({
@@ -109,34 +110,36 @@ class ClassExtendMacro {
 									expr: EConst(CString(f.name)),
 									pos: Context.currentPos()
 								}};
-								var v:Dynamic;
+								var v:Dynamic = null;
 
-								if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
-									${{
-										expr: ECall({
-											pos: Context.currentPos(),
-											expr: EConst(CIdent("v"))
-										}, fun.args != null ? [for(a in fun.args) {
-											pos: Context.currentPos(),
-											expr: EConst(CIdent(a.name))
-										}] : []),
-										pos: Context.currentPos()
-									}}
-								} else {
-									${{
-										expr: ECall({
-											pos: Context.currentPos(),
-											expr: EField({
+								if (__interp != null) {
+									if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
+										${{
+											expr: ECall({
 												pos: Context.currentPos(),
-												expr: EConst(CIdent("super"))
-											}, f.name)
-										}, fun.args != null ? [for(a in fun.args) {
-											pos: Context.currentPos(),
-											expr: EConst(CIdent(a.name))
-										}] : []),
-										pos: Context.currentPos()
-									}}
+												expr: EConst(CIdent("v"))
+											}, fun.args != null ? [for(a in fun.args) {
+												pos: Context.currentPos(),
+												expr: EConst(CIdent(a.name))
+											}] : []),
+											pos: Context.currentPos()
+										}}
+										return;
+									}
 								}
+								${{
+									expr: ECall({
+										pos: Context.currentPos(),
+										expr: EField({
+											pos: Context.currentPos(),
+											expr: EConst(CIdent("super"))
+										}, f.name)
+									}, fun.args != null ? [for(a in fun.args) {
+										pos: Context.currentPos(),
+										expr: EConst(CIdent(a.name))
+									}] : []),
+									pos: Context.currentPos()
+								}}
 							};
 						}
 
@@ -278,7 +281,7 @@ class ClassExtendMacro {
 			n = n.substr(0, n.length - 6);
 		if (module.endsWith("_Impl_"))
 			module = module.substr(0, module.length - 6);
-		
+
 		shadowClass.meta.push(
 			{
 				name: ':access',
@@ -299,7 +302,7 @@ class ClassExtendMacro {
 		module = fixModuleName(module);
 		if (module.endsWith("_Impl_"))
 			module = module.substr(0, module.length - 6);
-		
+
 		imports.push({
 			path: [for(m in module.split(".")) {
 				name: m,
@@ -308,7 +311,7 @@ class ClassExtendMacro {
 			mode: INormal
 		});
 	}
-	
+
 	public static function cleanExpr(expr:Expr, oldFunc:String, newFunc:String) {
 		if (expr == null) return;
 		if (expr.expr == null) return;

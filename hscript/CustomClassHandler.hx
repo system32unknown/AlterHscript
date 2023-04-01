@@ -21,7 +21,8 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		interp.errorHandler = ogInterp.errorHandler;
 
 		for(expr in fields) {
-			interp.execute(expr);
+			@:privateAccess
+			interp.exprReturn(expr);
 		}
 
 		var cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
