@@ -810,17 +810,17 @@ class Parser {
 				var t = token();
 				switch( t ) {
 					case TId("extends"):
-						t = token();
-						if(extend != null) {
-							unexpected(tk);
-						} else {
-							switch (tk) {
-								case TId(id): extend = id;
-								default: unexpected(tk);
-							}
+						var e = parseType();
+						switch(e) {
+							case CTPath(path, params):
+								if(extend != null) {
+									error(ECustom('Cannot extend a class twice.'), 0, 0);
+								}
+								extend = path.join(".");
+								trace(extend);
+							default:
+								error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
 						}
-					//case TId("implements"):
-					//	implement.push(t);
 					default:
 						push(t);
 						break;

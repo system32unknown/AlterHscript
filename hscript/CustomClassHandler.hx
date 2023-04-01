@@ -28,6 +28,7 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		var _class = Type.createInstance(cl, args);
 
 		_class.__interp = interp;
+		interp.scriptObject = _class;
 
 		var newFunc = interp.variables.get("new");
 		if(newFunc != null) {
