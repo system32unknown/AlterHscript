@@ -175,7 +175,7 @@ class ClassExtendMacro {
 							doc: f.doc,
 							meta: f.meta.copy()
 						};
-						
+
 						if (!overrideField.access.contains(AOverride))
 							overrideField.access.push(AOverride);
 
@@ -277,15 +277,20 @@ class ClassExtendMacro {
 			{
 				name: ':access',
 				params: [
-					Context.parse(module.endsWith('.${n}') ? module : '${module}.${n}', Context.currentPos())
+					Context.parse(fixModuleName(module.endsWith('.${n}') ? module : '${module}.${n}'), Context.currentPos())
 				],
 				pos: Context.currentPos()
 			}
 		);
 	}
+
+	public static function fixModuleName(name:String) {
+		return [for(s in name.split(".")) if (s.charAt(0) == "_") s.substr(1) else s].join(".");
+	}
 	public static function processImport(imports:Array<ImportExpr>, module:String, n:String) {
 		if (n.endsWith("_Impl_"))
 			n = n.substr(0, n.length - 6);
+		module = fixModuleName(module);
 		if (module.endsWith("_Impl_"))
 			module = module.substr(0, module.length - 6);
 		
