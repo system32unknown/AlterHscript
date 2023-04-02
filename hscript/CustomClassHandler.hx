@@ -38,7 +38,6 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 		for(variable => value in interp.variables) {
 			if(variable == "this") continue;
-			trace(variable, value, Reflect.isFunction(value));
 		}
 
 		return _class;
