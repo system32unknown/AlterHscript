@@ -1,6 +1,8 @@
 package hscript;
 
 class CustomClassHandler implements IHScriptCustomConstructor {
+	public static var staticHandler = new StaticHandler();
+
 	public var ogInterp:Interp;
 	public var name:String;
 	public var fields:Array<Expr>;
@@ -27,6 +29,8 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 		var cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
 		var _class = Type.createInstance(cl, args);
+
+		interp.variables.set("super", staticHandler);
 
 		_class.__interp = interp;
 		interp.scriptObject = _class;
@@ -68,4 +72,8 @@ class TemplateClass implements IHScriptCustomBehaviour {
 		}
 		return this.__interp.variables.get(name);
 	}
+}
+
+class StaticHandler {
+	public function new() {}
 }

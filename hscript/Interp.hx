@@ -955,10 +955,16 @@ class Interp {
 	}
 
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		if(o == CustomClassHandler.staticHandler && scriptObject != null) {
+			return Reflect.callMethod(scriptObject, Reflect.field(scriptObject, "_HX_SUPER__" + f), args);
+		}
 		return call(o, get(o, f), args);
 	}
 
 	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
+		if(f == CustomClassHandler.staticHandler) {
+			return null;
+		}
 		return Reflect.callMethod(o, f, args);
 	}
 
