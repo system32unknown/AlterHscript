@@ -590,6 +590,8 @@ class Interp {
 					else
 						minParams++;
 				var f = function(args:Array<Dynamic>) {
+					if (me.locals == null || me.variables == null) return null;
+
 					if (((args == null) ? 0 : args.length) != params.length) {
 						if (args.length < minParams) {
 							var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
