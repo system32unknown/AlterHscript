@@ -162,7 +162,7 @@ class Interp {
 		binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
 		binops.set("=", assign);
 		binops.set("??", function(e1, e2) {
-			var expr1:Dynamic = me.expr(e1); // I dont think most people have the new haxe syntax so im being safe
+			var expr1:Dynamic = me.expr(e1);
 			return expr1 == null ? me.expr(e2) : expr1;
 		});
 		binops.set("...", function(e1, e2) return new
@@ -183,6 +183,7 @@ class Interp {
 		assignOp(">>=", function(v1, v2) return v1 >> v2);
 		assignOp(">>>=", function(v1, v2) return v1 >>> v2);
 		assignOp("is", function(v1, v2) return Std.isOfType(v1, v2));
+		assignOp("??=", function(v1, v2) return v1 == null ? v2 : v1);
 	}
 
 	function setVar(name:String, v:Dynamic) {

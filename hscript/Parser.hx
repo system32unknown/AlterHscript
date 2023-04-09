@@ -124,8 +124,8 @@ class Parser {
 			["..."],
 			["&&"],
 			["||"],
-			["=","+=","-=","*=","/=","%=","<<=",">>=",">>>=","|=","&=","^=","=>"],
-			["->"],
+			["=","+=","-=","*=","/=","%=","<<=",">>=",">>>=","|=","&=","^=","=>","??="],
+			["->", "??"],
 			["is"]
 		];
 		#if haxe3
@@ -1749,10 +1749,18 @@ class Parser {
 			case "'".code, '"'.code: return TConst( CString(readString(char)) );
 			case "?".code:
 				char = readChar();
-				if( char == '?'.code )
-					return TOp("??");
-				else if ( char == '.'.code )
-					return TQuestionDot;
+				switch (char) {
+					case '?'.code:
+						var orp = readPos;
+						if (readChar() == '='.code)
+							return TOp("??=");
+
+						this.readPos = orp;
+						return TOp("??");
+					case '.'.code:
+						return TQuestionDot;
+				}
+					
 				this.char = char;
 				return TQuestion;
 			case ":".code: return TDoubleDot;
