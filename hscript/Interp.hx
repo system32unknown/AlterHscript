@@ -521,8 +521,11 @@ class Interp {
 					v = expr(e);
 				restore(old);
 				return v;
-			case EField(e, f):
-				return get(expr(e), f);
+			case EField(e, f, s):
+				var field = expr(e);
+				if(s && field == null)
+					return null;
+				return get(field, f);
 			case EBinop(op, e1, e2):
 				var fop = binops.get(op);
 				if (fop == null)
@@ -553,10 +556,12 @@ class Interp {
 					args.push(expr(p));
 
 				switch (Tools.expr(e)) {
-					case EField(e, f):
+					case EField(e, f, s):
 						var obj = expr(e);
-						if (obj == null)
+						if (obj == null) {
+							if(s) return null;
 							error(EInvalidAccess(f));
+						}
 						return fcall(obj, f, args);
 					default:
 						return call(null, expr(e), args);

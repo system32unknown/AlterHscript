@@ -45,10 +45,10 @@ enum Expr {
 #end
 	EConst( c : Const );
 	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool);
+	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool );
 	EParent( e : Expr );
 	EBlock( e : Array<Expr> );
-	EField( e : Expr, f : String , ?safe : Bool);
+	EField( e : Expr, f : String , ?safe : Bool );
 	EBinop( op : String, e1 : Expr, e2 : Expr );
 	EUnop( op : String, prefix : Bool, e : Expr );
 	ECall( e : Expr, params : Array<Expr> );
@@ -57,22 +57,22 @@ enum Expr {
 	EFor( v : String, it : Expr, e : Expr );
 	EBreak;
 	EContinue;
-	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool);
+	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool );
 	EReturn( ?e : Expr );
 	EArray( e : Expr, index : Expr );
-	EArrayDecl( e : Array<Expr>, ?wantedType: CType);
+	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
 	ENew( cl : String, params : Array<Expr> );
 	EThrow( e : Expr );
 	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
 	EObject( fl : Array<{ name : String, e : Expr }> );
 	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
-	ESwitch( e : Expr, cases : Array<{ values : Array<Expr>, expr : Expr }>, ?defaultExpr : Expr);
+	ESwitch( e : Expr, cases : Array<{ values : Array<Expr>, expr : Expr }>, ?defaultExpr : Expr );
 	EDoWhile( cond : Expr, e : Expr);
 	EMeta( name : String, args : Array<Expr>, e : Expr );
 	ECheckType( e : Expr, t : CType );
 
 	EImport( c : String );
-	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
+	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String> );
 }
 
 typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };

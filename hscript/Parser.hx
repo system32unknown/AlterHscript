@@ -1018,7 +1018,7 @@ class Parser {
 				return makeBinop(op,e1,parseExpr());
 			case TDot | TQuestionDot:
 				var field = getIdent();
-				return parseExprNext(mk(EField(e1,field),pmin(e1)));
+				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
 			case TPOpen:
 				return parseExprNext(mk(ECall(e1,parseExprList(TPClose)),pmin(e1)));
 			case TBkOpen:
