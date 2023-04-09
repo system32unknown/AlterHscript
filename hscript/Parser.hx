@@ -32,6 +32,7 @@ enum Token {
 	TBrOpen;
 	TBrClose;
 	TDot;
+	TQuestionDot;
 	TComma;
 	TSemicolon;
 	TBkOpen;
@@ -897,7 +898,7 @@ class Parser {
 				return parseExprNext(mk(EUnop(op,false,e1),pmin(e1)));
 			}
 			return makeBinop(op,e1,parseExpr());
-		case TDot:
+		case TDot | TQuestionDot:
 			var field = getIdent();
 			return parseExprNext(mk(EField(e1,field),pmin(e1)));
 		case TPOpen:
@@ -1583,7 +1584,14 @@ class Parser {
 			case "[".code: return TBkOpen;
 			case "]".code: return TBkClose;
 			case "'".code, '"'.code: return TConst( CString(readString(char)) );
-			case "?".code: return TQuestion;
+			case "?".code:
+				char = readChar();
+				if( char == '?'.code )
+					return TOp("??");
+				else if ( char == '.'.code )
+					return TQuestionDot;
+				this.char = char;
+				return TQuestion;
 			case ":".code: return TDoubleDot;
 			case '='.code:
 				char = readChar();
@@ -1811,6 +1819,7 @@ class Parser {
 		case TBrOpen: "{";
 		case TBrClose: "}";
 		case TDot: ".";
+		case TQuestionDot: "?.";
 		case TComma: ",";
 		case TSemicolon: ";";
 		case TBkOpen: "[";

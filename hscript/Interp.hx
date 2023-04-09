@@ -157,6 +157,10 @@ class Interp {
 		binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
 		binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
 		binops.set("=", assign);
+		binops.set("??", function(e1, e2) {
+			var expr1:Dynamic = me.expr(e1); // I dont think most people have the new haxe syntax so im being safe
+			return expr1 == null ? me.expr(e2) : expr1;
+		});
 		binops.set("...", function(e1, e2) return new
 			#if (haxe_211 || haxe3)
 			IntIterator

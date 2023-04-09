@@ -48,7 +48,7 @@ enum Expr {
 	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool);
 	EParent( e : Expr );
 	EBlock( e : Array<Expr> );
-	EField( e : Expr, f : String );
+	EField( e : Expr, f : String , ?safe : Bool);
 	EBinop( op : String, e1 : Expr, e2 : Expr );
 	EUnop( op : String, prefix : Bool, e : Expr );
 	ECall( e : Expr, params : Array<Expr> );
