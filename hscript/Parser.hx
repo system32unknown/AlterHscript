@@ -1780,7 +1780,7 @@ class Parser {
 					case '.'.code:
 						return TQuestionDot;
 				}
-					
+
 				this.char = char;
 				return TQuestion;
 			case ":".code: return TDoubleDot;
@@ -1872,6 +1872,21 @@ class Parser {
 			push(TPOpen);
 			parseExpr();
 		case TId(id):
+			while(true) {
+				var tk = token();
+				if(tk == TDot) {
+					id += ".";
+					tk = token();
+					switch(tk) {
+						case TId(id2):
+							id += id2;
+						default: unexpected(tk);
+					}
+				} else {
+					push(tk);
+					break;
+				}
+			}
 			mk(EIdent(id), tokenMin, tokenMax);
 		case TOp("!"):
 			mk(EUnop("!", true, parsePreproCond()), tokenMin, tokenMax);
@@ -1884,6 +1899,14 @@ class Parser {
 		switch( expr(e) ) {
 		case EIdent(id):
 			return preprocValue(id) != null;
+		case EField(e2, f):
+			switch(expr(e2)) {
+				case EIdent(id):
+					return preprocValue(id + "." + f) != null;
+				default:
+					error(EInvalidPreprocessor("Can't eval " + expr(e).getName() + " with " + expr(e2).getName()), readPos, readPos);
+					return false;
+			}
 		case EUnop("!", _, e):
 			return !evalPreproCond(e);
 		case EParent(e):
@@ -1937,6 +1960,7 @@ class Parser {
 		var pos = readPos;
 		while( true ) {
 			var tk = token();
+			// TODO: Fix ending in with #end in the file
 			if( tk == TEof )
 				error(EInvalidPreprocessor("Unclosed"), pos, pos);
 			if( preprocStack[spos] != obj ) {
