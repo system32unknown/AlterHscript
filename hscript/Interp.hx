@@ -57,7 +57,7 @@ class Interp {
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
 
-	var locals:Map<String, {r:Dynamic, depth:Int}>;
+	public var locals:Map<String, {r:Dynamic, depth:Int}>;
 	var binops:Map<String, Expr->Expr->Dynamic>;
 	#else
 	public var customClasses:Hash<Dynamic>;
@@ -65,7 +65,7 @@ class Interp {
 	public var publicVariables:Hash<Dynamic>;
 	public var staticVariables:Hash<Dynamic>;
 
-	var locals:Hash<{r:Dynamic, depth:Int}>;
+	public var locals:Hash<{r:Dynamic, depth:Int}>;
 	var binops:Hash<Expr->Expr->Dynamic>;
 	#end
 
@@ -379,7 +379,7 @@ class Interp {
 		return null;
 	}
 
-	function duplicate<T>(h:#if haxe3 Map<String, T> #else Hash<T> #end) {
+	public function duplicate<T>(h:#if haxe3 Map<String, T> #else Hash<T> #end) {
 		#if haxe3
 		var h2 = new Map();
 		#else

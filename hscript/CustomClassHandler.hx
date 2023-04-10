@@ -22,13 +22,34 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 		interp.errorHandler = ogInterp.errorHandler;
 
+		var cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
+		var _class = Type.createInstance(cl, args);
+
+		var __capturedLocals = ogInterp.duplicate(ogInterp.locals);
+		var capturedLocals:Map<String, {r:Dynamic, depth:Int}> = [];
+		for(k=>e in __capturedLocals)
+			if (e != null && e.depth <= 0)
+				capturedLocals.set(k, e);
+
+		//trace("Locals");
+		for (key => value in capturedLocals) {
+			if(Reflect.getProperty(_class, key) == null) {
+				interp.locals.set(key, {r: value, depth: -1});
+				//trace(key, value);
+			}
+		}
+		//trace("Variables");
+		for (key => value in ogInterp.variables) {
+			if(Reflect.getProperty(_class, key) == null) {
+				interp.variables.set(key, value);
+				//trace(key, value);
+			}
+		}
+
 		for(expr in fields) {
 			@:privateAccess
 			interp.exprReturn(expr);
 		}
-
-		var cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
-		var _class = Type.createInstance(cl, args);
 
 		interp.variables.set("super", staticHandler);
 
