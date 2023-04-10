@@ -631,6 +631,10 @@ class Parser {
 					var str = parseStructure("var"); // override var
 					nextIsOverride = false;
 					str;
+				case TId("final"):
+					var str = parseStructure("final"); // override final
+					nextIsOverride = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsOverride = false;
@@ -654,6 +658,10 @@ class Parser {
 					str;
 				case TId("var"):
 					var str = parseStructure("var"); // static var
+					nextIsStatic = false;
+					str;
+				case TId("final"):
+					var str = parseStructure("final"); // static final
 					nextIsStatic = false;
 					str;
 				default:
@@ -681,12 +689,16 @@ class Parser {
 					var str = parseStructure("var"); // public var
 					nextIsPublic = false;
 					str;
+				case TId("final"):
+					var str = parseStructure("final"); // public final
+					nextIsPublic = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsPublic = false;
 					null;
 			}
-		case "var":
+		case "var" | "final":
 			var ident = getIdent();
 			var tk = token();
 			var t = null;
@@ -1201,6 +1213,14 @@ class Parser {
 						case TId("var"):
 							var name = getIdent();
 							ensure(TDoubleDot);
+							fields.push( { name : name, t : parseType(), meta : meta } );
+							meta = null;
+							ensure(TSemicolon);
+						case TId("final"):
+							var name = getIdent();
+							ensure(TDoubleDot);
+							if( meta == null ) meta = [];
+							meta.push({ name : ":final", params : [] });
 							fields.push( { name : name, t : parseType(), meta : meta } );
 							meta = null;
 							ensure(TSemicolon);
