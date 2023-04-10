@@ -1,5 +1,7 @@
 package hscript;
 
+using StringTools;
+
 class CustomClassHandler implements IHScriptCustomConstructor {
 	public static var staticHandler = new StaticHandler();
 
@@ -31,16 +33,18 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 			if (e != null && e.depth <= 0)
 				capturedLocals.set(k, e);
 
+		var disallowCopy = Type.getInstanceFields(cl);
+
 		//trace("Locals");
 		for (key => value in capturedLocals) {
-			if(Reflect.getProperty(_class, key) == null) {
+			if(!disallowCopy.contains(key)) {
 				interp.locals.set(key, {r: value, depth: -1});
 				//trace(key, value);
 			}
 		}
 		//trace("Variables");
 		for (key => value in ogInterp.variables) {
-			if(Reflect.getProperty(_class, key) == null) {
+			if(!disallowCopy.contains(key)) {
 				interp.variables.set(key, value);
 				//trace(key, value);
 			}
@@ -77,21 +81,22 @@ class TemplateClass implements IHScriptCustomBehaviour {
 	public var __interp:Interp;
 
 	public function hset(name:String, val:Dynamic):Dynamic {
-		if(Reflect.hasField(this, name)) {
-			Reflect.setProperty(this, name, val);
-			return Reflect.getProperty(this, name); // Incase it overwrites the return value
-		}
 		if(this.__interp.variables.exists("set_" + name)) {
 			return this.__interp.variables.get("set_" + name)(val); // TODO: Prevent recursion from setting it in the function
 		}
-		this.__interp.variables.set(name, val);
-		return val;
-	}
-    public function hget(name:String):Dynamic {
-		if(Reflect.hasField(this, name)) {
-			return Reflect.getProperty(this, name);
+		if (this.__interp.variables.exists(name)) {
+			this.__interp.variables.set(name, val);
+			return val;
 		}
-		return this.__interp.variables.get(name);
+		Reflect.setProperty(this, name, val);
+		return Reflect.field(this, name);
+	}
+	public function hget(name:String):Dynamic {
+		if(this.__interp.variables.exists("get_" + name))
+			return this.__interp.variables.get("get_" + name)();
+		if (this.__interp.variables.exists(name))
+			return this.__interp.variables.get(name);
+		return Reflect.getProperty(this, name);
 	}
 }
 

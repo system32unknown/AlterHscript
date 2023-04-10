@@ -62,6 +62,8 @@ class ClassExtendMacro {
 				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline))
 					continue;
 
+				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes
+
 				switch(f.kind) {
 					case FFun(fun):
 						if (fun.params != null && fun.params.length > 0)
@@ -178,6 +180,8 @@ class ClassExtendMacro {
 							args: fun.args.copy()
 						};
 
+						//trace(func.args);
+
 						var overrideField:Field = {
 							name: f.name,
 							access: f.access.copy(),
@@ -214,7 +218,9 @@ class ClassExtendMacro {
 			shadowClass.kind = TDClass({
 				pack: cl.pack.copy(),
 				name: cl.name
-			}, [], false, true, false);
+			}, [
+				{name: "IHScriptCustomBehaviour", pack: ["hscript"]}
+			], false, true, false);
 			shadowClass.name = '${cl.name}$CLASS_SUFFIX';
 			shadowClass.meta = [{
 				name: ':dox',
@@ -271,7 +277,142 @@ class ClassExtendMacro {
 				}))
 			});
 
-			var t:ClassType;
+			// Todo: get this working
+			if(cl.name == "FunkinShader" || cl.name == "CustomShader" || cl.name == "MultiThreadedScript") {
+				Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
+				return fields;
+			}
+
+			var hasHgetInSuper = false;
+			var hasHsetInSuper = false;
+
+			if(cl.name == "CustomShader") {
+				hasHgetInSuper = hasHsetInSuper = true;
+			}
+
+			// TODO: somehow check the super super class
+			for(f in fields.copy()) {
+				if (f.name == "new")
+					continue;
+				if (f.name.startsWith(FUNC_PREFIX))
+					continue;
+				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern))
+					continue;
+
+				switch(f.kind) {
+					case FFun(fun):
+						if (fun.params != null && fun.params.length > 0)
+							continue;
+
+						if(!hasHgetInSuper)
+							hasHgetInSuper = f.name == "hget";
+						if(!hasHsetInSuper)
+							hasHsetInSuper = f.name == "hset";
+
+						if(hasHgetInSuper && hasHsetInSuper)
+							break;
+					default:
+
+				}
+			}
+
+			var hgetField = if(hasHgetInSuper) {
+				macro {
+					if(this.__interp.variables.exists("get_" + name))
+						return this.__interp.variables.get("get_" + name)();
+					if (this.__interp.variables.exists(name))
+						return this.__interp.variables.get(name);
+					return super.hget(name);
+				}
+			} else {
+				macro {
+					if(this.__interp.variables.exists("get_" + name))
+						return this.__interp.variables.get("get_" + name)();
+					if (this.__interp.variables.exists(name))
+						return this.__interp.variables.get(name);
+					return Reflect.getProperty(this, name);
+				}
+			}
+
+			var hsetField = if(hasHsetInSuper) {
+				macro {
+					if(this.__interp.variables.exists("set_" + name)) {
+						return this.__interp.variables.get("set_" + name)(val); // TODO: Prevent recursion from setting it in the function
+					}
+					if (this.__interp.variables.exists(name)) {
+						this.__interp.variables.set(name, val);
+						return val;
+					}
+					return super.hset(this, name);
+				}
+			} else {
+				macro {
+					if(this.__interp.variables.exists("set_" + name)) {
+						return this.__interp.variables.get("set_" + name)(val); // TODO: Prevent recursion from setting it in the function
+					}
+					if (this.__interp.variables.exists(name)) {
+						this.__interp.variables.set(name, val);
+						return val;
+					}
+					Reflect.setProperty(this, name, val);
+					return Reflect.field(this, name);
+				}
+			}
+
+			//if(hasHsetInSuper || hasHgetInSuper) return fields;
+
+			//trace(cl.name);
+
+			shadowClass.fields.push({
+				name: "hset",
+				pos: Context.currentPos(),
+				access: hasHsetInSuper ? [AOverride, APublic] : [APublic],
+				kind: FFun({
+					ret: TPath({name: 'Dynamic', pack: []}),
+					params: [],
+					expr: hsetField,
+					args: [
+						{
+							name: "name",
+							opt: false,
+							meta: [],
+							type: TPath({name: "String", pack: []})
+						},
+						{
+							name: "val",
+							opt: false,
+							meta: [],
+							type: TPath({name: "Dynamic", pack: []})
+						}
+					]
+				})
+			});
+
+			shadowClass.fields.push({
+				name: "hget",
+				pos: Context.currentPos(),
+				access: hasHgetInSuper ? [AOverride, APublic] : [APublic],
+				kind: FFun({
+					ret: TPath({name: 'Dynamic', pack: []}),
+					params: [],
+					expr: hgetField,
+					args: [
+						{
+							name: "name",
+							opt: false,
+							meta: [],
+							type: TPath({name: "String", pack: []})
+						}
+					]
+				})
+			});
+
+			/*var p = new Printer();
+			var aa = p.printTypeDefinition(shadowClass);
+			//if(aa.indexOf("pack") >= 0)
+			if(cl.name == "FunkinShader")
+			trace(aa);*/
+
 			Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
 		}
 
