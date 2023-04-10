@@ -423,7 +423,7 @@ class Interp {
 			return l.r;
 
 		var v = variables.get(id);
-		for(map in [customClasses, staticVariables, publicVariables, variables])
+		for(map in [variables, publicVariables, staticVariables, customClasses])
 			if (map.exists(id))
 				return map[id];
 
@@ -510,8 +510,15 @@ class Interp {
 			case EVar(n, _, e, isPublic, isStatic):
 				declared.push({n: n, old: locals.get(n), depth: depth});
 				locals.set(n, {r: (e == null) ? null : expr(e), depth: depth});
-				if (depth == 0)
-					(isStatic == true ? staticVariables : (isPublic ? publicVariables : variables)).set(n, locals[n].r);
+				if (depth == 0) {
+					if(isStatic == true) {
+						if(!staticVariables.exists(n)) {
+							staticVariables.set(n, locals[n].r);
+						}
+						return null;
+					}
+					(isPublic ? publicVariables : variables).set(n, locals[n].r);
+				}
 				return null;
 			case EParent(e):
 				return expr(e);
