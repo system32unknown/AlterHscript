@@ -161,6 +161,10 @@ class Interp {
 		binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
 		binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
 		binops.set("=", assign);
+		binops.set("??", function(e1, e2) {
+			var expr1:Dynamic = me.expr(e1);
+			return expr1 == null ? me.expr(e2) : expr1;
+		});
 		binops.set("...", function(e1, e2) return new
 			#if (haxe_211 || haxe3)
 			IntIterator
@@ -179,6 +183,7 @@ class Interp {
 		assignOp(">>=", function(v1, v2) return v1 >> v2);
 		assignOp(">>>=", function(v1, v2) return v1 >>> v2);
 		assignOp("is", function(v1, v2) return Std.isOfType(v1, v2));
+		assignOp("??=", function(v1, v2) return v1 == null ? v2 : v1);
 	}
 
 	function setVar(name:String, v:Dynamic) {
@@ -418,7 +423,7 @@ class Interp {
 			return l.r;
 
 		var v = variables.get(id);
-		for(map in [customClasses, staticVariables, publicVariables, variables])
+		for(map in [variables, publicVariables, staticVariables, customClasses])
 			if (map.exists(id))
 				return map[id];
 
@@ -505,8 +510,15 @@ class Interp {
 			case EVar(n, _, e, isPublic, isStatic):
 				declared.push({n: n, old: locals.get(n), depth: depth});
 				locals.set(n, {r: (e == null) ? null : expr(e), depth: depth});
-				if (depth == 0)
-					(isStatic == true ? staticVariables : (isPublic ? publicVariables : variables)).set(n, locals[n].r);
+				if (depth == 0) {
+					if(isStatic == true) {
+						if(!staticVariables.exists(n)) {
+							staticVariables.set(n, locals[n].r);
+						}
+						return null;
+					}
+					(isPublic ? publicVariables : variables).set(n, locals[n].r);
+				}
 				return null;
 			case EParent(e):
 				return expr(e);
@@ -517,8 +529,11 @@ class Interp {
 					v = expr(e);
 				restore(old);
 				return v;
-			case EField(e, f):
-				return get(expr(e), f);
+			case EField(e, f, s):
+				var field = expr(e);
+				if(s && field == null)
+					return null;
+				return get(field, f);
 			case EBinop(op, e1, e2):
 				var fop = binops.get(op);
 				if (fop == null)
@@ -549,10 +564,12 @@ class Interp {
 					args.push(expr(p));
 
 				switch (Tools.expr(e)) {
-					case EField(e, f):
+					case EField(e, f, s):
 						var obj = expr(e);
-						if (obj == null)
+						if (obj == null) {
+							if(s) return null;
 							error(EInvalidAccess(f));
+						}
 						return fcall(obj, f, args);
 					default:
 						return call(null, expr(e), args);

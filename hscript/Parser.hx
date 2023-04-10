@@ -32,6 +32,7 @@ enum Token {
 	TBrOpen;
 	TBrClose;
 	TDot;
+	TQuestionDot;
 	TComma;
 	TSemicolon;
 	TBkOpen;
@@ -123,8 +124,8 @@ class Parser {
 			["..."],
 			["&&"],
 			["||"],
-			["=","+=","-=","*=","/=","%=","<<=",">>=",">>>=","|=","&=","^=","=>"],
-			["->"],
+			["=","+=","-=","*=","/=","%=","<<=",">>=",">>>=","|=","&=","^=","=>","??="],
+			["->", "??"],
 			["is"]
 		];
 		#if haxe3
@@ -630,6 +631,10 @@ class Parser {
 					var str = parseStructure("var"); // override var
 					nextIsOverride = false;
 					str;
+				case TId("final"):
+					var str = parseStructure("final"); // override final
+					nextIsOverride = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsOverride = false;
@@ -653,6 +658,10 @@ class Parser {
 					str;
 				case TId("var"):
 					var str = parseStructure("var"); // static var
+					nextIsStatic = false;
+					str;
+				case TId("final"):
+					var str = parseStructure("final"); // static final
 					nextIsStatic = false;
 					str;
 				default:
@@ -680,12 +689,16 @@ class Parser {
 					var str = parseStructure("var"); // public var
 					nextIsPublic = false;
 					str;
+				case TId("final"):
+					var str = parseStructure("final"); // public final
+					nextIsPublic = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsPublic = false;
 					null;
 			}
-		case "var":
+		case "var" | "final":
 			var ident = getIdent();
 			var tk = token();
 			var t = null;
@@ -1015,9 +1028,9 @@ class Parser {
 					return parseExprNext(mk(EUnop(op,false,e1),pmin(e1)));
 				}
 				return makeBinop(op,e1,parseExpr());
-			case TDot:
+			case TDot | TQuestionDot:
 				var field = getIdent();
-				return parseExprNext(mk(EField(e1,field),pmin(e1)));
+				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
 			case TPOpen:
 				return parseExprNext(mk(ECall(e1,parseExprList(TPClose)),pmin(e1)));
 			case TBkOpen:
@@ -1200,6 +1213,14 @@ class Parser {
 						case TId("var"):
 							var name = getIdent();
 							ensure(TDoubleDot);
+							fields.push( { name : name, t : parseType(), meta : meta } );
+							meta = null;
+							ensure(TSemicolon);
+						case TId("final"):
+							var name = getIdent();
+							ensure(TDoubleDot);
+							if( meta == null ) meta = [];
+							meta.push({ name : ":final", params : [] });
 							fields.push( { name : name, t : parseType(), meta : meta } );
 							meta = null;
 							ensure(TSemicolon);
@@ -1598,6 +1619,7 @@ class Parser {
 					switch( char ) {
 					case 48,49,50,51,52,53,54,55,56,57:
 						n = n * 10 + (char - 48);
+					case '_'.code:
 					case "e".code, "E".code:
 						var tk = token();
 						var pow : Null<Int> = null;
@@ -1641,6 +1663,7 @@ class Parser {
 								n = (n << 4) + (char - 55);
 							case 97,98,99,100,101,102: // a-f
 								n = (n << 4) + (char - 87);
+							case '_'.code:
 							default:
 								this.char = char;
 								return TConst(CInt(n));
@@ -1657,9 +1680,45 @@ class Parser {
 								n = haxe.Int32.add(haxe.Int32.shl(n,4), cast (char - 55));
 							case 97,98,99,100,101,102: // a-f
 								n = haxe.Int32.add(haxe.Int32.shl(n,4), cast (char - 87));
+							case '_'.code:
 							default:
 								this.char = char;
 								// we allow to parse hexadecimal Int32 in Neko, but when the value will be
+								// evaluated by Interpreter, a failure will occur if no Int32 operation is
+								// performed
+								var v = try CInt(haxe.Int32.toInt(n)) catch( e : Dynamic ) CInt32(n);
+								return TConst(v);
+							}
+						}
+						#end
+					case "b".code: // Custom thing, not supported in haxe
+						if( n > 0 || exp > 0 )
+							invalidChar(char);
+						// read binary
+						#if haxe3
+						var n = 0;
+						while( true ) {
+							char = readChar();
+							switch( char ) {
+							case 48,49: // 0-1
+								n = (n << 1) + char - 48;
+							case '_'.code:
+							default:
+								this.char = char;
+								return TConst(CInt(n));
+							}
+						}
+						#else
+						var n = haxe.Int32.ofInt(0);
+						while( true ) {
+							char = readChar();
+							switch( char ) {
+							case 48,49: // 0-1
+								n = haxe.Int32.add(haxe.Int32.shl(n,1), cast (char - 48));
+							case '_'.code:
+							default:
+								this.char = char;
+								// we allow to parse binary Int32 in Neko, but when the value will be
 								// evaluated by Interpreter, a failure will occur if no Int32 operation is
 								// performed
 								var v = try CInt(haxe.Int32.toInt(n)) catch( e : Dynamic ) CInt32(n);
@@ -1708,7 +1767,22 @@ class Parser {
 			case "[".code: return TBkOpen;
 			case "]".code: return TBkClose;
 			case "'".code, '"'.code: return TConst( CString(readString(char)) );
-			case "?".code: return TQuestion;
+			case "?".code:
+				char = readChar();
+				switch (char) {
+					case '?'.code:
+						var orp = readPos;
+						if (readChar() == '='.code)
+							return TOp("??=");
+
+						this.readPos = orp;
+						return TOp("??");
+					case '.'.code:
+						return TQuestionDot;
+				}
+					
+				this.char = char;
+				return TQuestion;
 			case ":".code: return TDoubleDot;
 			case '='.code:
 				char = readChar();
@@ -1936,6 +2010,7 @@ class Parser {
 		case TBrOpen: "{";
 		case TBrClose: "}";
 		case TDot: ".";
+		case TQuestionDot: "?.";
 		case TComma: ",";
 		case TSemicolon: ";";
 		case TBkOpen: "[";
