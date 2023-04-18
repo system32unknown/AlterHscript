@@ -222,48 +222,8 @@ class ClassExtendMacro {
 				{name: "IHScriptCustomBehaviour", pack: ["hscript"]}
 			], false, true, false);
 			shadowClass.name = '${cl.name}$CLASS_SUFFIX';
-			shadowClass.meta = [{
-				name: ':dox',
-				pos: Context.currentPos(),
-				params: [
-					{
-						expr: EConst(CIdent("hide")),
-						pos: Context.currentPos()
-					}
-				]
-			}];
 			var imports = Context.getLocalImports().copy();
-			var module = Context.getModule(Context.getLocalModule());
-			for(t in module) {
-				switch(t) {
-					case TInst(t, params):
-						if (t != null) {
-							var e = t.get();
-							processModule(shadowClass, e.module, e.name);
-							processImport(imports, e.module, e.name);
-						}
-					case TEnum(t, params):
-						if (t != null) {
-							var e = t.get();
-							processModule(shadowClass, e.module, e.name);
-							processImport(imports, e.module, e.name);
-						}
-					case TType(t, params):
-						if (t != null) {
-							var e = t.get();
-							processModule(shadowClass, e.module, e.name);
-							processImport(imports, e.module, e.name);
-						}
-					case TAbstract(t, params):
-						if (t != null) {
-							var e = t.get();
-							processModule(shadowClass, e.module, e.name);
-							processImport(imports, e.module, e.name);
-						}
-					default:
-						// not needed?
-				}
-			}
+			setupMetas(shadowClass, imports);
 
 			// var p = new Printer();
 			// trace(p.printTypeDefinition(shadowClass));
@@ -417,6 +377,50 @@ class ClassExtendMacro {
 		}
 
 		return fields;
+	}
+
+	public static function setupMetas(shadowClass:TypeDefinition, imports) {
+		shadowClass.meta = [{
+			name: ':dox',
+			pos: Context.currentPos(),
+			params: [
+				{
+					expr: EConst(CIdent("hide")),
+					pos: Context.currentPos()
+				}
+			]
+		}];
+		var module = Context.getModule(Context.getLocalModule());
+		for(t in module) {
+			switch(t) {
+				case TInst(t, params):
+					if (t != null) {
+						var e = t.get();
+						processModule(shadowClass, e.module, e.name);
+						processImport(imports, e.module, e.name);
+					}
+				case TEnum(t, params):
+					if (t != null) {
+						var e = t.get();
+						processModule(shadowClass, e.module, e.name);
+						processImport(imports, e.module, e.name);
+					}
+				case TType(t, params):
+					if (t != null) {
+						var e = t.get();
+						processModule(shadowClass, e.module, e.name);
+						processImport(imports, e.module, e.name);
+					}
+				case TAbstract(t, params):
+					if (t != null) {
+						var e = t.get();
+						processModule(shadowClass, e.module, e.name);
+						processImport(imports, e.module, e.name);
+					}
+				default:
+					// not needed?
+			}
+		}
 	}
 
 	public static function processModule(shadowClass:TypeDefinition, module:String, n:String) {

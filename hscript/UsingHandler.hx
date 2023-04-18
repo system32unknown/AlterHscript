@@ -34,8 +34,9 @@ class UsingHandler {
 			var metas = cl.meta.get();
 
 			var shadowClass = macro class {
-				
+
 			};
+			shadowClass.kind = TDClass();
 			shadowClass.params = switch(cl.params.length) {
 				case 0:
 					null;
@@ -51,6 +52,9 @@ class UsingHandler {
 					}];
 			};
 			shadowClass.name = '${cl.name.substr(0, cl.name.length - 6)}_HSC';
+
+			var imports = Context.getLocalImports().copy();
+			ClassExtendMacro.setupMetas(shadowClass, imports);
 
 			for(f in fields)
 				switch(f.kind) {
@@ -85,13 +89,13 @@ class UsingHandler {
 								doc: f.doc,
 								access: [APublic, AStatic]
 							}
-							
+
 							shadowClass.fields.push(field);
 						}
 					default:
 				}
 
-			Context.defineModule(cl.module, [shadowClass], Context.getLocalImports());
+			Context.defineModule(cl.module + "_HSC", [shadowClass], imports);
 		}
 
 		return fields;

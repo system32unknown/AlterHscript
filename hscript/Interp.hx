@@ -461,6 +461,10 @@ class Interp {
 					return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
+				var claVarName = splitClassName[splitClassName.length - 1];
+
+				if (variables.exists(claVarName)) // class is already imported
+					return null;
 
 				if (importBlocklist.contains(realClassName))
 					return null;
@@ -488,9 +492,9 @@ class Interp {
 								}
 							}
 						}
-						variables.set(splitClassName[splitClassName.length - 1], enumThingy);
+						variables.set(claVarName, enumThingy);
 					} else {
-						variables.set(splitClassName[splitClassName.length - 1], cl);
+						variables.set(claVarName, cl);
 					}
 				}
 
