@@ -5,14 +5,17 @@ import haxe.macro.Type.ClassType;
 import Type.ValueType;
 import haxe.macro.Expr.Function;
 import haxe.macro.Expr;
+import haxe.macro.Type.MetaAccess;
+import haxe.macro.Type.FieldKind;
+import haxe.macro.Type.ClassField;
+import haxe.macro.Type.VarAccess;
 import haxe.macro.*;
 import Sys;
 
 using StringTools;
 
 class ClassExtendMacro {
-	public var usedClass:Class<Dynamic>;
-	public var className:String;
+	public static var buildMacroString = '@:build(hscript.ClassExtendMacro.build())';
 
 	public static inline final FUNC_PREFIX = "_HX_SUPER__";
 	public static inline final CLASS_SUFFIX = "_HSX";
@@ -20,15 +23,13 @@ class ClassExtendMacro {
 	public static var applyOn:Array<String> = ["flixel", "funkin"];
 	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass"];
 
-	public function new(className:String, usedClass:Class<Dynamic>) {
-		this.className = className;
-		this.usedClass = usedClass;
-	}
+	public static var modifiedClasses:Array<String> = [];
 
 	public static function init() {
 		#if !display
-		Compiler.addGlobalMetadata('funkin', '@:build(hscript.ClassExtendMacro.build())');
-		Compiler.addGlobalMetadata('flixel', '@:build(hscript.ClassExtendMacro.build())');
+		for(apply in applyOn) {
+			Compiler.addGlobalMetadata(apply, buildMacroString);
+		}
 		#end
 	}
 
@@ -54,7 +55,11 @@ class ClassExtendMacro {
 
 			};
 
+			var definedFields:Array<String> = [];
+
 			for(f in fields.copy()) {
+				if (f == null)
+					continue;
 				if (f.name == "new")
 					continue;
 				if (f.name.startsWith(FUNC_PREFIX))
@@ -62,115 +67,57 @@ class ClassExtendMacro {
 				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline))
 					continue;
 
-				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes
+				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes, yet
+				if(definedFields.contains(f.name)) continue; // no duplicate fields
 
 				switch(f.kind) {
 					case FFun(fun):
-						if (fun.params != null && fun.params.length > 0)
+						if (fun == null)
 							continue;
+						if (fun.params != null && fun.params.length > 0) // TODO: Support for this maybe?
+							continue;
+
+						if(fun.params == null)
+							fun.params = [];
 
 						var overrideExpr:Expr;
 						var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
 
+						var name = f.name;
+
+						var arguments = fun.args == null ? [] : [for(a in fun.args) macro $i{a.name}];
+
 						if (returns) {
 							overrideExpr = macro {
-								var name:String = ${{
-									expr: EConst(CString(f.name)),
-									pos: Context.currentPos()
-								}};
+								var name:String = $v{name};
 								var v:Dynamic = null;
 
 								if (__interp != null) {
 									if (__interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
-										return ${{
-											expr: ECall({
-												pos: Context.currentPos(),
-												expr: EConst(CIdent("v"))
-											}, fun.args != null ? [for(a in fun.args) {
-												pos: Context.currentPos(),
-												expr: EConst(CIdent(a.name))
-											}] : []),
-											pos: Context.currentPos()
-										}}
+										return v($a{arguments});
 									}
 								}
-								return ${{
-										expr: ECall({
-											pos: Context.currentPos(),
-											expr: EField({
-												pos: Context.currentPos(),
-												expr: EConst(CIdent("super"))
-											}, f.name)
-										}, fun.args != null ? [for(a in fun.args) {
-											pos: Context.currentPos(),
-											expr: EConst(CIdent(a.name))
-										}] : []),
-										pos: Context.currentPos()
-									}}
+								return super.$name($a{arguments});
 							};
 						} else {
 							overrideExpr = macro {
-								var name:String = ${{
-									expr: EConst(CString(f.name)),
-									pos: Context.currentPos()
-								}};
+								var name:String = $v{name};
 								var v:Dynamic = null;
 
 								if (__interp != null) {
 									if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
-										${{
-											expr: ECall({
-												pos: Context.currentPos(),
-												expr: EConst(CIdent("v"))
-											}, fun.args != null ? [for(a in fun.args) {
-												pos: Context.currentPos(),
-												expr: EConst(CIdent(a.name))
-											}] : []),
-											pos: Context.currentPos()
-										}}
+										v($a{arguments});
 										return;
 									}
 								}
-								${{
-									expr: ECall({
-										pos: Context.currentPos(),
-										expr: EField({
-											pos: Context.currentPos(),
-											expr: EConst(CIdent("super"))
-										}, f.name)
-									}, fun.args != null ? [for(a in fun.args) {
-										pos: Context.currentPos(),
-										expr: EConst(CIdent(a.name))
-									}] : []),
-									pos: Context.currentPos()
-								}}
+								super.$name($a{arguments});
 							};
 						}
 
-						var superFuncExpr:Expr = returns ? (macro return ${{
-							expr: ECall({
-								pos: Context.currentPos(),
-								expr: EField({
-									pos: Context.currentPos(),
-									expr: EConst(CIdent("super"))
-								}, f.name)
-							}, fun.args != null ? [for(a in fun.args) {
-								pos: Context.currentPos(),
-								expr: EConst(CIdent(a.name))
-							}] : []),
-							pos: Context.currentPos()
-						}}) : {
-							expr: ECall({
-								pos: Context.currentPos(),
-								expr: EField({
-									pos: Context.currentPos(),
-									expr: EConst(CIdent("super"))
-								}, f.name)
-							}, fun.args != null ? [for(a in fun.args) {
-								pos: Context.currentPos(),
-								expr: EConst(CIdent(a.name))
-							}] : []),
-							pos: Context.currentPos()
+						var superFuncExpr:Expr = returns ? {
+							macro return super.$name($a{arguments});
+						} : {
+							macro super.$name($a{arguments});
 						};
 
 						var func:Function = {
@@ -209,6 +156,7 @@ class ClassExtendMacro {
 							superField.access.remove(AOverride);
 						shadowClass.fields.push(overrideField);
 						shadowClass.fields.push(superField);
+						definedFields.push(f.name);
 					default:
 						// fuck off >:(
 
@@ -369,9 +317,10 @@ class ClassExtendMacro {
 
 			/*var p = new Printer();
 			var aa = p.printTypeDefinition(shadowClass);
-			//if(aa.indexOf("pack") >= 0)
-			if(cl.name == "FunkinShader")
-			trace(aa);*/
+			if(aa.length < 5024)
+			trace(aa);
+			if(aa.indexOf("pack") >= 0)
+			if(cl.name == "FunkinShader")*/
 
 			Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
 		}
@@ -439,6 +388,22 @@ class ClassExtendMacro {
 			}
 		);
 	}
+
+
+	/*public static function getModuleName(path:Type) {
+		switch(path) {
+			case TPath(name, pack):// | TDClass(name, pack):
+				var str = "";
+				for(p in pack) {
+					str += p + ".";
+				}
+				str += name;
+				return str;
+
+			default:
+		}
+		return "INVALID";
+	}*/
 
 	public static function fixModuleName(name:String) {
 		return [for(s in name.split(".")) if (s.charAt(0) == "_") s.substr(1) else s].join(".");
