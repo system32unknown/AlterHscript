@@ -475,6 +475,23 @@ class Interp {
 
 				var en = Type.resolveEnum(realClassName);
 
+				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
+				if (cl == null && en == null) {
+					if(splitClassName.length > 1) {
+						splitClassName.splice(-2, 1); // Remove the last last item
+						realClassName = splitClassName.join(".");
+
+						if (importBlocklist.contains(realClassName))
+							return null;
+
+						cl = Type.resolveClass(realClassName);
+						if (cl == null)
+							cl = Type.resolveClass('${realClassName}_HSC');
+
+						en = Type.resolveEnum(realClassName);
+					}
+				}
+
 				if (cl == null && en == null) {
 					if (importFailedCallback == null || !importFailedCallback(splitClassName))
 						error(EInvalidClass(realClassName));
