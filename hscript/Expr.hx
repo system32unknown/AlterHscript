@@ -71,7 +71,7 @@ enum Expr {
 	EMeta( name : String, args : Array<Expr>, e : Expr );
 	ECheckType( e : Expr, t : CType );
 
-	EImport( c : String );
+	EImport( c : String, ?asname:String );
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String> );
 }
 

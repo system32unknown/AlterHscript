@@ -114,8 +114,10 @@ class Printer {
 			return;
 		}
 		switch( #if hscriptPos e.e #else e #end ) {
-		case EImport(c):
+		case EImport(c, n):
 			add("import " + c);
+			if(n != null)
+				add(' as $n');
 		case EClass(name, fields, extend, interfaces):
 			add('class $name');
 			if (extend != null)

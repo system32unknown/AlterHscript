@@ -456,14 +456,15 @@ class Interp {
 				if (customClasses.exists(name))
 					error(EAlreadyExistingClass(name));
 				customClasses.set(name, new CustomClassHandler(this, name, fields, extend, interfaces));
-			case EImport(c):
+			case EImport(c, n):
 				if (!importEnabled)
 					return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
 				var claVarName = splitClassName[splitClassName.length - 1];
+				var toSetName = n != null ? n : claVarName;
 
-				if (variables.exists(claVarName)) // class is already imported
+				if (variables.exists(toSetName)) // class is already imported
 					return null;
 
 				if (importBlocklist.contains(realClassName))
@@ -492,9 +493,9 @@ class Interp {
 								}
 							}
 						}
-						variables.set(claVarName, enumThingy);
+						variables.set(toSetName, enumThingy);
 					} else {
-						variables.set(claVarName, cl);
+						variables.set(toSetName, cl);
 					}
 				}
 

@@ -91,6 +91,8 @@ class Parser {
 	var idents : Array<Bool>;
 	var uid : Int = 0;
 
+	var disableOrOp : Bool = false;
+
 	#if hscriptPos
 	var origin : String;
 	var tokenMin : Int;
@@ -371,7 +373,10 @@ class Parser {
 				return mk(EFunction([], mk(EReturn(eret),p1)), p1);
 			}
 			push(tk);
+			var oldoo = disableOrOp;
+			disableOrOp = false;
 			var e = parseExpr();
+			disableOrOp = oldoo;
 			tk = token();
 			switch( tk ) {
 				case TPClose:
@@ -443,7 +448,10 @@ class Parser {
 		case TOp(op):
 			if( op == "-" ) {
 				var start = tokenMin;
+				var oldoo = disableOrOp;
+				disableOrOp = false;
 				var e = parseExpr();
+				disableOrOp = oldoo;
 				if( e == null )
 					return makeUnop(op,e);
 				switch( expr(e) ) {
@@ -463,7 +471,10 @@ class Parser {
 			tk = token();
 			while( tk != TBkClose && (!resumeErrors || tk != TEof) ) {
 				push(tk);
+				var oldoo = disableOrOp;
+				disableOrOp = false;
 				a.push(parseExpr());
+				disableOrOp = oldoo;
 				tk = token();
 				if( tk == TComma )
 					tk = token();
@@ -780,10 +791,22 @@ class Parser {
 					}
 				case TId(id):
 					var path = [id];
+					var asname:String = null;
 					var t = null;
 					while( true ) {
 						t = token();
 						if( t != TDot ) {
+							if(t.match(TId("as"))) {
+								t = token();
+								switch( t ) {
+									case TId(id):
+										asname = id;
+									default:
+										unexpected(t);
+								}
+								break;
+							}
+
 							push(t);
 							break;
 						}
@@ -798,7 +821,7 @@ class Parser {
 					ensure(TSemicolon);
 					push(TSemicolon);
 					var p = path.join(".");
-					mk(EImport(p),p1);
+					mk(EImport(p, asname),p1);
 				default:
 					unexpected(tk);
 					null;
@@ -933,12 +956,13 @@ class Parser {
 					case TId("case"):
 						var c = { values : [], expr : null };
 						cases.push(c);
+						disableOrOp = true;
 						while( true ) {
 							var e = parseExpr();
 							c.values.push(e);
 							tk = token();
 							switch( tk ) {
-								case TComma:
+								case TComma | TOp("|"):
 									// next expr
 								case TDoubleDot:
 									break;
@@ -947,6 +971,7 @@ class Parser {
 									break;
 							}
 						}
+						disableOrOp = false;
 						var exprs = [];
 						while( true ) {
 							tk = token();
@@ -1020,6 +1045,11 @@ class Parser {
 					unexpected(tk);
 				}
 
+				if(disableOrOp && op == "|") {
+					push(tk);
+					return e1;
+				}
+
 				if( opPriority.get(op) == -1 ) {
 					if( isBlock(e1) || switch(expr(e1)) { case EParent(_): true; default: false; } ) {
 						push(tk);
@@ -1073,8 +1103,10 @@ class Parser {
 				if( allowTypes ) {
 					if( maybe(TDoubleDot) )
 						arg.t = parseType();
-					if( maybe(TOp("=")) )
+					if( maybe(TOp("="))) {
 						arg.value = parseExpr();
+						arg.opt = true;
+					}
 				}
 				tk = token();
 				switch( tk ) {
