@@ -20,16 +20,27 @@ class ClassExtendMacro {
 	public static inline final FUNC_PREFIX = "_HX_SUPER__";
 	public static inline final CLASS_SUFFIX = "_HSX";
 
-	public static var applyOn:Array<String> = ["flixel", "funkin"];
-	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass"];
+	public static var applyOn:Array<String> = [
+		"funkin",
+		"flixel",
+	];
+	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass", ":generic"];
 
 	public static var modifiedClasses:Array<String> = [];
 
 	public static function init() {
 		#if !display
 		for(apply in applyOn) {
-			Compiler.addGlobalMetadata(apply, buildMacroString);
+			compile(apply);
 		}
+		#end
+	}
+
+	public static function compile(name:String) {
+		#if !display
+		#if CUSTOM_CLASSES
+		Compiler.addGlobalMetadata(name, buildMacroString);
+		#end
 		#end
 	}
 
@@ -40,15 +51,86 @@ class ClassExtendMacro {
 		var cl = clRef.get();
 
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
-		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("__Softcoded") && !cl.name.endsWith("_HSC")) {//(/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("_HSC")) {
 			var metas = cl.meta.get();
 
 			for(m in metas)
 				if (unallowedMetas.contains(m.name))
 					return fields;
 
-			if(cl.params.length > 0) {
+			if(cl.params.length > 0)
 				return fields;
+
+			var superFields = [];
+			if(cl.superClass != null) {
+				var _superFields = cl.superClass.t.get().fields.get();
+				_superFields = []; // Comment to enable super support, (broken)
+				for(field in _superFields) {
+					if(!field.kind.match(FMethod(_))) // only catch methods
+						continue;
+
+					try {
+						var nfield = @:privateAccess TypeTools.toField(field);
+						switch ([field.kind, field.type]) {
+							case [FMethod(kind), TFun(args, ret)]:
+								if(kind == MethInline)
+									nfield.access.push(AInline);
+								if(kind == MethDynamic)
+									nfield.access.push(ADynamic);
+							default:
+						}
+
+						switch(nfield.kind) {
+							case FFun(fun):
+								if (fun.params != null && fun.params.length > 0)
+									continue;
+
+								fun.ret = fixStdTypes(fun.ret);
+
+								var metas = nfield.meta;
+								var defaultValues:Map<String, Dynamic> = [];
+								var defaultEntry = null;
+								var isGeneric = false;
+								for(m in metas) {
+									if(m.name == ":value") {
+										defaultEntry = m;
+										switch(m.params[0].expr) {
+											case EObjectDecl(fields):
+												for(fil in fields)
+													defaultValues[fil.field] = fil.expr;
+											default:
+										}
+									}
+									if(m.name == ":generic")
+										isGeneric = true;
+								}
+								if(isGeneric) continue;
+
+								if(defaultEntry != null)
+									metas.remove(defaultEntry);
+
+								for(arg in fun.args) {
+									var opt = false;
+									if(defaultValues.exists(arg.name)) {
+										arg.value = defaultValues[arg.name];
+										arg.opt = false;
+									}
+
+									arg.type = fixStdTypes(arg.type);
+
+									if(arg.opt) {
+										if(arg.type.getParameters()[0].name != "Null")
+											arg.type = TPath({name: "Null", params: [TPType(arg.type)], pack: []});//macro {Null<Dynamic>};
+									}
+								}
+							default:
+						}
+						superFields.push(nfield);
+					} catch(e) {
+
+					}
+				}
+				//superFields = [];
 			}
 
 			var shadowClass = macro class {
@@ -57,7 +139,10 @@ class ClassExtendMacro {
 
 			var definedFields:Array<String> = [];
 
-			for(f in fields.copy()) {
+			//trace(getModuleName(cl));
+
+			for(_field in [fields.copy(), superFields.copy()])
+			for(f in _field) {
 				if (f == null)
 					continue;
 				if (f.name == "new")
@@ -69,6 +154,10 @@ class ClassExtendMacro {
 
 				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes, yet
 				if(definedFields.contains(f.name)) continue; // no duplicate fields
+
+				for(m in f.meta)
+					if (unallowedMetas.contains(m.name))
+						continue;
 
 				switch(f.kind) {
 					case FFun(fun):
@@ -90,9 +179,9 @@ class ClassExtendMacro {
 						if (returns) {
 							overrideExpr = macro {
 								var name:String = $v{name};
-								var v:Dynamic = null;
 
 								if (__interp != null) {
+									var v:Dynamic = null;
 									if (__interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
 										return v($a{arguments});
 									}
@@ -102,9 +191,9 @@ class ClassExtendMacro {
 						} else {
 							overrideExpr = macro {
 								var name:String = $v{name};
-								var v:Dynamic = null;
 
 								if (__interp != null) {
+									var v:Dynamic = null;
 									if (__interp != null && __interp.variables.exists(name) && Reflect.isFunction(v = __interp.variables.get(name))) {
 										v($a{arguments});
 										return;
@@ -126,8 +215,6 @@ class ClassExtendMacro {
 							expr: overrideExpr,
 							args: fun.args.copy()
 						};
-
-						//trace(func.args);
 
 						var overrideField:Field = {
 							name: f.name,
@@ -173,8 +260,7 @@ class ClassExtendMacro {
 			var imports = Context.getLocalImports().copy();
 			setupMetas(shadowClass, imports);
 
-			// var p = new Printer();
-			// trace(p.printTypeDefinition(shadowClass));
+			// Adding hscript getters and setters
 
 			shadowClass.fields.push({
 				name: "__interp",
@@ -185,7 +271,7 @@ class ClassExtendMacro {
 				}))
 			});
 
-			// Todo: get this working
+			// Todo: make it possible to override
 			if(cl.name == "FunkinShader" || cl.name == "CustomShader" || cl.name == "MultiThreadedScript") {
 				Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
 				return fields;
@@ -199,7 +285,8 @@ class ClassExtendMacro {
 			}
 
 			// TODO: somehow check the super super class
-			for(f in fields.copy()) {
+			for(_field in [fields.copy(), superFields.copy()])
+			for(f in _field) {
 				if (f.name == "new")
 					continue;
 				if (f.name.startsWith(FUNC_PREFIX))
@@ -326,6 +413,17 @@ class ClassExtendMacro {
 		}
 
 		return fields;
+	}
+
+	static function fixStdTypes(type:ComplexType) {
+		switch(type) {
+			case TPath({name: "StdTypes"}):
+				var a:TypePath = type.getParameters()[0];
+				a.name = a.sub;
+				a.sub = null;
+			default:
+		}
+		return type;
 	}
 
 	public static function setupMetas(shadowClass:TypeDefinition, imports) {
