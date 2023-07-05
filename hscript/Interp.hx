@@ -205,6 +205,12 @@ class Interp {
 						if (Type.typeof(scriptObject) == TObject) {
 							Reflect.setField(scriptObject, id, v);
 						} else {
+							if (isBypassAccessor) {
+								if (__instanceFields.contains(id)) {
+									Reflect.setField(scriptObject, id, v);
+									return v;
+								}
+							}
 							if (__instanceFields.contains(id)) {
 								Reflect.setProperty(scriptObject, id, v);
 							} else if (__instanceFields.contains('set_$id')) { // setter
@@ -463,6 +469,7 @@ class Interp {
 				var realClassName = splitClassName.join(".");
 				var claVarName = splitClassName[splitClassName.length - 1];
 				var toSetName = n != null ? n : claVarName;
+				var oldClassName = realClassName;
 
 				if (variables.exists(toSetName)) // class is already imported
 					return null;
@@ -494,7 +501,7 @@ class Interp {
 
 				if (cl == null && en == null) {
 					if (importFailedCallback == null || !importFailedCallback(splitClassName))
-						error(EInvalidClass(realClassName));
+						error(EInvalidClass(oldClassName));
 				} else {
 					if (en != null) {
 						// ENUM!!!!
@@ -932,16 +939,11 @@ class Interp {
 		return {
 			var redirect:Dynamic->String->Dynamic = null;
 			var cl:String = switch (Type.typeof(o)) {
-				case TNull:
-					"Null";
-				case TInt:
-					"Int";
-				case TFloat:
-					"Float";
-				case TBool:
-					"Bool";
-				case _:
-					null;
+				case TNull: "Null";
+				case TInt: "Int";
+				case TFloat: "Float";
+				case TBool: "Bool";
+				case _: null;
 			};
 			if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
 				return redirect(o, f);
@@ -970,16 +972,11 @@ class Interp {
 
 		var redirect:Dynamic->String->Dynamic->Dynamic = null;
 		var cl:String = switch (Type.typeof(o)) {
-			case TNull:
-				"Null";
-			case TInt:
-				"Int";
-			case TFloat:
-				"Float";
-			case TBool:
-				"Bool";
-			case _:
-				null;
+			case TNull: "Null";
+			case TInt: "Int";
+			case TFloat: "Float";
+			case TBool: "Bool";
+			case _: null;
 		};
 		if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
 			return redirect(o, f, v);
