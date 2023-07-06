@@ -470,6 +470,7 @@ class Interp {
 				var claVarName = splitClassName[splitClassName.length - 1];
 				var toSetName = n != null ? n : claVarName;
 				var oldClassName = realClassName;
+				var oldSplitName = splitClassName.copy();
 
 				if (variables.exists(toSetName)) // class is already imported
 					return null;
@@ -481,6 +482,8 @@ class Interp {
 					cl = Type.resolveClass('${realClassName}_HSC');
 
 				var en = Type.resolveEnum(realClassName);
+
+				//trace(realClassName, cl, en, splitClassName);
 
 				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
 				if (cl == null && en == null) {
@@ -496,11 +499,13 @@ class Interp {
 							cl = Type.resolveClass('${realClassName}_HSC');
 
 						en = Type.resolveEnum(realClassName);
+
+						//trace(realClassName, cl, en, splitClassName);
 					}
 				}
 
 				if (cl == null && en == null) {
-					if (importFailedCallback == null || !importFailedCallback(splitClassName))
+					if (importFailedCallback == null || !importFailedCallback(oldSplitName))
 						error(EInvalidClass(oldClassName));
 				} else {
 					if (en != null) {
