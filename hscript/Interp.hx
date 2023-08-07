@@ -943,14 +943,15 @@ class Interp {
 			error(EInvalidAccess(f));
 		return {
 			var redirect:Dynamic->String->Dynamic = null;
-			var cl:String = switch (Type.typeof(o)) {
+			var cls = Type.getClass(o);
+			var cl:Null<String> = switch (Type.typeof(o)) {
 				case TNull: "Null";
 				case TInt: "Int";
 				case TFloat: "Float";
 				case TBool: "Bool";
-				case _: null;
+				case _: cls != null ? Type.getClassName(cls) : null;
 			};
-			if (getRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = getRedirects[cl]) != null) {
+			if (cl != null && getRedirects.exists(cl) && (redirect = getRedirects[cl]) != null) {
 				return redirect(o, f);
 			} else if (o is IHScriptCustomBehaviour) {
 				var obj = cast(o, IHScriptCustomBehaviour);
@@ -959,12 +960,12 @@ class Interp {
 				var v = null;
 				if(isBypassAccessor) {
 					if ((v = Reflect.field(o, f)) == null)
-						v = Reflect.field(Type.getClass(o), f);
+						v = Reflect.field(cls, f);
 				}
 
 				if(v == null) {
 					if ((v = Reflect.getProperty(o, f)) == null)
-						v = Reflect.getProperty(Type.getClass(o), f);
+						v = Reflect.getProperty(cls, f);
 				}
 				return v;
 			}
@@ -976,14 +977,15 @@ class Interp {
 			error(EInvalidAccess(f));
 
 		var redirect:Dynamic->String->Dynamic->Dynamic = null;
-		var cl:String = switch (Type.typeof(o)) {
+		var cls = Type.getClass(o);
+		var cl:Null<String> = switch (Type.typeof(o)) {
 			case TNull: "Null";
 			case TInt: "Int";
 			case TFloat: "Float";
 			case TBool: "Bool";
-			case _: null;
+			case _: cls != null ? Type.getClassName(cls) : null;
 		};
-		if (setRedirects.exists(cl = Type.getClassName(Type.getClass(o))) && (redirect = setRedirects[cl]) != null)
+		if (cl != null && setRedirects.exists(cl) && (redirect = setRedirects[cl]) != null)
 			return redirect(o, f, v);
 		else if (o is IHScriptCustomBehaviour) {
 			var obj = cast(o, IHScriptCustomBehaviour);
