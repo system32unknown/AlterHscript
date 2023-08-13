@@ -273,7 +273,7 @@ class ClassExtendMacro {
 
 			// Todo: make it possible to override
 			if(cl.name == "FunkinShader" || cl.name == "CustomShader" || cl.name == "MultiThreadedScript") {
-				Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
+				Context.defineModule(cl.module, [shadowClass], imports);
 				return fields;
 			}
 
@@ -409,7 +409,7 @@ class ClassExtendMacro {
 			if(aa.indexOf("pack") >= 0)
 			if(cl.name == "FunkinShader")*/
 
-			Context.defineModule(cl.module + CLASS_SUFFIX, [shadowClass], imports);
+			Context.defineModule(cl.module, [shadowClass], imports);
 		}
 
 		return fields;

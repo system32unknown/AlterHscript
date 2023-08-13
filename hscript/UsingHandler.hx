@@ -95,7 +95,7 @@ class UsingHandler {
 					default:
 				}
 
-			Context.defineModule(cl.module + "_HSC", [shadowClass], imports);
+			Context.defineModule(cl.module, [shadowClass], imports);
 		}
 
 		return fields;
