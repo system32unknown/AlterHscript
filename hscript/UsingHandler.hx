@@ -30,7 +30,7 @@ class UsingHandler {
 		if (clRef == null) return fields;
 		var cl = clRef.get();
 
-		if (/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType")) {
+		if (/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType") && !cl.meta.has("_HSC")) {
 			var metas = cl.meta.get();
 
 			var shadowClass = macro class {
@@ -95,7 +95,7 @@ class UsingHandler {
 					default:
 				}
 
-			Context.defineModule(cl.module + "_HSC", [shadowClass], imports);
+			Context.defineModule(cl.module, [shadowClass], imports);
 		}
 
 		return fields;
