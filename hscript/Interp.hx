@@ -229,8 +229,10 @@ class Interp {
 					}
 				}
 				// TODO
-			case EField(e, f):
-				v = set(expr(e), f, v);
+			case EField(e, f, s):
+				var obj = expr(e);
+				if(s && obj == null) return null;
+				v = set(obj, f, v, s);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
@@ -268,8 +270,9 @@ class Interp {
 				}
 				else
 					l.r = v;
-			case EField(e, f):
+			case EField(e, f, s):
 				var obj = expr(e);
+				if(s && obj == null) return null;
 				v = fop(get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -308,8 +311,9 @@ class Interp {
 				else
 					l.r = v + delta;
 				return v;
-			case EField(e, f):
+			case EField(e, f, s):
 				var obj = expr(e);
+				if(s && obj == null) return null;
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
