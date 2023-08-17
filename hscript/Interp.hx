@@ -232,7 +232,7 @@ class Interp {
 			case EField(e, f, s):
 				var obj = expr(e);
 				if(s && obj == null) return null;
-				v = set(obj, f, v, s);
+				v = set(obj, f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
