@@ -186,7 +186,7 @@ class Interp {
 		assignOp("??=", function(v1, v2) return v1 == null ? v2 : v1);
 	}
 
-	function setVar(name:String, v:Dynamic) {
+	public function setVar(name:String, v:Dynamic) {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
 		else if (allowPublicVariables && publicVariables.exists(name))

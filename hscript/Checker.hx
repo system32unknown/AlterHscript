@@ -1233,6 +1233,7 @@ class Checker {
 				mergeType( typeExpr(defaultExpr, withType), defaultExpr);
 			return withType == NoValue ? TVoid : tmin == null ? makeMono() : tmin;
 		case ENew(cl, params):
+		default:
 		}
 		error("Don't know how to type "+edef(expr).getName(), expr);
 		return TDynamic;
