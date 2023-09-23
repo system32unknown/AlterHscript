@@ -54,7 +54,7 @@ enum Expr {
 	ECall( e : Expr, params : Array<Expr> );
 	EIf( cond : Expr, e1 : Expr, ?e2 : Expr );
 	EWhile( cond : Expr, e : Expr );
-	EFor( v : String, it : Expr, e : Expr );
+	EFor( v : String, it : Expr, e : Expr, ?ithv: String);
 	EBreak;
 	EContinue;
 	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool );

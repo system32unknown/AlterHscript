@@ -35,18 +35,14 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 		var disallowCopy = Type.getInstanceFields(cl);
 
-		//trace("Locals");
 		for (key => value in capturedLocals) {
 			if(!disallowCopy.contains(key)) {
 				interp.locals.set(key, {r: value, depth: -1});
-				//trace(key, value);
 			}
 		}
-		//trace("Variables");
 		for (key => value in ogInterp.variables) {
 			if(!disallowCopy.contains(key)) {
 				interp.variables.set(key, value);
-				//trace(key, value);
 			}
 		}
 

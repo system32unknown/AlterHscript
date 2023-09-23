@@ -160,6 +160,7 @@ class Interp {
 		binops.set("<", function(e1, e2) return me.expr(e1) < me.expr(e2));
 		binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
 		binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
+		binops.set("is", checkIsType);
 		binops.set("=", assign);
 		binops.set("??", function(e1, e2) {
 			var expr1:Dynamic = me.expr(e1);
@@ -182,11 +183,25 @@ class Interp {
 		assignOp("<<=", function(v1, v2) return v1 << v2);
 		assignOp(">>=", function(v1, v2) return v1 >> v2);
 		assignOp(">>>=", function(v1, v2) return v1 >>> v2);
-		assignOp("is", function(v1, v2) return Std.isOfType(v1, v2));
 		assignOp("??=", function(v1, v2) return v1 == null ? v2 : v1);
 	}
 
-	function setVar(name:String, v:Dynamic) {
+	function checkIsType(e1,e2): Bool {
+		var expr1:Dynamic = expr(e1);
+
+		return switch(Tools.expr(e2))
+		{
+			case EIdent("Class"):
+				Std.isOfType(expr1, Class);
+			case EIdent("Map") | EIdent("IMap"):
+				Std.isOfType(expr1, IMap);
+			default:
+				var expr2:Dynamic = expr(e2);
+				expr2 != null ? Std.isOfType(expr1, expr2) : false;
+		}
+	}
+
+	public function setVar(name:String, v:Dynamic) {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
 		else if (allowPublicVariables && publicVariables.exists(name))
@@ -620,8 +635,8 @@ class Interp {
 			case EDoWhile(econd, e):
 				doWhileLoop(econd, e);
 				return null;
-			case EFor(v, it, e):
-				forLoop(v, it, e);
+			case EFor(v, it, e, ithv):
+				forLoop(v, it, e, ithv);
 				return null;
 			case EBreak:
 				throw SBreak;
@@ -892,26 +907,40 @@ class Interp {
 		restore(old);
 	}
 
-	function makeIterator(v:Dynamic):Iterator<Dynamic> {
+	function makeIterator(v:Dynamic, ?allowKeyValue = false):Iterator<Dynamic> {
 		#if ((flash && !flash9) || (php && !php7 && haxe_ver < '4.0.0'))
 		if (v.iterator != null)
 			v = v.iterator();
 		#else
-		try
-			v = v.iterator()
-		catch (e:Dynamic) {};
+		if(allowKeyValue) {
+			try
+				v = v.keyValueIterator()
+			catch (e:Dynamic) {};
+		}
+
+		if(v.hasNext == null || v.next == null) {
+			try
+				v = v.iterator()
+			catch (e:Dynamic) {};
+		}
 		#end
 		if (v.hasNext == null || v.next == null)
 			error(EInvalidIterator(v));
 		return v;
 	}
 
-	function forLoop(n, it, e) {
+	function forLoop(n, it, e, ?ithv) {
+		var isKeyValue = ithv != null;
 		var old = declared.length;
+		if(isKeyValue)
+			declared.push({n: ithv, old: locals.get(ithv), depth: depth});
 		declared.push({n: n, old: locals.get(n), depth: depth});
-		var it = makeIterator(expr(it));
+		var it = makeIterator(expr(it), isKeyValue);
 		while (it.hasNext()) {
-			locals.set(n, {r: it.next(), depth: depth});
+			var next = it.next();
+			if(isKeyValue)
+				locals.set(ithv, {r: next.key, depth: depth});
+			locals.set(n, {r: isKeyValue ? next.value : next, depth: depth});
 			try {
 				expr(e);
 			} catch (err:Stop) {

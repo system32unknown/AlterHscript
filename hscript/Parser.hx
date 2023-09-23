@@ -185,6 +185,7 @@ class Parser {
 
 	public function parseString( s : String, ?origin : String = "hscript" ) {
 		initParser(origin);
+		if(s == "") s = "0;"; // fixing crash with empty file
 		input = s;
 		readPos = 0;
 		var a = new Array();
@@ -547,8 +548,8 @@ class Parser {
 	function mapCompr( tmp : String, e : Expr ) {
 		if( e == null ) return null;
 		var edef = switch( expr(e) ) {
-		case EFor(v, it, e2):
-			EFor(v, it, mapCompr(tmp, e2));
+		case EFor(v, it, e2, ithv):
+			EFor(v, it, mapCompr(tmp, e2), ithv);
 		case EWhile(cond, e2):
 			EWhile(cond, mapCompr(tmp, e2));
 		case EDoWhile(cond, e2):
@@ -743,12 +744,21 @@ class Parser {
 			mk(EDoWhile(econd,e),p1,pmax(econd));
 		case "for":
 			ensure(TPOpen);
+			var ithv:String = null;
 			var vname = getIdent();
+			var tk = token();
+			if( Type.enumEq(tk,TOp("=>")) ) {
+				var old = vname;
+				vname = getIdent();
+				ithv = old;
+			} else {
+				push(tk);
+			}
 			ensureToken(TId("in"));
 			var eiter = parseExpr();
 			ensure(TPClose);
 			var e = parseExpr();
-			mk(EFor(vname,eiter,e),p1,pmax(e));
+			mk(EFor(vname,eiter,e,ithv),p1,pmax(e));
 		case "break": mk(EBreak);
 		case "continue": mk(EContinue);
 		case "else": unexpected(TId(id));
@@ -1879,6 +1889,7 @@ class Parser {
 						if( StringTools.isEof(char) ) char = 0;
 						if( !idents[char] ) {
 							this.char = char;
+							if(id == "is") return TOp("is");
 							return TId(id);
 						}
 						id += String.fromCharCode(char);
