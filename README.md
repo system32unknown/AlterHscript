@@ -1,8 +1,18 @@
-hscript
+hscript-improved
 =======
 
-[![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/hscript.svg?branch=master)](https://travis-ci.org/HaxeFoundation/hscript)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/hscript?branch=master&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/hscript)
+How to install
+```
+haxelib git hscript-improved https://github.com/FNF-CNE-Devs/hscript-improved.git
+```
+
+To enable custom classes support you have to do this in project.xml
+```xml
+<define name="CUSTOM_CLASSES" />
+```
+Warning: custom classes are sometimes broken, would like help to fix them. You can only override functions from the current class, not from the extended part, like you cant override update in FlxText because FlxText doesnt have a update function overriden
+
+-----------
 
 Parse and evalutate Haxe expressions.
 
