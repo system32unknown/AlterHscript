@@ -422,7 +422,7 @@ class Interp {
 		}
 	}
 
-	inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
+	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
 		if (rethrow) {
@@ -442,6 +442,8 @@ class Interp {
 	}
 
 	public function resolve(id:String, doException:Bool = true):Dynamic {
+		if (id == null)
+			return null;
 		id = StringTools.trim(id);
 		var l = locals.get(id);
 		if (l != null)
@@ -480,7 +482,14 @@ class Interp {
 			case EClass(name, fields, extend, interfaces):
 				if (customClasses.exists(name))
 					error(EAlreadyExistingClass(name));
-				customClasses.set(name, new CustomClassHandler(this, name, fields, extend, interfaces));
+
+				inline function importVar(thing:String):String {
+					if (thing == null)
+						return null;
+					final variable:Class<Any> = variables.exists(thing) ? cast variables.get(thing) : null;
+					return variable == null ? thing : Type.getClassName(variable);
+				}
+				customClasses.set(name, new CustomClassHandler(this, name, fields, importVar(extend), [for (i in interfaces) importVar(i)]));
 			case EImport(c, n):
 				if (!importEnabled)
 					return null;
