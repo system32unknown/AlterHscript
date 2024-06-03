@@ -341,7 +341,7 @@ class ClassExtendMacro {
 						this.__interp.variables.set(name, val);
 						return val;
 					}
-					return super.hset(this, name);
+					return super.hset(name, val);
 				}
 			} else {
 				macro {
