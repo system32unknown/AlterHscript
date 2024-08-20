@@ -907,10 +907,12 @@ class Parser {
 
 			var fields = [];
 			ensure(TBrOpen);
-			while( !maybe(TBrClose) ) {
-				if(token() == TSemicolon) continue;
-				var a = parseExpr();
-				fields.push(a);
+			while( true ) {
+				parseFullExpr(fields);
+				tk = token();
+				if( tk == TBrClose || (resumeErrors && tk == TEof) )
+					break;
+				push(tk);
 			}
 
 			var tk = token();
@@ -964,7 +966,7 @@ class Parser {
 				var tk = token();
 				switch( tk ) {
 					case TId("case"):
-						var c = { values : [], expr : null };
+						var c:SwitchCase = { values : [], expr : null };
 						cases.push(c);
 						disableOrOp = true;
 						while( true ) {
@@ -1601,7 +1603,8 @@ class Parser {
 		return b.toString();
 	}
 
-	function token(?infos : Null<haxe.PosInfos>) {
+	function token() {
+	//function token(?infos : Null<haxe.PosInfos>) {
 		//function ttrace(v:Dynamic, ?infos : Null<haxe.PosInfos>) {
 		//	Sys.print(infos.fileName+":"+infos.lineNumber+": " + Std.string(v));
 		//	Sys.print("\r\n");
@@ -1619,6 +1622,7 @@ class Parser {
 		oldTokenMax = tokenMax;
 		tokenMin = (this.char < 0) ? readPos : readPos - 1;
 		var t = _token();
+		//trace(t, infos);
 		//ttrace(t, infos);
 		tokenMax = (this.char < 0) ? readPos - 1 : readPos - 2;
 		return t;
