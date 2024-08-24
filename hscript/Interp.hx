@@ -247,6 +247,10 @@ class Interp {
 		}
 	}
 
+	public function varExists(name:String):Bool {
+		return allowStaticVariables && staticVariables.exists(name) || allowPublicVariables && publicVariables.exists(name) || variables.exists(name);
+	}
+
 	public function setVar(name:String, v:Dynamic) {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
@@ -261,7 +265,7 @@ class Interp {
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
 				if (!locals.exists(id)) {
-					if (_hasScriptObject && !variables.exists(id) && !staticVariables.exists(id) && !publicVariables.exists(id)) {
+					if (_hasScriptObject && !varExists(id)) {
 						if (_scriptObjectType == SObject) {
 							UnsafeReflect.setField(scriptObject, id, v);
 						} else {
