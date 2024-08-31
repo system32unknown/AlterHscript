@@ -433,7 +433,7 @@ class ClassExtendMacro {
 						__custom__variables.set(name, val);
 						return val;
 					}
-					return super.hset(this, name);
+					return super.hset(name, val);
 				}
 			} else {
 				macro {
