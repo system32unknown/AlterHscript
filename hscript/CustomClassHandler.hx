@@ -28,32 +28,41 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 	}
 
 	public function hnew(args:Array<Dynamic>):Dynamic {
+		// TODO: clean this up, it sucks, i hate it
 		var interp = new Interp();
 
 		interp.errorHandler = ogInterp.errorHandler;
 
 		var _class:IHScriptCustomClassBehaviour = Type.createInstance(cl, args);
 
-		var __capturedLocals = ogInterp.duplicate(ogInterp.locals);
-		var capturedLocals:Map<String, DeclaredVar> = [];
-		for(k=>e in __capturedLocals)
-			if (e != null && e.depth <= 0)
-				capturedLocals.set(k, e);
+		//var __capturedLocals = ogInterp.duplicate(ogInterp.locals);
+		//var capturedLocals:Map<String, DeclaredVar> = [];
+		//for(k=>e in __capturedLocals)
+		//	if (e != null && e.depth <= 0)
+		//		capturedLocals.set(k, e);
 
 		var disallowCopy = Type.getInstanceFields(cl);
 
-		for (key => value in capturedLocals) {
-			if(!disallowCopy.contains(key)) {
-				interp.locals.set(key, {r: value, depth: -1});
-			}
-		}
+		_class.__real_fields = disallowCopy;
+
+		// todo: make it so you can use variables from the same scope as where the class was defined
+
+		//for (key => value in capturedLocals) {
+		//	if(!disallowCopy.contains(key)) {
+		//		interp.locals.set(key, {r: value, depth: -1});
+		//	}
+		//}
 		for (key => value in ogInterp.variables) {
 			if(!disallowCopy.contains(key)) {
 				interp.variables.set(key, value);
 			}
 		}
 
-		var comparisonMap = new Map();
+		//trace("Before: " + [for(key => value in interp.variables) key]);
+
+		interp.variables.set("super", staticHandler);
+
+		var comparisonMap:Map<String, Dynamic> = [];
 		for(key => value in interp.variables) {
 			comparisonMap.set(key, value);
 		}
@@ -61,34 +70,39 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		_class.__custom__variables = interp.variables;
 
 		//trace(fields);
-
 		for(expr in fields) {
 			@:privateAccess
 			interp.exprReturn(expr);
 		}
 
-		interp.variables.set("super", staticHandler);
+		//trace("After: " + [for(key => value in interp.variables) key]);
 
-		_class.__interp = interp;
-		interp.scriptObject = _class;
 		// get only variables that were not set before
-		var classVariables = [for(key => value in interp.variables) if(!comparisonMap.exists(key) || comparisonMap[key] != value) key => value];
-		for(variable => value in classVariables) {
-			if(variable == "this" || variable == "super") continue;
-			@:privateAccess
-			if(!interp.__instanceFields.contains(variable)) {
-				interp.__instanceFields.push(variable);
-			}
-		}
+		var classVariables = [
+			for(key => value in interp.variables)
+				if(!comparisonMap.exists(key) || comparisonMap[key] != value)
+					key => value
+		];
+		//for(variable => value in classVariables) {
+		//	if(variable == "this" || variable == "super" || variable == "new") continue;
+		//	@:privateAccess
+		//	if(!interp.__instanceFields.contains(variable)) {
+		//		interp.__instanceFields.push(variable);
+		//	}
+		//}
 
-		//trace([for(key => value in classVariables) key]);
+		_class.__class__fields = [for(key => value in classVariables) key];
+
+		//trace(_class.__class__fields);
 		//@:privateAccess
 		//trace(interp.__instanceFields);
 
+		_class.__interp = interp;
 		_class.__allowSetGet = false;
+		interp.scriptObject = _class;
 
 		for(variable => value in interp.variables) {
-			if(variable == "this") continue;
+			if(variable == "this" || variable == "super" || variable == "new") continue;
 
 			if(variable.startsWith("set_") || variable.startsWith("get_")) {
 				_class.__allowSetGet = true;
@@ -97,8 +111,31 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 		var newFunc = interp.variables.get("new");
 		if(newFunc != null) {
+			var comparisonMap:Map<String, Dynamic> = [];
+			for(key => value in interp.variables) {
+				comparisonMap.set(key, value);
+			}
+
 			UnsafeReflect.callMethodUnsafe(null, newFunc, args);
+
+			// get only variables that were not set before
+			var classVariables = [
+				for(key => value in interp.variables)
+					if(!comparisonMap.exists(key) || comparisonMap[key] != value)
+						key => value
+			];
+			for(variable => value in classVariables) {
+				if(variable == "this" || variable == "super" || variable == "new") continue;
+				@:privateAccess
+				if(!interp.__instanceFields.contains(variable)) {
+					interp.__instanceFields.push(variable);
+				}
+				if(!_class.__class__fields.contains(variable)) {
+					_class.__class__fields.push(variable);
+				}
+			}
 		}
+
 
 		return _class;
 	}
@@ -112,6 +149,8 @@ class TemplateClass implements IHScriptCustomClassBehaviour implements IHScriptC
 	public var __interp:Interp;
 	public var __allowSetGet:Bool = true;
 	public var __custom__variables:Map<String, Dynamic>;
+	public var __real_fields:Array<String>;
+	public var __class__fields:Array<String>;
 
 	public function hset(name:String, val:Dynamic):Dynamic {
 		if(__allowSetGet && __custom__variables.exists("set_" + name))
@@ -120,14 +159,19 @@ class TemplateClass implements IHScriptCustomClassBehaviour implements IHScriptC
 			__custom__variables.set(name, val);
 			return val;
 		}
-		UnsafeReflect.setProperty(this, name, val);
-		return UnsafeReflect.field(this, name);
+		if(__real_fields.contains(name)) {
+			UnsafeReflect.setProperty(this, name, val);
+			return UnsafeReflect.field(this, name);
+		}
+		__custom__variables.set(name, val);
+		return val;
 	}
 	public function hget(name:String):Dynamic {
 		if(__allowSetGet && __custom__variables.exists("get_" + name))
 			return __callGetter(name);
 		if (__custom__variables.exists(name))
 			return __custom__variables.get(name);
+
 		return UnsafeReflect.getProperty(this, name);
 	}
 

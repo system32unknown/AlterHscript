@@ -28,6 +28,7 @@
  */
 package hscript;
 
+import haxe.CallStack;
 import hscript.utils.UnsafeReflect;
 import haxe.PosInfos;
 import hscript.Expr;
@@ -45,8 +46,8 @@ enum abstract ScriptObjectType(UInt8) {
 	var SClass;
 	var SObject;
 	var SStaticClass;
-	var SCustomClass;
-	var SBehaviourClass;
+	var SCustomClass; // custom classes
+	var SBehaviourClass; // hget and hset
 	var SNull;
 }
 
@@ -71,9 +72,12 @@ class Interp {
 		switch(Type.typeof(v)) {
 			case TClass(c): // Class Access
 				__instanceFields = Type.getInstanceFields(c);
-				if(c is IHScriptCustomClassBehaviour) {
+				if(v is IHScriptCustomClassBehaviour) {
+					var v = cast(v, IHScriptCustomClassBehaviour);
+					if(v.__class__fields != null)
+						__instanceFields = __instanceFields.concat(v.__class__fields);
 					_scriptObjectType = SCustomClass;
-				} else if(c is IHScriptCustomBehaviour) {
+				} else if(v is IHScriptCustomBehaviour) {
 					_scriptObjectType = SBehaviourClass;
 				} else {
 					_scriptObjectType = SClass;
@@ -266,35 +270,36 @@ class Interp {
 			case EIdent(id):
 				if (!locals.exists(id)) {
 					if (_hasScriptObject && !varExists(id)) {
-						if (_scriptObjectType == SObject) {
+						var instanceHasField = __instanceFields.contains(id);
+
+						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
-						} else {
-							if (_scriptObjectType == SCustomClass) {
-								var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
-								if(isBypassAccessor) {
-									obj.__allowSetGet = false;
-									var res = obj.hset(id, v);
-									obj.__allowSetGet = true;
-									return res;
-								}
-								return obj.hset(id, v);
-							} else if (_scriptObjectType == SBehaviourClass) {
-								var obj = cast(scriptObject, IHScriptCustomBehaviour);
-								return obj.hset(id, v);
+						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
+							var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
+							if(isBypassAccessor) {
+								obj.__allowSetGet = false;
+								var res = obj.hset(id, v);
+								obj.__allowSetGet = true;
+								return res;
 							}
-							if (isBypassAccessor) {
-								if (__instanceFields.contains(id)) {
-									UnsafeReflect.setField(scriptObject, id, v);
-									return v;
-								}
-							}
-							if (__instanceFields.contains(id)) {
-								UnsafeReflect.setProperty(scriptObject, id, v);
-							} else if (__instanceFields.contains('set_$id')) { // setter
-								UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
+							return obj.hset(id, v);
+						} else if (_scriptObjectType == SBehaviourClass) {
+							var obj = cast(scriptObject, IHScriptCustomBehaviour);
+							return obj.hset(id, v);
+						}
+
+						if (instanceHasField) {
+							if(isBypassAccessor) {
+								UnsafeReflect.setField(scriptObject, id, v);
+								return v;
 							} else {
-								setVar(id, v);
+								UnsafeReflect.setProperty(scriptObject, id, v);
+								return UnsafeReflect.field(scriptObject, id);
 							}
+						} else if (__instanceFields.contains('set_$id')) { // setter
+							return UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
+						} else {
+							setVar(id, v);
 						}
 					} else {
 						setVar(id, v);
@@ -339,10 +344,12 @@ class Interp {
 				v = fop(expr(e1), expr(e2));
 				if (l == null) {
 					if(_hasScriptObject) {
-						if(_scriptObjectType == SObject) {
+						var instanceHasField = __instanceFields.contains(id);
+
+						if(_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
-						} else if (_scriptObjectType == SCustomClass) {
+						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
 							var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
 							if(isBypassAccessor) {
 								obj.__allowSetGet = false;
@@ -356,17 +363,16 @@ class Interp {
 							return obj.hset(id, v);
 						}
 
-						if (isBypassAccessor) {
-							if (__instanceFields.contains(id)) {
+						if (instanceHasField) {
+							if(isBypassAccessor) {
 								UnsafeReflect.setField(scriptObject, id, v);
 								return v;
+							} else {
+								UnsafeReflect.setProperty(scriptObject, id, v);
+								return UnsafeReflect.field(scriptObject, id);
 							}
-						}
-
-						if (__instanceFields.contains(id)) {
-							UnsafeReflect.setProperty(scriptObject, id, v);
 						} else if (__instanceFields.contains('set_$id')) { // setter
-							UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
+							return UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
 						} else {
 							setVar(id, v);
 						}
@@ -559,9 +565,12 @@ class Interp {
 			// search in object
 			if (id == "this") {
 				return scriptObject;
-			} else if (_scriptObjectType == SObject && UnsafeReflect.hasField(scriptObject, id)) {
+			}
+			var instanceHasField = __instanceFields.contains(id);
+
+			if (_scriptObjectType == SObject && instanceHasField) {
 				return UnsafeReflect.field(scriptObject, id);
-			} else if(_scriptObjectType == SCustomClass) {
+			} else if(_scriptObjectType == SCustomClass && instanceHasField) {
 				var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
 				if(isBypassAccessor) {
 					obj.__allowSetGet = false;
@@ -574,12 +583,11 @@ class Interp {
 				var obj = cast(scriptObject, IHScriptCustomBehaviour);
 				return obj.hget(id);
 			}
-			else {
-				if (__instanceFields.contains(id)) {
-					return UnsafeReflect.getProperty(scriptObject, id);
-				} else if (__instanceFields.contains('get_$id')) { // getter
-					return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
-				}
+
+			if (instanceHasField) {
+				return UnsafeReflect.getProperty(scriptObject, id);
+			} else if (__instanceFields.contains('get_$id')) { // getter
+				return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
 			}
 		}
 		if (doException)
@@ -687,13 +695,14 @@ class Interp {
 				declared.push({n: n, old: locals.get(n), depth: depth});
 				locals.set(n, {r: (e == null) ? null : expr(e), depth: depth});
 				if (depth == 0) {
-					if(isStatic == true) {
-						if(!staticVariables.exists(n)) {
+					if(allowStaticVariables && isStatic == true) {
+						if(!staticVariables.exists(n)) // make it so it only sets it once
 							staticVariables.set(n, locals[n].r);
-						}
-						return null;
+					} else if(allowPublicVariables && isPublic == true) {
+						publicVariables.set(n, locals[n].r);
+					} else {
+						variables.set(n, locals[n].r);
 					}
-					(isPublic ? publicVariables : variables).set(n, locals[n].r);
 				}
 				return null;
 			case EParent(e):
@@ -835,7 +844,13 @@ class Interp {
 				if (name != null) {
 					if (depth == 0) {
 						// global function
-						((isStatic && allowStaticVariables) ? staticVariables : ((isPublic && allowPublicVariables) ? publicVariables : variables)).set(name, f);
+						if(isStatic && allowStaticVariables) {
+							staticVariables.set(name, f);
+						} else if(isPublic && allowPublicVariables) {
+							publicVariables.set(name, f);
+						} else {
+							variables.set(name, f);
+						}
 					} else {
 						// function-in-function is a local function
 						declared.push({n: name, old: locals.get(name), depth: depth});
@@ -1126,7 +1141,20 @@ class Interp {
 			cl != null && getRedirects.exists(cl) && (_getRedirect = getRedirects[cl]) != null;
 		}) {
 			return _getRedirect(o, f);
-		} else if (o is IHScriptCustomBehaviour) {
+		}
+
+		if(o is IHScriptCustomClassBehaviour) {
+			var obj = cast(o, IHScriptCustomClassBehaviour);
+			if(isBypassAccessor) {
+				obj.__allowSetGet = false;
+				var res = obj.hget(f);
+				obj.__allowSetGet = true;
+				return res;
+			}
+			return obj.hget(f);
+		}
+
+		if (o is IHScriptCustomBehaviour) {
 			var obj = cast(o, IHScriptCustomBehaviour);
 			return obj.hget(f);
 		}
@@ -1152,7 +1180,19 @@ class Interp {
 			cl != null && setRedirects.exists(cl) && (_setRedirect = setRedirects[cl]) != null;
 		})
 			return _setRedirect(o, f, v);
-		else if (o is IHScriptCustomBehaviour) {
+
+		if(o is IHScriptCustomClassBehaviour) {
+			var obj = cast(o, IHScriptCustomClassBehaviour);
+			if(isBypassAccessor) {
+				obj.__allowSetGet = false;
+				var res = obj.hset(f, v);
+				obj.__allowSetGet = true;
+				return res;
+			}
+			return obj.hset(f, v);
+		}
+
+		if (o is IHScriptCustomBehaviour) {
 			var obj = cast(o, IHScriptCustomBehaviour);
 			return obj.hset(f, v);
 		}

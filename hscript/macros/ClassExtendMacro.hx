@@ -285,31 +285,35 @@ class ClassExtendMacro {
 			shadowClass.fields.push({
 				name: "__interp",
 				pos: Context.currentPos(),
-				kind: FVar(TPath({
-					pack: ['hscript'],
-					name: 'Interp'
-				})),
+				kind: FVar(macro: hscript.Interp),
 				access: [APublic]
 			});
 
 			shadowClass.fields.push({
 				name: "__custom__variables",
 				pos: Context.currentPos(),
-				kind: FVar(TPath({
-					pack: [],
-					name: 'Map',
-					params: [TPType(TPath({name: "String", pack: []})), TPType(TPath({name: "Dynamic", pack: []}))]
-				})),
+				kind: FVar(macro: Map<String, Dynamic>),
 				access: [APublic]
 			});
 
 			shadowClass.fields.push({
 				name: "__allowSetGet",
 				pos: Context.currentPos(),
-				kind: FVar(TPath({
-					pack: [],
-					name: 'Bool',
-				}), macro true),
+				kind: FVar(macro: Bool, macro true),
+				access: [APublic]
+			});
+
+			shadowClass.fields.push({
+				name: "__real_fields",
+				pos: Context.currentPos(),
+				kind: FVar(macro: Array<String>),
+				access: [APublic]
+			});
+
+			shadowClass.fields.push({
+				name: "__class__fields",
+				pos: Context.currentPos(),
+				kind: FVar(macro: Array<String>),
 				access: [APublic]
 			});
 
@@ -317,7 +321,7 @@ class ClassExtendMacro {
 				name: "__callGetter",
 				pos: Context.currentPos(),
 				kind: FFun({
-					ret: TPath({name: 'Dynamic', pack: []}),
+					ret: macro: Dynamic,
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
@@ -330,7 +334,7 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: TPath({name: "String", pack: []})
+							type: macro: String
 						}
 					]
 				}),
@@ -341,7 +345,7 @@ class ClassExtendMacro {
 				name: "__callSetter",
 				pos: Context.currentPos(),
 				kind: FFun({
-					ret: TPath({name: 'Dynamic', pack: []}),
+					ret: macro: Dynamic,
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
@@ -354,13 +358,13 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: TPath({name: "String", pack: []})
+							type: macro: String
 						},
 						{
 							name: "val",
 							opt: false,
 							meta: [],
-							type: TPath({name: "Dynamic", pack: []})
+							type: macro: Dynamic
 						}
 					]
 				}),
@@ -433,6 +437,10 @@ class ClassExtendMacro {
 						__custom__variables.set(name, val);
 						return val;
 					}
+					if(__real_fields.contains(name)) {
+						UnsafeReflect.setProperty(this, name, val);
+						return UnsafeReflect.field(this, name);
+					}
 					return super.hset(name, val);
 				}
 			} else {
@@ -443,8 +451,12 @@ class ClassExtendMacro {
 						__custom__variables.set(name, val);
 						return val;
 					}
-					UnsafeReflect.setProperty(this, name, val);
-					return UnsafeReflect.field(this, name);
+					if(__real_fields.contains(name)) {
+						UnsafeReflect.setProperty(this, name, val);
+						return UnsafeReflect.field(this, name);
+					}
+					__custom__variables.set(name, val);
+					return val;
 				}
 			}
 
@@ -457,7 +469,7 @@ class ClassExtendMacro {
 				pos: Context.currentPos(),
 				access: hasHsetInSuper ? [AOverride, APublic] : [APublic],
 				kind: FFun({
-					ret: TPath({name: 'Dynamic', pack: []}),
+					ret: macro: Dynamic,
 					params: [],
 					expr: hsetField,
 					args: [
@@ -465,13 +477,13 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: TPath({name: "String", pack: []})
+							type: macro: String
 						},
 						{
 							name: "val",
 							opt: false,
 							meta: [],
-							type: TPath({name: "Dynamic", pack: []})
+							type: macro: Dynamic
 						}
 					]
 				})
@@ -482,7 +494,7 @@ class ClassExtendMacro {
 				pos: Context.currentPos(),
 				access: hasHgetInSuper ? [AOverride, APublic] : [APublic],
 				kind: FFun({
-					ret: TPath({name: 'Dynamic', pack: []}),
+					ret: macro: Dynamic,
 					params: [],
 					expr: hgetField,
 					args: [
@@ -490,7 +502,7 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: TPath({name: "String", pack: []})
+							type: macro: String
 						}
 					]
 				})
