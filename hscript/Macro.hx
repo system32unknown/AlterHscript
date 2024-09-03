@@ -110,7 +110,7 @@ class Macro {
 	#end
 
 	function map < T, R > ( a : Array<T>, f : T -> R ) : Array<R> {
-		var b = new Array();
+		var b = [];
 		for( x in a )
 			b.push(f(x));
 		return b;

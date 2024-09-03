@@ -278,7 +278,7 @@ class Bytes {
 		case 3:
 			EParent(doDecode());
 		case 4:
-			var a = new Array();
+			var a = [];
 			for( i in 0...bin.get(pin++) )
 				a.push(doDecode());
 			EBlock(a);
@@ -295,7 +295,7 @@ class Bytes {
 			EUnop(op,prefix,doDecode());
 		case 8:
 			var e = doDecode();
-			var params = new Array();
+			var params = [];
 			for( i in 0...bin.get(pin++) )
 				params.push(doDecode());
 			ECall(e,params);
@@ -317,7 +317,7 @@ class Bytes {
 		case 14:
 			var params = new Array<Argument>();
 			for( i in 0...bin.get(pin++) )
-				params.push({ name : doDecodeString() });
+				params.push({ name : doDecodeString(), opt: false, value: null, t: null });
 			var e = doDecode();
 			var name = doDecodeString();
 			EFunction(params,e,(name == "") ? null: name);
@@ -327,13 +327,13 @@ class Bytes {
 			var e = doDecode();
 			EArray(e,doDecode());
 		case 17:
-			var el = new Array();
+			var el = [];
 			for( i in 0...bin.get(pin++) )
 				el.push(doDecode());
 			EArrayDecl(el);
 		case 18:
 			var cl = doDecodeString();
-			var el = new Array();
+			var el = [];
 			for( i in 0...bin.get(pin++) )
 				el.push(doDecode());
 			ENew(cl,el);
@@ -344,7 +344,7 @@ class Bytes {
 			var v = doDecodeString();
 			ETry(e,v,null,doDecode());
 		case 21:
-			var fl = new Array();
+			var fl = [];
 			for( i in 0...bin.get(pin++) ) {
 				var name = doDecodeString();
 				var e = doDecode();
@@ -358,7 +358,7 @@ class Bytes {
 			ETernary(cond, e1, e2);
 		case 23:
 			var e = doDecode();
-			var cases = [];
+			var cases:Array<SwitchCase> = [];
 			while( true ) {
 				var v = doDecode();
 				if( v == null ) break;

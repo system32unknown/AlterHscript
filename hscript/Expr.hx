@@ -92,9 +92,21 @@ final class SwitchCase {
 	public var expr : Expr;
 }
 
-typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };
+@:structInit
+final class Argument {
+	public var name : String;
+	public var t : CType;
+	public var opt : Bool;
+	public var value : Expr;
+}
 
-typedef Metadata = Array<{ name : String, params : Array<Expr> }>;
+@:structInit
+final class MetadataEntry {
+	public var name : String;
+	public var params : Array<Expr>;
+}
+
+typedef Metadata = Array<MetadataEntry>;
 
 enum CType {
 	CTPath( path : Array<String>, ?params : Array<CType> );
@@ -190,7 +202,7 @@ enum FieldKind {
 
 typedef FunctionDecl = {
 	var args : Array<Argument>;
-	var expr : Expr;
+	var body : Expr;
 	var ret : Null<CType>;
 }
 

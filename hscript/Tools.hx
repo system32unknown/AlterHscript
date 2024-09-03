@@ -24,7 +24,7 @@ import hscript.Expr;
 
 class Tools {
 
-	public static function iter( e : Expr, f : Expr -> Void ) {
+	public static function iter( e : Expr, f : Expr -> Void ):Void {
 		switch( expr(e) ) {
 		case EConst(_), EIdent(_):
 		case EImport(c): f(e);
@@ -63,7 +63,7 @@ class Tools {
 		}
 	}
 
-	public static function map( e : Expr, f : Expr -> Expr ) {
+	public static function map( e : Expr, f : Expr -> Expr ):Expr {
 		var edef = switch( expr(e) ) {
 		case EConst(_), EIdent(_), EBreak, EContinue: expr(e);
 		case EVar(n, t, e, isPublic, isStatic, isPrivate): EVar(n, t, if( e != null ) f(e) else null, isPublic, isStatic, isPrivate);
@@ -103,7 +103,7 @@ class Tools {
 		#end
 	}
 
-	public static inline function mk( e : ExprDef, p : Expr ) {
+	public static inline function mk( e : ExprDef, p : Expr ):Expr {
 		#if hscriptPos
 		return { e : e, pmin : p.pmin, pmax : p.pmax, origin : p.origin, line : p.line };
 		#else

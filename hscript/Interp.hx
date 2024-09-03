@@ -146,12 +146,12 @@ class Interp {
 		#else
 		locals = new Hash();
 		#end
-		declared = new Array();
+		declared = [];
 		resetVariables();
 		initOps();
 	}
 
-	private function resetVariables() {
+	private function resetVariables():Void {
 		#if haxe3
 		customClasses = new Map<String, Dynamic>();
 		variables = new Map<String, Dynamic>();
@@ -184,7 +184,7 @@ class Interp {
 		return cast {fileName: "hscript", lineNumber: 0};
 	}
 
-	function initOps() {
+	function initOps():Void {
 		var me = this;
 		#if haxe3
 		binops = new Map();
@@ -236,7 +236,7 @@ class Interp {
 		assignOp("??" + "=", function(v1, v2) return v1 == null ? v2 : v1);
 	}
 
-	function checkIsType(e1,e2): Bool {
+	function checkIsType(e1:Expr,e2:Expr): Bool {
 		var expr1:Dynamic = expr(e1);
 
 		return switch(Tools.expr(e2))
@@ -255,7 +255,7 @@ class Interp {
 		return allowStaticVariables && staticVariables.exists(name) || allowPublicVariables && publicVariables.exists(name) || variables.exists(name);
 	}
 
-	public function setVar(name:String, v:Dynamic) {
+	public function setVar(name:String, v:Dynamic):Void {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
 		else if (allowPublicVariables && publicVariables.exists(name))
@@ -331,12 +331,12 @@ class Interp {
 		return v;
 	}
 
-	function assignOp(op, fop:Dynamic->Dynamic->Dynamic) {
+	function assignOp(op:String, fop:Dynamic->Dynamic->Dynamic):Void {
 		var me = this;
 		binops.set(op, function(e1, e2) return me.evalAssignOp(op, fop, e1, e2));
 	}
 
-	function evalAssignOp(op, fop, e1, e2):Dynamic {
+	function evalAssignOp(op:String, fop:Dynamic->Dynamic->Dynamic, e1:Expr, e2:Expr):Dynamic {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
@@ -473,7 +473,7 @@ class Interp {
 		#else
 		locals = new Hash();
 		#end
-		declared = new Array();
+		declared = [];
 		return exprReturn(expr);
 	}
 
@@ -519,7 +519,7 @@ class Interp {
 		return h2;
 	}
 
-	function restore(old:Int) {
+	function restore(old:Int):Void {
 		while (declared.length > old) {
 			var d = declared.pop();
 			locals.set(d.n, d.old);
@@ -537,7 +537,7 @@ class Interp {
 		return null;
 	}
 
-	inline function rethrow(e:Dynamic) {
+	inline function rethrow(e:Dynamic):Void {
 		#if hl
 		hl.Api.rethrow(e);
 		#else
@@ -924,7 +924,7 @@ class Interp {
 					}
 					return map;
 				} else {
-					var a = new Array();
+					var a = [];
 					for (e in arr) {
 						a.push(expr(e));
 					}
@@ -939,7 +939,7 @@ class Interp {
 					return arr[index];
 				}
 			case ENew(cl, params):
-				var a = new Array();
+				var a = [];
 				for (e in params)
 					a.push(expr(e));
 				return cnew(cl, a);
@@ -1007,7 +1007,7 @@ class Interp {
 		return null;
 	}
 
-	function doWhileLoop(econd, e) {
+	function doWhileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		do {
 			try {
@@ -1025,7 +1025,7 @@ class Interp {
 		restore(old);
 	}
 
-	function whileLoop(econd, e) {
+	function whileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		while (expr(econd) == true) {
 			try {
@@ -1065,7 +1065,7 @@ class Interp {
 		return v;
 	}
 
-	function forLoop(n, it, e, ?ithv) {
+	function forLoop(n:String, it:Expr, e:Expr, ?ithv:String):Void {
 		var isKeyValue = ithv != null;
 		var old = declared.length;
 		if(isKeyValue)

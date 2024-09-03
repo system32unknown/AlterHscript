@@ -214,7 +214,7 @@ class ClassExtendMacro {
 				}
 				if (f.name.startsWith(FUNC_PREFIX))
 					continue;
-				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline))
+				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline) || f.access.contains(AFinal))
 					continue;
 
 				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes, yet
