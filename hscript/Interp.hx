@@ -602,7 +602,11 @@ class Interp {
 			}
 
 			if (instanceHasField) {
-				return UnsafeReflect.getProperty(scriptObject, id);
+				if(isBypassAccessor) {
+					return UnsafeReflect.field(scriptObject, id);
+				} else {
+					return UnsafeReflect.getProperty(scriptObject, id);
+				}
 			} else if (__instanceFields.contains('get_$id')) { // getter
 				return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
 			}
