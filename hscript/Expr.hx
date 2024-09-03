@@ -75,7 +75,7 @@ enum Expr {
 	ENew( cl : String, params : Array<Expr> );
 	EThrow( e : Expr );
 	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
-	EObject( fl : Array<{ name : String, e : Expr }> );
+	EObject( fl : Array<ObjectField> );
 	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
 	ESwitch( e : Expr, cases : Array<SwitchCase>, ?defaultExpr : Expr );
 	EDoWhile( cond : Expr, e : Expr);
@@ -84,6 +84,12 @@ enum Expr {
 
 	EImport( c : String, ?asname:String );
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
+}
+
+@:structInit
+final class ObjectField {
+	public var name : String;
+	public var e : Expr;
 }
 
 @:structInit
@@ -200,10 +206,11 @@ enum FieldKind {
 	KVar( v : VarDecl );
 }
 
-typedef FunctionDecl = {
-	var args : Array<Argument>;
-	var body : Expr;
-	var ret : Null<CType>;
+@:structInit
+final class FunctionDecl {
+	public var args : Array<Argument>;
+	public var body : Expr;
+	public var ret : Null<CType>;
 }
 
 typedef VarDecl = {

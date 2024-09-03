@@ -74,8 +74,9 @@ class Interp {
 				__instanceFields = Type.getInstanceFields(c);
 				if(v is IHScriptCustomClassBehaviour) {
 					var v = cast(v, IHScriptCustomClassBehaviour);
-					if(v.__class__fields != null)
-						__instanceFields = __instanceFields.concat(v.__class__fields);
+					var classFields = v.__class__fields;
+					if(classFields != null)
+						__instanceFields = __instanceFields.concat(classFields);
 					_scriptObjectType = SCustomClass;
 				} else if(v is IHScriptCustomBehaviour) {
 					_scriptObjectType = SBehaviourClass;
@@ -274,6 +275,7 @@ class Interp {
 
 						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
+							return v;
 						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
 							var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
 							if(isBypassAccessor) {
@@ -511,12 +513,20 @@ class Interp {
 	public function duplicate<T>(h:#if haxe3 Map<String, T> #else Hash<T> #end) {
 		#if haxe3
 		var h2 = new Map();
+		var keys = h.keys();
+		var _hasNext = keys.hasNext;
+		var _next = keys.next;
+		while (_hasNext()) {
+			var k = _next();
+			h2.set(k, h.get(k));
+		}
+		return h2;
 		#else
 		var h2 = new Hash();
-		#end
 		for (k in h.keys())
 			h2.set(k, h.get(k));
 		return h2;
+		#end
 	}
 
 	function restore(old:Int):Void {
@@ -775,12 +785,24 @@ class Interp {
 			case EReturn(e):
 				returnValue = e == null ? null : expr(e);
 				throw SReturn;
-			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride):
+			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride, isPrivate, isFinal, isInline):
 				var __capturedLocals = duplicate(locals);
 				var capturedLocals:Map<String, DeclaredVar> = [];
+				#if haxe3
+				var keys = __capturedLocals.keys();
+				var _hasNext = keys.hasNext;
+				var _next = keys.next;
+				while (_hasNext()) {
+					var k = _next();
+					var e = __capturedLocals.get(k);
+					if (e != null && e.depth > 0)
+						capturedLocals.set(k, e);
+				}
+				#else
 				for(k=>e in __capturedLocals)
 					if (e != null && e.depth > 0)
 						capturedLocals.set(k, e);
+				#end
 
 				var me = this;
 				var hasOpt = false, minParams = 0;

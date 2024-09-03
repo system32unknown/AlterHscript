@@ -44,6 +44,13 @@ enum Token {
 	TPrepro( s : String );
 }
 
+@:structInit
+final class TokenInfo {
+	public var min : Int;
+	public var max : Int;
+	public var t : Token;
+}
+
 class Parser {
 
 	// config / variables
@@ -100,7 +107,7 @@ class Parser {
 	var tokenMax : Int;
 	var oldTokenMin : Int;
 	var oldTokenMax : Int;
-	var tokens : List<{ min : Int, max : Int, t : Token }>;
+	var tokens : List<TokenInfo>;
 	#else
 	static inline var p1 = 0;
 	static inline var tokenMin = 0;
@@ -319,7 +326,7 @@ class Parser {
 
 	function parseObject(p1:Int):Expr {
 		// parse object
-		var fl = [];
+		var fl:Array<ObjectField> = [];
 		while( true ) {
 			var tk = token();
 			var id = null;
@@ -2033,7 +2040,7 @@ class Parser {
 		return preprocesorValues.get(id);
 	}
 
-	var preprocStack : Array<{ r : Bool }>;
+	var preprocStack : Array<Bool>;
 
 	function parsePreproCond():Expr {
 		var tk = token();
@@ -2096,20 +2103,20 @@ class Parser {
 		case "if":
 			var e = parsePreproCond();
 			if( evalPreproCond(e) ) {
-				preprocStack.push({ r : true });
+				preprocStack.push(true);
 				return token();
 			}
-			preprocStack.push({ r : false });
+			preprocStack.push(false);
 			skipTokens();
 			return token();
 		case "else", "elseif" if( preprocStack.length > 0 ):
-			if( preprocStack[preprocStack.length - 1].r ) {
-				preprocStack[preprocStack.length - 1].r = false;
+			if( preprocStack[preprocStack.length - 1] ) {
+				preprocStack[preprocStack.length - 1] = false;
 				skipTokens();
 				return token();
 			} else if( id == "else" ) {
 				preprocStack.pop();
-				preprocStack.push({ r : true });
+				preprocStack.push(true);
 				return token();
 			} else {
 				// elseif
