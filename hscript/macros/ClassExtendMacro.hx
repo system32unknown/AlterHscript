@@ -65,15 +65,13 @@ class ClassExtendMacro {
 			if(cl.module.contains("_")) return fields; // Weird issue, sorry
 
 			var superFields = [];
-			if(cl.superClass != null) {
+			if(false && cl.superClass != null) {
 				var _superFields = cl.superClass.t.get().fields.get();
 				_superFields = []; // Comment to enable super support, (broken)
-				for(field in _superFields) {
-					if(!field.kind.match(FMethod(_))) // only catch methods
-						continue;
 
+				function convertField(field:ClassField) {
 					try {
-						var nfield = @:privateAccess TypeTools.toField(field);
+						var nfield = FixedTypeTools.toSimpleField(field);
 						switch ([field.kind, field.type]) {
 							case [FMethod(kind), TFun(args, ret)]:
 								if(kind == MethInline)
@@ -86,9 +84,9 @@ class ClassExtendMacro {
 						switch(nfield.kind) {
 							case FFun(fun):
 								if (fun.params != null && fun.params.length > 0)
-									continue;
+									return null;
 
-								fun.ret = Utils.fixStdTypes(fun.ret);
+								//sfun.ret = Utils.fixStdTypes(fun.ret);
 
 								var metas = nfield.meta;
 								var defaultValues:Map<String, Dynamic> = [];
@@ -107,7 +105,7 @@ class ClassExtendMacro {
 									if(m.name == ":generic")
 										isGeneric = true;
 								}
-								if(isGeneric) continue;
+								if(isGeneric) return null;
 
 								if(defaultEntry != null)
 									metas.remove(defaultEntry);
@@ -119,20 +117,80 @@ class ClassExtendMacro {
 										arg.opt = false;
 									}
 
-									arg.type = Utils.fixStdTypes(arg.type);
+									arg.type = null;//Utils.fixStdTypes(arg.type);
 
-									if(arg.opt) {
-										if(arg.type.getParameters()[0].name != "Null")
-											arg.type = TPath({name: "Null", params: [TPType(arg.type)], pack: []});//macro {Null<Dynamic>};
-									}
+									//if(arg.opt) {
+									//	if(arg.type.getParameters()[0].name != "Null")
+									//		arg.type = TPath({name: "Null", params: [TPType(arg.type)], pack: []});//macro {Null<Dynamic>};
+									//}
 								}
+
+								trace(nfield.name);
 							default:
 						}
-						superFields.push(nfield);
+						return nfield;
 					} catch(e) {
-
+						trace(field.name, e);
+						return null;
 					}
 				}
+
+				var didPrint = false;
+
+				var fieldNames = [for(f in fields) f.name];
+
+				/*for(field in _superFields) {
+					if(fieldNames.contains(field.name))
+						continue;
+
+					if(!field.kind.match(FMethod(_))) // only catch methods
+						continue;
+
+					if(field.name.startsWith("get_")) {
+						var access = FixedTypeTools.getAccess(field);
+						if(access.contains(AInline) || access.contains(AFinal) || field.isFinal)
+							continue;
+						var name = field.name;
+						superFields.push({
+							name: field.name,
+							pos: field.pos,
+							kind: FFun({
+								ret: null,
+								params: [],
+								expr: macro {
+									return super.$name();
+								},
+								args: []
+							}),
+							access: access,
+							meta: field.meta.get(),
+						});
+						//var f = convertField(field);
+						//if(f != null)
+						//	superFields.push(f);
+						if(field.name == "get_bgColor") {
+							if(!didPrint) {
+								trace(cl.name);
+								didPrint = true;
+							}
+							trace("> " + field.name + " : " + access, field);
+						}
+					}
+
+				}*/
+
+				// want to get this working
+				/*for(field in _superFields) {
+					if(fieldNames.contains(field.name))
+						continue;
+
+					if(!field.kind.match(FMethod(_))) // only catch methods
+						continue;
+
+					var f = convertField(field);
+					if(f != null)
+						superFields.push(f);
+				}*/
 				//superFields = [];
 			}
 
