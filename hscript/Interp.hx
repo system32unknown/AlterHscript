@@ -343,13 +343,12 @@ class Interp {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
-				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
-				if (l == null) {
-					if(_hasScriptObject) {
+				if (!locals.exists(id)) {
+					if(_hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
 
-						if(_scriptObjectType == SObject && instanceHasField) {
+						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
 						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
@@ -361,7 +360,7 @@ class Interp {
 								return res;
 							}
 							return obj.hset(id, v);
-						} else if(_scriptObjectType == SBehaviourClass) {
+						} else if (_scriptObjectType == SBehaviourClass) {
 							var obj = cast(scriptObject, IHScriptCustomBehaviour);
 							return obj.hset(id, v);
 						}
@@ -379,10 +378,17 @@ class Interp {
 						} else {
 							setVar(id, v);
 						}
+					} else {
+						setVar(id, v);
 					}
 				}
-				else
+				else {
+					var l = locals.get(id);
 					l.r = v;
+					if (l.depth == 0) {
+						setVar(id, v);
+					}
+				}
 			case EField(e, f, s):
 				var obj = expr(e);
 				if(s && obj == null) return null;
