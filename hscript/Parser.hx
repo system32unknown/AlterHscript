@@ -769,6 +769,11 @@ class Parser {
 					var str = parseStructure("class"); // var class
 					nextIsFinal = false;
 					return str;
+				case TId("function"):
+					nextIsFinal = true;
+					var str = parseStructure("function"); // var function
+					nextIsFinal = false;
+					return str;
 				default:
 					push(nextToken);
 			}
@@ -837,7 +842,7 @@ class Parser {
 
 			var tk = token();
 			push(tk);
-			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate),p1,pmax(inf.body));
+			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal),p1,pmax(inf.body));
 		case "import":
 			var oldReadPos = readPos;
 			var tk = token();
