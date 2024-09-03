@@ -598,6 +598,8 @@ class Parser {
 	var nextIsOverride:Bool = false;
 	var nextIsStatic:Bool = false;
 	var nextIsPublic:Bool = false;
+	var nextIsPrivate:Bool = false;
+	var nextIsFinal:Bool = false;
 	var nextType:CType = null;
 	function parseStructure(id, ?oldPos:Int) {
 		#if hscriptPos
@@ -647,6 +649,10 @@ class Parser {
 					var str = parseStructure("final"); // override final
 					nextIsOverride = false;
 					str;
+				case TId("private"):
+					var str = parseStructure("private"); // override private
+					nextIsOverride = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsOverride = false;
@@ -674,6 +680,10 @@ class Parser {
 					str;
 				case TId("final"):
 					var str = parseStructure("final"); // static final
+					nextIsStatic = false;
+					str;
+				case TId("private"):
+					var str = parseStructure("private"); // static private
 					nextIsStatic = false;
 					str;
 				default:
@@ -705,12 +715,63 @@ class Parser {
 					var str = parseStructure("final"); // public final
 					nextIsPublic = false;
 					str;
+				case TId("class"):
+					var str = parseStructure("class"); // public class
+					nextIsPublic = false;
+					str;
+				//case TId("private"):
+				//	var str = parseStructure("private"); // public private
+				//	nextIsPublic = false;
+				//	str;
 				default:
 					unexpected(nextToken);
 					nextIsPublic = false;
 					null;
 			}
+		case "private":
+			nextIsPrivate = true;
+			var nextToken = token();
+			switch(nextToken) {
+				case TId("static"):
+					var str = parseStructure("static"); // private static
+					nextIsPrivate = false;
+					str;
+				case TId("function"):
+					var str = parseStructure("function"); // private function
+					nextIsPrivate = false;
+					str;
+				case TId("override"):
+					var str = parseStructure("override"); // private override
+					nextIsPrivate = false;
+					str;
+				case TId("var"):
+					var str = parseStructure("var"); // private var
+					nextIsPrivate = false;
+					str;
+				case TId("final"):
+					var str = parseStructure("final"); // private final
+					nextIsPrivate = false;
+					str;
+				case TId("class"):
+					var str = parseStructure("class"); // private class
+					nextIsPrivate = false;
+					str;
+				default:
+					unexpected(nextToken);
+					nextIsPrivate = false;
+					null;
+			}
 		case "var" | "final":
+			var nextToken = token();
+			switch(nextToken) {
+				case TId("class"):
+					nextIsFinal = true;
+					var str = parseStructure("class"); // var class
+					nextIsFinal = false;
+					return str;
+				default:
+					push(nextToken);
+			}
 			var ident = getIdent();
 			var tk = token();
 			var t = null;
@@ -727,7 +788,7 @@ class Parser {
 			else
 				push(tk);
 			nextType = null;
-			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic), p1, (e == null) ? tokenMax : pmax(e));
+			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate), p1, (e == null) ? tokenMax : pmax(e));
 		case "while":
 			var econd = parseExpr();
 			var e = parseExpr();
@@ -776,7 +837,7 @@ class Parser {
 
 			var tk = token();
 			push(tk);
-			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride),p1,pmax(inf.body));
+			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate),p1,pmax(inf.body));
 		case "import":
 			var oldReadPos = readPos;
 			var tk = token();
@@ -917,7 +978,7 @@ class Parser {
 
 			var tk = token();
 			push(tk);
-			mk(EClass(name, fields, extend, interfaces), p1);
+			mk(EClass(name, fields, extend, interfaces, nextIsFinal, nextIsPrivate), p1);
 
 		case "return":
 			var tk = token();
