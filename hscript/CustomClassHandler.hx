@@ -29,6 +29,7 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 	public function hnew(args:Array<Dynamic>):Dynamic {
 		// TODO: clean this up, it sucks, i hate it
+		// TODO: make static vars work correctly
 		var interp = new Interp();
 
 		interp.errorHandler = ogInterp.errorHandler;
@@ -62,6 +63,8 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 				interp.customClasses.set(key, value);
 			}
 		}
+		// todo: clone static vars, but make it so setting it only sets it on the class
+		// todo: clone public vars
 
 		//trace("Before: " + [for(key => value in interp.variables) key]);
 
