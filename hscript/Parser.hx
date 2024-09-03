@@ -51,6 +51,7 @@ final class TokenInfo {
 	public var t : Token;
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Parser {
 
 	// config / variables
@@ -2040,7 +2041,7 @@ class Parser {
 		return preprocesorValues.get(id);
 	}
 
-	var preprocStack : Array<Bool>;
+	var preprocStack : Array<PreprocValue>;
 
 	function parsePreproCond():Expr {
 		var tk = token();
@@ -2103,20 +2104,20 @@ class Parser {
 		case "if":
 			var e = parsePreproCond();
 			if( evalPreproCond(e) ) {
-				preprocStack.push(true);
+				preprocStack.push({r: true});
 				return token();
 			}
-			preprocStack.push(false);
+			preprocStack.push({r: false});
 			skipTokens();
 			return token();
 		case "else", "elseif" if( preprocStack.length > 0 ):
-			if( preprocStack[preprocStack.length - 1] ) {
-				preprocStack[preprocStack.length - 1] = false;
+			if( preprocStack[preprocStack.length - 1].r ) {
+				preprocStack[preprocStack.length - 1].r = false;
 				skipTokens();
 				return token();
 			} else if( id == "else" ) {
 				preprocStack.pop();
-				preprocStack.push(true);
+				preprocStack.push({r: true});
 				return token();
 			} else {
 				// elseif
@@ -2222,5 +2223,9 @@ class Parser {
 		case TPrepro(id): "#" + id;
 		}
 	}
+}
 
+@:structInit
+final class PreprocValue {
+	public var r : Bool;
 }

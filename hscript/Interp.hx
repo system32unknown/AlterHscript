@@ -64,6 +64,7 @@ class RedeclaredVar {
 	public var depth:Int;
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
 	public var scriptObject(default, set):Dynamic;
 	private var _hasScriptObject(default, null):Bool = false;
