@@ -895,13 +895,22 @@ class Interp {
 				return f;
 			case EArrayDecl(arr, wantedType):
 				var isMap = false;
-				var isTypeMap = false;
-				if(!isMap && wantedType != null) {
-					isMap = wantedType.match(CTPath(["Map"], [_, _]));
-					isTypeMap = true;
-				} else {
-					isMap = arr.length > 0 && Tools.expr(arr[0]).match(EBinop("=>", _));
+
+				if (wantedType != null) {
+					isMap = switch (wantedType) {
+						case CTPath(["Map"], [_, _]): true;
+						case CTPath(["StringMap"], [_]): true;
+						case CTPath(["IntMap"], [_]): true;
+						case CTPath(["ObjectMap"], [_]): true;
+						case CTPath(["EnumMap"], [_]): true;
+						default: false;
+					};
 				}
+
+				if (!isMap && arr.length > 0) {
+					isMap = Tools.expr(arr[0]).match(EBinop("=>", _));
+				}
+
 				if (isMap) {
 					var isAllString:Bool = true;
 					var isAllInt:Bool = true;
@@ -909,9 +918,10 @@ class Interp {
 					var isAllEnum:Bool = true;
 					var keys:Array<Dynamic> = [];
 					var values:Array<Dynamic> = [];
+
 					for (e in arr) {
 						switch (Tools.expr(e)) {
-							case EBinop("=>", eKey, eValue): {
+							case EBinop("=>", eKey, eValue):
 								var key:Dynamic = expr(eKey);
 								var value:Dynamic = expr(eValue);
 								isAllString = isAllString && (key is String);
@@ -920,23 +930,28 @@ class Interp {
 								isAllEnum = isAllEnum && Reflect.isEnumValue(key);
 								keys.push(key);
 								values.push(value);
-							}
-							default: throw("=> expected");
+							default:
+								throw "=> expected";
 						}
 					}
 
-					if(isTypeMap) {
-						if(wantedType != null) {
-							isAllString = wantedType.match(CTPath(["Map"], [CTPath(["String"], _), _]));
-							isAllInt = wantedType.match(CTPath(["Map"], [CTPath(["Int"], _), _]));
-							if(isAllString || isAllInt) {
-								isAllObject = false;
-								isAllEnum = false;
-							} else {
-								if(!isAllObject && !isAllEnum) {
-									throw("Unknown Type Key");
-								}
-							}
+					if (wantedType != null) {
+						isAllString = isAllString && (
+							wantedType.match(CTPath(["Map"], [CTPath(["String"], _), _])) || wantedType.match(CTPath(["StringMap"], [_]))
+						);
+						isAllInt = isAllInt && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Int"], _), _])) || wantedType.match(CTPath(["IntMap"], [_]))
+						);
+						isAllObject = isAllObject && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Dynamic"], _), _])) || wantedType.match(CTPath(["ObjectMap"], [_, _]))
+						);
+						isAllEnum = isAllEnum && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Enum"], _), _])) || wantedType.match(CTPath(["EnumMap"], [_, _]))
+						);
+
+						if (!isAllString && !isAllInt && !isAllObject && !isAllEnum) {
+							isAllObject = true; // Assume dynamic
+							//throw "Unknown Type Key";
 						}
 					}
 
@@ -950,7 +965,7 @@ class Interp {
 						else if (isAllObject)
 							new haxe.ds.ObjectMap<Dynamic, Dynamic>();
 						else
-							throw 'Inconsistent key types';
+							throw 'Unknown Type Key';
 					}
 					for (n in 0...keys.length) {
 						setMapValue(map, keys[n], values[n]);
