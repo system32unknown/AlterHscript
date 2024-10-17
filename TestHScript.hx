@@ -26,13 +26,8 @@ class TestHScript extends TestCase {
 		assertScript("0",0);
 		assertScript("0xFF", 255);
 		#if !(php || python)
-			#if haxe3
 			assertScript("0xBFFFFFFF", 0xBFFFFFFF);
 			assertScript("0x7FFFFFFF", 0x7FFFFFFF);
-			#elseif !neko
-			assertScript("n(0xBFFFFFFF)", 0xBFFFFFFF, { n : haxe.Int32.toNativeInt });
-			assertScript("n(0x7FFFFFFF)", 0x7FFFFFFF, { n : haxe.Int32.toNativeInt } );
-			#end
 		#end
 		assertScript("-123",-123);
 		assertScript("- 123",-123);
@@ -81,11 +76,7 @@ class TestHScript extends TestCase {
 		assertScript("var a = [1,[2,[3,[4,null]]]]; var t = 0; while( a != null ) { t += a[0]; a = a[1]; }; t",10);
 		assertScript("var a = false; do { a = true; } while (!a); a;",true);
 		assertScript("var t = 0; for( x in 1...10 ) t += x; t", 45);
-		#if haxe3
 		assertScript("var t = 0; for( x in new IntIterator(1,10) ) t +=x; t", 45);
-		#else
-		assertScript("var t = 0; for( x in new IntIter(1,10) ) t +=x; t", 45);
-		#end
 		assertScript("var x = 1; try { var x = 66; throw 789; } catch( e : Dynamic ) e + x",790);
 		assertScript("var x = 1; var f = function(x) throw x; try f(55) catch( e : Dynamic ) e + x",56);
 		assertScript("var i=2; if( true ) --i; i",1);
