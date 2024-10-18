@@ -74,7 +74,7 @@ class Interp {
 			case TClass(c): // Class Access
 				__instanceFields = Type.getInstanceFields(c);
 				if(v is IHScriptCustomClassBehaviour) {
-					var v = cast(v, IHScriptCustomClassBehaviour);
+					var v:IHScriptCustomClassBehaviour = cast v;
 					var classFields = v.__class__fields;
 					if(classFields != null)
 						__instanceFields = __instanceFields.concat(classFields);
@@ -248,7 +248,7 @@ class Interp {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
 						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
-							var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
+							var obj:IHScriptCustomClassBehaviour = cast scriptObject;
 							if(isBypassAccessor) {
 								obj.__allowSetGet = false;
 								var res = obj.hset(id, v);
@@ -257,7 +257,7 @@ class Interp {
 							}
 							return obj.hset(id, v);
 						} else if (_scriptObjectType == SBehaviourClass) {
-							var obj = cast(scriptObject, IHScriptCustomBehaviour);
+							var obj:IHScriptCustomBehaviour = cast scriptObject;
 							return obj.hset(id, v);
 						}
 
@@ -322,7 +322,7 @@ class Interp {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
 						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
-							var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
+							var obj:IHScriptCustomClassBehaviour = cast scriptObject;
 							if(isBypassAccessor) {
 								obj.__allowSetGet = false;
 								var res = obj.hset(id, v);
@@ -331,7 +331,7 @@ class Interp {
 							}
 							return obj.hset(id, v);
 						} else if (_scriptObjectType == SBehaviourClass) {
-							var obj = cast(scriptObject, IHScriptCustomBehaviour);
+							var obj:IHScriptCustomBehaviour = cast scriptObject;
 							return obj.hset(id, v);
 						}
 
@@ -547,7 +547,7 @@ class Interp {
 			if (_scriptObjectType == SObject && instanceHasField) {
 				return UnsafeReflect.field(scriptObject, id);
 			} else if(_scriptObjectType == SCustomClass && instanceHasField) {
-				var obj = cast(scriptObject, IHScriptCustomClassBehaviour);
+				var obj:IHScriptCustomClassBehaviour = cast scriptObject;
 				if(isBypassAccessor) {
 					obj.__allowSetGet = false;
 					var res = obj.hget(id);
@@ -556,7 +556,7 @@ class Interp {
 				}
 				return obj.hget(id);
 			} else if(_scriptObjectType == SBehaviourClass) {
-				var obj = cast(scriptObject, IHScriptCustomBehaviour);
+				var obj:IHScriptCustomBehaviour = cast scriptObject;
 				return obj.hget(id);
 			}
 
@@ -1094,15 +1094,18 @@ class Interp {
 	}
 
 	inline function getMap(map:Dynamic):IMap<Dynamic, Dynamic> {
-		return cast(map, IMap<Dynamic, Dynamic>);
+		var map:IMap<Dynamic, Dynamic> = cast map;
+		return map;
 	}
 
 	inline function getMapValue(map:Dynamic, key:Dynamic):Dynamic {
-		return cast(map, IMap<Dynamic, Dynamic>).get(key);
+		var map:IMap<Dynamic, Dynamic> = cast map;
+		return map.get(key);
 	}
 
 	inline function setMapValue(map:Dynamic, key:Dynamic, value:Dynamic):Void {
-		cast(map, IMap<Dynamic, Dynamic>).set(key, value);
+		var map:IMap<Dynamic, Dynamic> = cast map;
+		map.set(key, value);
 	}
 
 	public static var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
@@ -1139,7 +1142,7 @@ class Interp {
 		}
 
 		if(o is IHScriptCustomClassBehaviour) {
-			var obj = cast(o, IHScriptCustomClassBehaviour);
+			var obj:IHScriptCustomClassBehaviour = cast o;
 			if(isBypassAccessor) {
 				obj.__allowSetGet = false;
 				var res = obj.hget(f);
@@ -1150,7 +1153,7 @@ class Interp {
 		}
 
 		if (o is IHScriptCustomBehaviour) {
-			var obj = cast(o, IHScriptCustomBehaviour);
+			var obj:IHScriptCustomBehaviour = cast o;
 			return obj.hget(f);
 		}
 		var v = null;
@@ -1177,7 +1180,7 @@ class Interp {
 			return _setRedirect(o, f, v);
 
 		if(o is IHScriptCustomClassBehaviour) {
-			var obj = cast(o, IHScriptCustomClassBehaviour);
+			var obj:IHScriptCustomClassBehaviour = cast o;
 			if(isBypassAccessor) {
 				obj.__allowSetGet = false;
 				var res = obj.hset(f, v);
@@ -1188,7 +1191,7 @@ class Interp {
 		}
 
 		if (o is IHScriptCustomBehaviour) {
-			var obj = cast(o, IHScriptCustomBehaviour);
+			var obj:IHScriptCustomBehaviour = cast o;
 			return obj.hset(f, v);
 		}
 		// Can use unsafe reflect here, since we checked for null above
@@ -1218,6 +1221,11 @@ class Interp {
 		var c:Dynamic = resolve(cl);
 		if (c == null)
 			c = Type.resolveClass(cl);
-		return (c is IHScriptCustomConstructor) ? cast(c, IHScriptCustomConstructor).hnew(args) : Type.createInstance(c, args);
+		if(c is IHScriptCustomConstructor) {
+			var c:IHScriptCustomConstructor = cast c;
+			return c.hnew(args);
+		} else {
+			return Type.createInstance(c, args);
+		}
 	}
 }
