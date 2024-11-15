@@ -2080,9 +2080,14 @@ class Parser {
 		var pos = readPos;
 		while( true ) {
 			var tk = token();
-			// TODO: Fix ending in with #end in the file
-			if( tk == TEof )
-				error(EInvalidPreprocessor("Unclosed"), pos, pos);
+			
+			if( tk == TEof ) {
+				if (preprocStack.length != 0) {
+					error(EInvalidPreprocessor("Unclosed"), pos, pos);
+				} else {
+					break;
+				}
+			}
 			if( preprocStack[spos] != obj ) {
 				push(tk);
 				break;

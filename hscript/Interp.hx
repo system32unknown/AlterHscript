@@ -575,6 +575,21 @@ class Interp {
 		return null;
 	}
 
+	public static var importRedirects:Map<String, String> = new Map();
+	public static function getImportRedirect(className:String):String {
+		return importRedirects.exists(className) ? importRedirects.get(className) : className;
+	}
+
+	public var localImportRedirects:Map<String, String> = new Map();
+	public function getLocalImportRedirect(className:String):String {
+		var className = className;
+		if (importRedirects.exists(className))
+			className = importRedirects.get(className);
+		if (localImportRedirects.exists(className))
+			className = localImportRedirects.get(className);
+		return className;
+	}
+
 	public function expr(e:Expr):Dynamic {
 		#if hscriptPos
 		curExpr = e;
@@ -605,6 +620,8 @@ class Interp {
 				if (variables.exists(toSetName)) // class is already imported
 					return null;
 
+				var realClassName = getLocalImportRedirect(realClassName);
+
 				if (importBlocklist.contains(realClassName))
 					return null;
 				var cl = Type.resolveClass(realClassName);
@@ -620,6 +637,8 @@ class Interp {
 					if(splitClassName.length > 1) {
 						splitClassName.splice(-2, 1); // Remove the last last item
 						realClassName = splitClassName.join(".");
+
+						var realClassName = getLocalImportRedirect(realClassName);
 
 						if (importBlocklist.contains(realClassName))
 							return null;
