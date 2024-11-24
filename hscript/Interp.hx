@@ -28,9 +28,6 @@
  */
 package hscript;
 
-import haxe.iterators.StringKeyValueIteratorUnicode;
-import haxe.EnumTools;
-import haxe.display.Protocol.InitializeResult;
 import haxe.PosInfos;
 import hscript.Expr;
 import haxe.Constraints.IMap;
@@ -89,6 +86,8 @@ class Interp {
 	#if hscriptPos
 	var curExpr:Expr;
 	#end
+
+	public var showPosOnLog:Bool = true;
 
 	public function new() {
 		#if haxe3
@@ -246,7 +245,9 @@ class Interp {
 				// TODO
 			case EField(e, f, s):
 				var obj = expr(e);
-				if(s && obj == null) return null;
+				if (e == null)
+					if (!s) error(EInvalidAccess(f));
+					else return null;
 				v = set(obj, f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
@@ -287,7 +288,9 @@ class Interp {
 					l.r = v;
 			case EField(e, f, s):
 				var obj = expr(e);
-				if(s && obj == null) return null;
+				if (obj == null)
+					if (!s) error(EInvalidAccess(f));
+					else return null;
 				v = fop(get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -328,7 +331,9 @@ class Interp {
 				return v;
 			case EField(e, f, s):
 				var obj = expr(e);
-				if(s && obj == null) return null;
+				if (obj == null)
+					if (!s) error(EInvalidAccess(f));
+					else return null;
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
@@ -425,14 +430,19 @@ class Interp {
 	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
-		if (rethrow) {
-			this.rethrow(e);
-		} else {
+		if (rethrow)
+			this.rethrow(e)
+		else
 			throw e;
-		}
 		return null;
 	}
 
+	inline function warn(e: #if hscriptPos ErrorDef #else Error #end): Dynamic {
+		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
+
+		AlterScript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
+		return null;
+	}
 	inline function rethrow(e:Dynamic) {
 		#if hl
 		hl.Api.rethrow(e);
@@ -520,16 +530,15 @@ class Interp {
 
 				var realClassName = getLocalImportRedirect(realClassName);
 
-				if (importBlocklist.contains(realClassName))
+				if (importBlocklist.contains(realClassName)) {
+					error(ECustom("You cannot add a blacklisted import, for class " + c + toSetName));
 					return null;
+				}
 				var cl = Type.resolveClass(realClassName);
 				if (cl == null)
 					cl = Type.resolveClass('${realClassName}_HSC');
 
 				var en = Type.resolveEnum(realClassName);
-
-				//trace(realClassName, cl, en, splitClassName);
-
 				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
 				if (cl == null && en == null) {
 					if(splitClassName.length > 1) {
@@ -538,16 +547,15 @@ class Interp {
 
 						var realClassName = getLocalImportRedirect(realClassName);
 
-						if (importBlocklist.contains(realClassName))
+						if (importBlocklist.contains(realClassName)) {
+							error(ECustom("You cannot add a blacklisted import, for class " + realClassName + toSetName));
 							return null;
+						}
 
 						cl = Type.resolveClass(realClassName);
 						if (cl == null)
 							cl = Type.resolveClass('${realClassName}_HSC');
-
 						en = Type.resolveEnum(realClassName);
-
-						//trace(realClassName, cl, en, splitClassName);
 					}
 				}
 
@@ -574,7 +582,6 @@ class Interp {
 						variables.set(toSetName, cl);
 					}
 				}
-
 				return null;
 
 			case EConst(c):

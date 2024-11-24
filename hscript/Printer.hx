@@ -357,6 +357,7 @@ class Printer {
 			case EUnexpected(s): "Unexpected token: \""+s+"\"";
 			case EUnterminatedString: "Unterminated string";
 			case EUnterminatedComment: "Unterminated comment";
+			case EEmptyExpression: "Expression cannot be empty";
 			case EInvalidPreprocessor(str): "Invalid preprocessor (" + str + ")";
 			case EUnknownVariable(v): "Unknown variable: "+v;
 			case EInvalidIterator(v): "Invalid iterator: "+v;
@@ -365,6 +366,7 @@ class Printer {
 			case ECustom(msg): msg;
 			case EInvalidClass(cla): "Invalid class: " + cla + " was not found.";
 			case EAlreadyExistingClass(cla): 'Custom Class named $cla already exists.';
+			default: "Unknown Error.";
 		};
 		#if hscriptPos
 		return e.origin + ":" + e.line + ": " + message;

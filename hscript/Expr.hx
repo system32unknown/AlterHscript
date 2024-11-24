@@ -24,7 +24,7 @@ package hscript;
 enum Const {
 	CInt( v : Int );
 	CFloat( f : Float );
-	CString( s : String );
+	CString(s: String, ?interp: Bool);
 	#if !haxe3
 	CInt32( v : haxe.Int32 );
 	#end
@@ -122,6 +122,7 @@ enum Error {
 	ECustom( msg : String );
 	EInvalidClass( className : String);
 	EAlreadyExistingClass( className : String);
+	EEmptyExpression;
 }
 
 

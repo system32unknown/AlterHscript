@@ -22,6 +22,8 @@
 package hscript;
 import hscript.Expr;
 
+using StringTools;
+
 enum Token {
 	TEof;
 	TConst( c : Const );
@@ -328,7 +330,7 @@ class Parser {
 					if( !allowJSON )
 						unexpected(tk);
 					switch( c ) {
-						case CString(s): id = s;
+						case CString(s, _): id = s;
 						default: unexpected(tk);
 					}
 				case TBrClose:
@@ -351,6 +353,79 @@ class Parser {
 		return parseExprNext(mk(EObject(fl),p1));
 	}
 
+	function interpolateString(s: String) {
+		var exprs = [];
+		var dollarPos: Int = s.indexOf('$');
+		while (dollarPos > -1) {
+			var pos: Int = dollarPos;
+			var pre: String = s.substr(0, pos);
+			var next: String = s.charAt(++pos);
+			if (next == '{') {
+				if (pre != '')
+					exprs.push(mk(EConst(CString(pre))));
+				var exprStr: String = '';
+				var depth: Int = 1;
+				while (true) {
+					next = s.charAt(++pos);
+					if (next == '{') {
+						depth++;
+					} else if (next == '}') {
+						depth--;
+					}
+					if (depth < 1)
+						break;
+					if (pos >= s.length) {
+						error(EUnterminatedString, pos, pos);
+					}
+					exprStr += next;
+				}
+				if (StringTools.trim(exprStr) == '') {
+					error(EEmptyExpression, pos, pos);
+				}
+				var prevChar = char;
+				var prevInput = input;
+				var prevReadPos = readPos; // a bit stupid innit???
+				var expr = parseString('($exprStr)' #if hscriptPos, origin #end);
+				readPos = prevReadPos; // rolling back parser state because otherwise we get problems...
+				input = prevInput;
+				char = prevChar;
+				exprs.push(expr);
+				pos++;
+			} else if (next == '_' || (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z')) {
+				if (pre != '')
+					exprs.push(mk(EConst(CString(pre))));
+				var ident: String = '';
+				while (next == '_' || (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') || (next >= '0' && next <= '9')) {
+					ident += next;
+					next = s.charAt(++pos);
+				}
+				exprs.push(mk(EIdent(ident)));
+			} else if (next == '$') {
+				var secondToNext: String = s.charAt(pos);
+				if (secondToNext == "$") { // if its another dollar, skip...
+					s = pre + s.substr(pos, pos + 1); // remove $ ahead of the current one
+					break;
+				}
+				exprs.push(mk(EConst(CString(pre + '$'))));
+			}
+			s = s.substr(pos++);
+			dollarPos = s.indexOf('$');
+		}
+		if (exprs.length == 0) {
+			return mk(EConst(CString(s)));
+		} else {
+			exprs.push(mk(EConst(CString(s))));
+			var expr = exprs[0];
+			for (i => nextExpr in exprs) {
+				if (i == 0)
+					continue;
+				// NOTE: probably look into const optimization if possible, cause i really couldnt figure it out
+				expr = mk(EBinop('+', expr, nextExpr));
+			}
+			return expr;
+		}
+	}
+
 	function parseExpr() {
 
 		var oldPos = readPos;
@@ -365,6 +440,11 @@ class Parser {
 				e = mk(EIdent(id));
 			return parseExprNext(e);
 		case TConst(c):
+			switch (c) {
+				default:
+				case CString(s, interp):
+					if (interp) return parseExprNext(interpolateString(s));
+			}
 			return parseExprNext(mk(EConst(c)));
 		case TPOpen:
 			tk = token();
@@ -1541,7 +1621,7 @@ class Parser {
 		return StringTools.fastCodeAt(input, readPos++);
 	}
 
-	function readString( until ) {
+	function readString(until, interpolate: Bool = false):String {
 		var c = 0;
 		var b = new StringBuf();
 		var esc = false;
@@ -1560,40 +1640,70 @@ class Parser {
 			if( esc ) {
 				esc = false;
 				switch( c ) {
-				case 'n'.code: b.addChar('\n'.code);
-				case 'r'.code: b.addChar('\r'.code);
-				case 't'.code: b.addChar('\t'.code);
-				case "'".code, '"'.code, '\\'.code: b.addChar(c);
-				case '/'.code: if( allowJSON ) b.addChar(c) else invalidChar(c);
-				case "u".code:
-					if( !allowJSON ) invalidChar(c);
-					var k = 0;
-					for( i in 0...4 ) {
-						k <<= 4;
-						var char = readChar();
-						switch( char ) {
-						case 48,49,50,51,52,53,54,55,56,57: // 0-9
-							k += char - 48;
-						case 65,66,67,68,69,70: // A-F
-							k += char - 55;
-						case 97,98,99,100,101,102: // a-f
-							k += char - 87;
-						default:
-							if( StringTools.isEof(char) ) {
-								line = old;
-								error(EUnterminatedString, p1, p1);
+					case 'n'.code: b.addChar('\n'.code);
+					case 'r'.code: b.addChar('\r'.code);
+					case 't'.code: b.addChar('\t'.code);
+					case "'".code, '"'.code, '\\'.code: b.addChar(c);
+					case '/'.code: if( allowJSON ) b.addChar(c) else invalidChar(c);
+					case "u".code:
+						if( !allowJSON ) invalidChar(c);
+						var k = 0;
+						for( i in 0...4 ) {
+							k <<= 4;
+							var char = readChar();
+							switch( char ) {
+							case 48,49,50,51,52,53,54,55,56,57: // 0-9
+								k += char - 48;
+							case 65,66,67,68,69,70: // A-F
+								k += char - 55;
+							case 97,98,99,100,101,102: // a-f
+								k += char - 87;
+							default:
+								if( StringTools.isEof(char) ) {
+									line = old;
+									error(EUnterminatedString, p1, p1);
+								}
+								invalidChar(char);
 							}
-							invalidChar(char);
 						}
-					}
-					b.addChar(k);
-				default: invalidChar(c);
+						b.addChar(k);
+					default: invalidChar(c);
 				}
 			} else if( c == 92 )
 				esc = true;
-			else if( c == until )
+			else if (c == until) {
 				break;
-			else {
+			} else if (c == 36 && interpolate) { // brace for impact !!
+				b.addChar(c);
+				var next = readChar();
+				if (next == 123) {
+					b.addChar(next);
+					var depth: Int = 0;
+					while (true) {
+						next = readChar();
+						if (StringTools.isEof(next)) {
+							error(EUnterminatedString, p1, p1);
+						}
+						b.addChar(next);
+						if (next == "'".code) {
+							var nextStr:String = readString("'".code, true);
+							for (char in nextStr) {
+								b.addChar(char);
+							}
+							b.addChar("'".code);
+							next = readChar();
+							b.addChar(next);
+						}
+						if (next == 125) {
+							depth--;
+							if (depth < 0)
+								break;
+						}
+					}
+				} else {
+					readPos--;
+				}
+			} else {
 				if( c == 10 ) line++;
 				b.addChar(c);
 			}
@@ -1602,24 +1712,17 @@ class Parser {
 	}
 
 	function token(?infos : Null<haxe.PosInfos>) {
-		//function ttrace(v:Dynamic, ?infos : Null<haxe.PosInfos>) {
-		//	Sys.print(infos.fileName+":"+infos.lineNumber+": " + Std.string(v));
-		//	Sys.print("\r\n");
-		//}
-
 		#if hscriptPos
 		var t = tokens.pop();
 		if( t != null ) {
 			tokenMin = t.min;
 			tokenMax = t.max;
-			//ttrace(t.t, infos);
 			return t.t;
 		}
 		oldTokenMin = tokenMin;
 		oldTokenMax = tokenMax;
 		tokenMin = (this.char < 0) ? readPos : readPos - 1;
 		var t = _token();
-		//ttrace(t, infos);
 		tokenMax = (this.char < 0) ? readPos - 1 : readPos - 2;
 		return t;
 	}
@@ -1781,48 +1884,48 @@ class Parser {
 			case ".".code:
 				char = readChar();
 				switch( char ) {
-				case 48,49,50,51,52,53,54,55,56,57:
-					var n = char - 48;
-					var exp = 1;
-					while( true ) {
-						char = readChar();
-						exp *= 10;
-						switch( char ) {
-						case 48,49,50,51,52,53,54,55,56,57:
-							n = n * 10 + (char - 48);
-						default:
-							this.char = char;
-							return TConst( CFloat(n/exp) );
+					case 48,49,50,51,52,53,54,55,56,57:
+						var n = char - 48;
+						var exp = 1;
+						while( true ) {
+							char = readChar();
+							exp *= 10;
+							switch( char ) {
+							case 48,49,50,51,52,53,54,55,56,57:
+								n = n * 10 + (char - 48);
+							default:
+								this.char = char;
+								return TConst( CFloat(n/exp) );
+							}
 						}
-					}
-				case ".".code:
-					char = readChar();
-					if( char != ".".code )
-						invalidChar(char);
-					return TOp("...");
-				default:
-					this.char = char;
-					return TDot;
+					case ".".code:
+						char = readChar();
+						if( char != ".".code )
+							invalidChar(char);
+						return TOp("...");
+					default:
+						this.char = char;
+						return TDot;
 				}
 			case "{".code: return TBrOpen;
 			case "}".code: return TBrClose;
 			case "[".code: return TBkOpen;
 			case "]".code: return TBkClose;
-			case "'".code, '"'.code: return TConst( CString(readString(char)) );
+			case "'".code:
+				return TConst(CString(readString(char, true), true));
+			case '"'.code:
+				return TConst(CString(readString(char), false));
 			case "?".code:
 				char = readChar();
-				switch (char) {
-					case '?'.code:
-						var orp = readPos;
-						if (readChar() == '='.code)
-							return TOp("??" + "=");
-
-						this.readPos = orp;
-						return TOp("??");
-					case '.'.code:
-						return TQuestionDot;
+				if (char == ".".code) return TQuestionDot;
+				else if (char == "?".code) {
+					var orp = readPos;
+					char = readChar();
+					if (char == "=".code)
+						return TOp("??" + "=");
+					this.readPos = orp;
+					return TOp("??");
 				}
-
 				this.char = char;
 				return TQuestion;
 			case ":".code: return TDoubleDot;
