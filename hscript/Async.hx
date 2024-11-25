@@ -29,7 +29,6 @@ enum VarMode {
 }
 
 class Async {
-
 	var definedVars : Array<{ n : String, prev : Null<VarMode> }>;
 	var vars : Map<String,VarMode>;
 	var currentFun : String;

@@ -28,6 +28,7 @@
  */
 package hscript;
 
+import alterhscript.AlterHscript;
 import haxe.PosInfos;
 import hscript.Expr;
 import haxe.Constraints.IMap;
@@ -400,12 +401,9 @@ class Interp {
 		} catch(e:Error) {
 			if (errorHandler != null)
 				errorHandler(e);
-			else
-				throw e;
+			else throw e;
 			return null;
-		} catch(e) {
-			trace(e);
-		}
+		} catch(e) trace(e);
 		return null;
 	}
 
@@ -432,15 +430,14 @@ class Interp {
 
 		if (rethrow)
 			this.rethrow(e)
-		else
-			throw e;
+		else throw e;
 		return null;
 	}
 
 	inline function warn(e: #if hscriptPos ErrorDef #else Error #end): Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
-		AlterScript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
+		AlterHscript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
 		return null;
 	}
 	inline function rethrow(e:Dynamic) {
@@ -452,12 +449,10 @@ class Interp {
 	}
 
 	public function resolve(id:String, doException:Bool = true):Dynamic {
-		if (id == null)
-			return null;
+		if (id == null) return null;
 		id = StringTools.trim(id);
 		var l = locals.get(id);
-		if (l != null)
-			return l.r;
+		if (l != null) return l.r;
 
 		var v = variables.get(id);
 		for(map in [variables, publicVariables, staticVariables, customClasses])
@@ -509,15 +504,13 @@ class Interp {
 					error(EAlreadyExistingClass(name));
 
 				inline function importVar(thing:String):String {
-					if (thing == null)
-						return null;
+					if (thing == null) return null;
 					final variable:Class<Any> = variables.exists(thing) ? cast variables.get(thing) : null;
 					return variable == null ? thing : Type.getClassName(variable);
 				}
 				customClasses.set(name, new CustomClassHandler(this, name, fields, importVar(extend), [for (i in interfaces) importVar(i)]));
 			case EImport(c, n):
-				if (!importEnabled)
-					return null;
+				if (!importEnabled) return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
 				var claVarName = splitClassName[splitClassName.length - 1];
@@ -535,8 +528,7 @@ class Interp {
 					return null;
 				}
 				var cl = Type.resolveClass(realClassName);
-				if (cl == null)
-					cl = Type.resolveClass('${realClassName}_HSC');
+				if (cl == null) cl = Type.resolveClass('${realClassName}_HSC');
 
 				var en = Type.resolveEnum(realClassName);
 				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
@@ -585,12 +577,12 @@ class Interp {
 				return null;
 
 			case EConst(c):
-				switch (c) {
-					case CInt(v): return v;
-					case CFloat(f): return f;
-					case CString(s): return s;
+				return switch (c) {
+					case CInt(v): v;
+					case CFloat(f): f;
+					case CString(s): s;
 					#if !haxe3
-					case CInt32(v): return v;
+					case CInt32(v): v;
 					#end
 				}
 			case EIdent(id):
@@ -1084,8 +1076,7 @@ class Interp {
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
 		var cl:String = cast cl;
 		var c:Dynamic = resolve(cl);
-		if (c == null)
-			c = Type.resolveClass(cl);
+		if (c == null) c = Type.resolveClass(cl);
 		return (c is IHScriptCustomConstructor) ? cast(c, IHScriptCustomConstructor).hnew(args) : Type.createInstance(c, args);
 	}
 }
