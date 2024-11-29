@@ -239,9 +239,8 @@ class Interp {
 					}
 				} else {
 					l.r = v;
-					if (l.depth == 0) {
+					if (l.depth == 0)
 						setVar(id, v);
-					}
 				}
 				// TODO
 			case EField(e, f, s):

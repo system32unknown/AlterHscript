@@ -97,14 +97,14 @@ class AlterHscript {
 	 *
 	 * Overriding is recommended if you're doing custom error handling.
 	**/
-	public dynamic static function warn(x, ?pos: PosInfos):Void {
+	public dynamic static function warn(x, ?pos:PosInfos):Void {
 		logLevel(WARN, x, pos);
 	}
 
 	/**
 	 * Custom fatal error function for script wrappers.
 	**/
-	public dynamic static function fatal(x, ?pos: PosInfos):Void {
+	public dynamic static function fatal(x, ?pos:PosInfos):Void {
 		logLevel(FATAL, x, pos);
 	}
 
@@ -157,7 +157,7 @@ class AlterHscript {
 	 * @param scriptCode      the script to be parsed, e.g:
 	 */
     public function new(scriptCode:String, ?config:AutoAlterConfig):Void {
-		if (config == null) config = new AlterConfig("hscript-alter", true, true, []);
+		if (config == null) config = new AlterConfig("AlterHscript", true, true, []);
 		this.scriptCode = scriptCode;
 		this.config = AlterConfig.from(config);
 		this.config.name = fixScriptName(this.name);
@@ -213,6 +213,17 @@ class AlterHscript {
 		set("Std", Std);
 		set("StringTools", StringTools);
 		set("Math", Math);
+		#if hscriptPos
+		// overriding trace for good measure.
+		// if you're a game developer or a fnf modder (hi guys),
+		// you might wanna use Iris.print for your on-screen consoles and such.
+		set("trace", Reflect.makeVarArgs(function(x:Array<Dynamic>) {
+			var pos = this.interp != null ? this.interp.posInfos() : Iris.getDefaultPos(this.name);
+			var v = x.shift();
+			if (x.length > 0) pos.customParams = x;
+			print(v, pos);
+		}));
+		#end
 	}
 
 	/**
