@@ -14,11 +14,6 @@ class Config {
 
 	// Incase any of your files fail
 	// These are the module names
-	public static final DISALLOW_CUSTOM_CLASSES = [
-
-	];
-
-	public static final DISALLOW_ABSTRACT_AND_ENUM = [
-
-	];
+	public static final DISALLOW_CUSTOM_CLASSES = [];
+	public static final DISALLOW_ABSTRACT_AND_ENUM = [];
 }

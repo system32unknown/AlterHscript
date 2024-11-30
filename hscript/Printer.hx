@@ -347,12 +347,12 @@ class Printer {
 		}
 	}
 
-	public static function toString( e : Expr ) {
+	public static function toString( e : Expr ):String {
 		return new Printer().exprToString(e);
 	}
 
-	public static function errorToString(e:Expr.Error, showPos:Bool = true) {
-		var message = switch( #if hscriptPos e.e #else e #end ) {
+	public static function errorToString(e:Expr.Error, showPos:Bool = true):String {
+		var message:String = switch( #if hscriptPos e.e #else e #end ) {
 			case EInvalidChar(c): "Invalid character: '"+(StringTools.isEof(c) ? "EOF (End Of File)" : String.fromCharCode(c))+"' ("+c+")";
 			case EUnexpected(s): "Unexpected token: \""+s+"\"";
 			case EUnterminatedString: "Unterminated string";
@@ -375,6 +375,4 @@ class Printer {
 		return message;
 		#end
 	}
-
-
 }

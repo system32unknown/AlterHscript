@@ -218,7 +218,7 @@ class AlterHscript {
 		// if you're a game developer or a fnf modder (hi guys),
 		// you might wanna use Iris.print for your on-screen consoles and such.
 		set("trace", Reflect.makeVarArgs(function(x:Array<Dynamic>) {
-			var pos = this.interp != null ? this.interp.posInfos() : Iris.getDefaultPos(this.name);
+			var pos = this.interp != null ? this.interp.posInfos() : getDefaultPos(this.name);
 			var v = x.shift();
 			if (x.length > 0) pos.customParams = x;
 			print(v, pos);
