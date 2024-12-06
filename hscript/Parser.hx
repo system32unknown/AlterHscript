@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package hscript;
+import haxe.rtti.Meta;
 import hscript.Expr;
 
 using StringTools;
@@ -45,19 +46,22 @@ enum Token {
 	TPrepro( s : String );
 }
 
+@:structInit
+final class TokenInfo {
+	public var min : Int;
+	public var max : Int;
+	public var t : Token;
+}
+
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Parser {
 
 	// config / variables
 	public var line : Int;
 	public var opChars : String;
 	public var identChars : String;
-	#if haxe3
 	public var opPriority : Map<String,Int>;
 	public var opRightAssoc : Map<String,Bool>;
-	#else
-	public var opPriority : Hash<Int>;
-	public var opRightAssoc : Hash<Bool>;
-	#end
 
 	/**
 		allows to check for #if / #else in code
@@ -101,17 +105,13 @@ class Parser {
 	var tokenMax : Int;
 	var oldTokenMin : Int;
 	var oldTokenMax : Int;
-	var tokens : List<{ min : Int, max : Int, t : Token }>;
+	var tokens : List<TokenInfo>;
 	#else
 	static inline var p1 = 0;
 	static inline var tokenMin = 0;
 	static inline var tokenMax = 0;
+	var tokens : haxe.ds.GenericStack<Token>;
 
-	#if haxe3
-	var tokens:haxe.ds.GenericStack<Token>;
-	#else
-	var tokens:haxe.FastList<Token>;
-	#end
 	#end
 	public function new() {
 		line = 1;
@@ -131,13 +131,8 @@ class Parser {
 			["->", "??"],
 			["is"]
 		];
-		#if haxe3
 		opPriority = new Map();
 		opRightAssoc = new Map();
-		#else
-		opPriority = new Hash();
-		opRightAssoc = new Hash();
-		#end
 		for( i in 0...priorities.length )
 			for( x in priorities[i] ) {
 				opPriority.set(x, i);
@@ -147,8 +142,8 @@ class Parser {
 			opPriority.set(x, x == "++" || x == "--" ? -1 : -2);
 	}
 
-	public inline function error( err, pmin, pmax ) {
-		if (!resumeErrors)
+	public inline function error(err:#if hscriptPos ErrorDef #else Error #end, pmin:Int, pmax:Int) {
+		if(!resumeErrors)
 			#if hscriptPos
 			throw new Error(err, pmin, pmax, origin, line);
 			#else
@@ -156,11 +151,11 @@ class Parser {
 			#end
 	}
 
-	public function invalidChar(c) {
+	public function invalidChar(c:Int) {
 		error(EInvalidChar(c), readPos - 1, readPos - 1);
 	}
 
-	function initParser( origin ) {
+	function initParser( origin:String ) {
 		// line=1 - don't reset line : it might be set manualy
 		preprocStack = [];
 		#if hscriptPos
@@ -169,14 +164,12 @@ class Parser {
 		tokenMin = oldTokenMin = 0;
 		tokenMax = oldTokenMax = 0;
 		tokens = new List();
-		#elseif haxe3
-		tokens = new haxe.ds.GenericStack<Token>();
 		#else
-		tokens = new haxe.FastList<Token>();
+		tokens = new haxe.ds.GenericStack<Token>();
 		#end
 		char = -1;
-		ops = new Array();
-		idents = new Array();
+		ops = [];
+		idents = [];
 		uid = 0;
 		for( i in 0...opChars.length )
 			ops[opChars.charCodeAt(i)] = true;
@@ -184,12 +177,12 @@ class Parser {
 			idents[identChars.charCodeAt(i)] = true;
 	}
 
-	public function parseString( s : String, ?origin : String = "hscript" ) {
+	public function parseString( s : String, ?origin : String = "hscript" ):Expr {
 		initParser(origin);
 		if(s == "") s = "0;"; // fixing crash with empty file
 		input = s;
 		readPos = 0;
-		var a = new Array();
+		var a = [];
 		while( true ) {
 			var tk = token();
 			if( tk == TEof ) break;
@@ -199,12 +192,12 @@ class Parser {
 		return if( a.length == 1 ) a[0] else mk(EBlock(a),0);
 	}
 
-	function unexpected(tk):Dynamic {
-		error(EUnexpected(tokenString(tk)), tokenMin, tokenMax);
+	function unexpected(tk:Token):Any {
+		error(EUnexpected(tokenString(tk)),tokenMin,tokenMax);
 		return null;
 	}
 
-	inline function push(tk) {
+	inline function push(tk: Token):Void {
 		#if hscriptPos
 		tokens.push( { t : tk, min : tokenMin, max : tokenMax } );
 		tokenMin = oldTokenMin;
@@ -214,17 +207,17 @@ class Parser {
 		#end
 	}
 
-	inline function ensure(tk) {
+	inline function ensure(tk:Token):Void {
 		var t = token();
 		if( t != tk ) unexpected(t);
 	}
 
-	inline function ensureToken(tk) {
+	inline function ensureToken(tk:Token):Void {
 		var t = token();
 		if( !Type.enumEq(t,tk) ) unexpected(t);
 	}
 
-	function maybe(tk) {
+	function maybe(tk:Token):Bool {
 		var t = token();
 		if( Type.enumEq(t, tk) )
 			return true;
@@ -232,7 +225,7 @@ class Parser {
 		return false;
 	}
 
-	function getIdent() {
+	function getIdent():String {
 		var tk = token();
 		switch( tk ) {
 			case TId(id): return id;
@@ -242,7 +235,7 @@ class Parser {
 		}
 	}
 
-	inline function expr(e:Expr) {
+	inline function expr(e:Expr):#if hscriptPos ExprDef #else Expr #end {
 		#if hscriptPos
 		return e.e;
 		#else
@@ -250,7 +243,7 @@ class Parser {
 		#end
 	}
 
-	inline function pmin(e:Expr) {
+	inline function pmin(e:Expr):Int {
 		#if hscriptPos
 		return e == null ? 0 : e.pmin;
 		#else
@@ -258,7 +251,7 @@ class Parser {
 		#end
 	}
 
-	inline function pmax(e:Expr) {
+	inline function pmax(e:Expr):Int {
 		#if hscriptPos
 		return e == null ? 0 : e.pmax;
 		#else
@@ -266,7 +259,7 @@ class Parser {
 		#end
 	}
 
-	inline function mk(e,?pmin,?pmax) : Expr {
+	inline function mk(e:#if hscriptPos ExprDef #else Expr #end,?pmin:Int,?pmax:Int) : Expr {
 		#if hscriptPos
 		if( e == null ) return null;
 		if( pmin == null ) pmin = tokenMin;
@@ -277,7 +270,7 @@ class Parser {
 		#end
 	}
 
-	function isBlock(e) {
+	function isBlock(e:Expr):Bool {
 		if( e == null ) return false;
 		return switch( expr(e) ) {
 			case EBlock(_), EObject(_), ESwitch(_): true;
@@ -297,7 +290,7 @@ class Parser {
 		}
 	}
 
-	function parseFullExpr( exprs : Array<Expr> ) {
+	function parseFullExpr( exprs : Array<Expr> ):Void {
 		var e = parseExpr();
 		exprs.push(e);
 
@@ -317,9 +310,9 @@ class Parser {
 		}
 	}
 
-	function parseObject(p1) {
+	function parseObject(p1:Int):Expr {
 		// parse object
-		var fl = new Array();
+		var fl:Array<ObjectField> = [];
 		while( true ) {
 			var tk = token();
 			var id = null;
@@ -425,7 +418,7 @@ class Parser {
 		}
 	}
 
-	function parseExpr() {
+	function parseExpr():Expr {
 
 		var oldPos = readPos;
 		var tk = token();
@@ -469,14 +462,14 @@ class Parser {
 							return parseExprNext(mk(ECheckType(e,t),p1,tokenMax));
 						case TComma:
 							switch( expr(e) ) {
-								case EIdent(v): return parseLambda([{ name : v, t : t }], pmin(e));
+								case EIdent(v): return parseLambda([{ name : v, t : t, opt: false, value: null }], pmin(e));
 								default:
 							}
 						default:
 					}
 				case TComma:
 					switch( expr(e) ) {
-						case EIdent(v): return parseLambda([{name:v}], pmin(e));
+						case EIdent(v): return parseLambda([{name: v, opt: false, value: null, t: null}], pmin(e));
 						default:
 					}
 				default:
@@ -516,7 +509,7 @@ class Parser {
 			default:
 				push(tk);
 			}
-			var a = new Array();
+			var a = [];
 			while( true ) {
 				parseFullExpr(a);
 				tk = token();
@@ -547,7 +540,7 @@ class Parser {
 				return makeUnop(op,parseExpr());
 			return unexpected(tk);
 		case TBkOpen:
-			var a = new Array();
+			var a = [];
 			tk = token();
 			while( tk != TBkClose && (!resumeErrors || tk != TEof) ) {
 				push(tk);
@@ -580,11 +573,11 @@ class Parser {
 		}
 	}
 
-	function parseLambda( args : Array<Argument>, pmin ) {
+	function parseLambda( args : Array<Argument>, pmin: Int ): Expr {
 		while( true ) {
 			var id = getIdent();
 			var t = maybe(TDoubleDot) ? parseType() : null;
-			args.push({ name : id, t : t });
+			args.push({ name : id, t : t, opt: false, value: null });
 			var tk = token();
 			switch( tk ) {
 			case TComma:
@@ -600,13 +593,13 @@ class Parser {
 		return mk(EFunction(args, mk(EReturn(eret),pmin)), pmin);
 	}
 
-	function parseMetaArgs() {
+	function parseMetaArgs():Array<Expr> {
 		var tk = token();
 		if( tk != TPOpen ) {
 			push(tk);
 			return null;
 		}
-		var args = [];
+		var args:Array<Expr> = [];
 		tk = token();
 		if( tk != TPClose ) {
 			push(tk);
@@ -624,7 +617,7 @@ class Parser {
 		return args;
 	}
 
-	function mapCompr( tmp : String, e : Expr ) {
+	function mapCompr( tmp : String, e : Expr ):Expr {
 		if( e == null ) return null;
 		var edef = switch( expr(e) ) {
 		case EFor(v, it, e2, ithv):
@@ -645,7 +638,7 @@ class Parser {
 		return mk(edef, pmin(e), pmax(e));
 	}
 
-	function makeUnop( op, e ) {
+	function makeUnop( op:String, e:Expr ):Expr {
 		if( e == null && resumeErrors )
 			return null;
 		return switch( expr(e) ) {
@@ -655,7 +648,7 @@ class Parser {
 		}
 	}
 
-	function makeBinop( op, e1, e ) {
+	function makeBinop( op:String, e1:Expr, e:Expr ):Expr {
 		if( e == null && resumeErrors )
 			return mk(EBinop(op,e1,e),pmin(e1),pmax(e1));
 		return switch( expr(e) ) {
@@ -677,8 +670,11 @@ class Parser {
 	var nextIsOverride:Bool = false;
 	var nextIsStatic:Bool = false;
 	var nextIsPublic:Bool = false;
+	var nextIsPrivate:Bool = false;
+	var nextIsFinal:Bool = false;
+	var nextIsInline:Bool = false;
 	var nextType:CType = null;
-	function parseStructure(id, ?oldPos:Int) {
+	function parseStructure(id:String, ?oldPos:Int):Expr {
 		#if hscriptPos
 		var p1 = tokenMin;
 		#end
@@ -726,6 +722,14 @@ class Parser {
 					var str = parseStructure("final"); // override final
 					nextIsOverride = false;
 					str;
+				case TId("private"):
+					var str = parseStructure("private"); // override private
+					nextIsOverride = false;
+					str;
+				case TId("inline"):
+					var str = parseStructure("inline"); // override inline
+					nextIsOverride = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsOverride = false;
@@ -753,6 +757,14 @@ class Parser {
 					str;
 				case TId("final"):
 					var str = parseStructure("final"); // static final
+					nextIsStatic = false;
+					str;
+				case TId("private"):
+					var str = parseStructure("private"); // static private
+					nextIsStatic = false;
+					str;
+				case TId("inline"):
+					var str = parseStructure("inline"); // static inline
 					nextIsStatic = false;
 					str;
 				default:
@@ -784,12 +796,115 @@ class Parser {
 					var str = parseStructure("final"); // public final
 					nextIsPublic = false;
 					str;
+				case TId("class"):
+					var str = parseStructure("class"); // public class
+					nextIsPublic = false;
+					str;
+				//case TId("private"):
+				//	var str = parseStructure("private"); // public private
+				//	nextIsPublic = false;
+				//	str;
+				case TId("inline"):
+					var str = parseStructure("inline"); // public inline
+					nextIsPublic = false;
+					str;
 				default:
 					unexpected(nextToken);
 					nextIsPublic = false;
 					null;
 			}
+		case "private":
+			nextIsPrivate = true;
+			var nextToken = token();
+			switch(nextToken) {
+				case TId("static"):
+					var str = parseStructure("static"); // private static
+					nextIsPrivate = false;
+					str;
+				case TId("function"):
+					var str = parseStructure("function"); // private function
+					nextIsPrivate = false;
+					str;
+				case TId("override"):
+					var str = parseStructure("override"); // private override
+					nextIsPrivate = false;
+					str;
+				case TId("var"):
+					var str = parseStructure("var"); // private var
+					nextIsPrivate = false;
+					str;
+				case TId("final"):
+					var str = parseStructure("final"); // private final
+					nextIsPrivate = false;
+					str;
+				case TId("class"):
+					var str = parseStructure("class"); // private class
+					nextIsPrivate = false;
+					str;
+				case TId("inline"):
+					var str = parseStructure("inline"); // private inline
+					nextIsPrivate = false;
+					str;
+				default:
+					unexpected(nextToken);
+					nextIsPrivate = false;
+					null;
+			}
+		case "inline":
+			nextIsInline = true;
+			var nextToken = token();
+			switch(nextToken) {
+				case TId("static"):
+					var str = parseStructure("static"); // inline static
+					nextIsInline = false;
+					str;
+				case TId("function"):
+					var str = parseStructure("function"); // inline function
+					nextIsInline = false;
+					str;
+				case TId("override"):
+					var str = parseStructure("override"); // inline override
+					nextIsInline = false;
+					str;
+				case TId("var"):
+					var str = parseStructure("var"); // inline var
+					nextIsInline = false;
+					str;
+				case TId("final"):
+					var str = parseStructure("final"); // inline final
+					nextIsInline = false;
+					str;
+				case TId("class"):
+					var str = parseStructure("class"); // inline class
+					nextIsInline = false;
+					str;
+				case TId("private"): // inline private
+					var str = parseStructure("private"); // inline private
+					nextIsInline = false;
+					str;
+				default:
+					unexpected(nextToken);
+					nextIsInline = false;
+					null;
+			}
 		case "var" | "final":
+			if(id == "final") {
+				var nextToken = token();
+				switch(nextToken) {
+					case TId("class"):
+						nextIsFinal = true;
+						var str = parseStructure("class"); // final class
+						nextIsFinal = false;
+						return str;
+					case TId("function"):
+						nextIsFinal = true;
+						var str = parseStructure("function"); // final function
+						nextIsFinal = false;
+						return str;
+					default:
+						push(nextToken);
+				}
+			}
 			var ident = getIdent();
 			var tk = token();
 			var t = null;
@@ -806,7 +921,7 @@ class Parser {
 			else
 				push(tk);
 			nextType = null;
-			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic), p1, (e == null) ? tokenMax : pmax(e));
+			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline), p1, (e == null) ? tokenMax : pmax(e));
 		case "while":
 			var econd = parseExpr();
 			var e = parseExpr();
@@ -841,9 +956,9 @@ class Parser {
 		case "break": mk(EBreak);
 		case "continue": mk(EContinue);
 		case "else": unexpected(TId(id));
-		case "inline":
-			if( !maybe(TId("function")) ) unexpected(TId("inline"));
-			return parseStructure("function");
+		//case "inline":
+		//	if( !maybe(TId("function")) ) unexpected(TId("inline"));
+		//	return parseStructure("function");
 		case "function":
 			var tk = token();
 			var name = null;
@@ -855,7 +970,7 @@ class Parser {
 
 			var tk = token();
 			push(tk);
-			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride),p1,pmax(inf.body));
+			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline),p1,pmax(inf.body));
 		case "import":
 			var oldReadPos = readPos;
 			var tk = token();
@@ -952,15 +1067,17 @@ class Parser {
 
 			var fields = [];
 			ensure(TBrOpen);
-			while( !maybe(TBrClose) ) {
-				if(token() == TSemicolon) continue;
-				var a = parseExpr();
-				fields.push(a);
+			while( true ) {
+				parseFullExpr(fields);
+				tk = token();
+				if( tk == TBrClose || (resumeErrors && tk == TEof) )
+					break;
+				push(tk);
 			}
 
 			var tk = token();
 			push(tk);
-			mk(EClass(name, fields, extend, interfaces), p1);
+			mk(EClass(name, fields, extend, interfaces, nextIsFinal, nextIsPrivate), p1);
 
 		case "return":
 			var tk = token();
@@ -968,7 +1085,7 @@ class Parser {
 			var e = if( tk == TSemicolon ) null else parseExpr();
 			mk(EReturn(e),p1,if( e == null ) tokenMax else pmax(e));
 		case "new":
-			var a = new Array();
+			var a = [];
 			a.push(getIdent());
 			while( true ) {
 				var tk = token();
@@ -1009,7 +1126,7 @@ class Parser {
 				var tk = token();
 				switch( tk ) {
 					case TId("case"):
-						var c = { values : [], expr : null };
+						var c:SwitchCase = { values : [], expr : null };
 						cases.push(c);
 						disableOrOp = true;
 						while( true ) {
@@ -1081,7 +1198,7 @@ class Parser {
 		}
 	}
 
-	function parseExprNext( e1 : Expr ) {
+	function parseExprNext( e1 : Expr ):Expr {
 		var tk = token();
 		switch( tk ) {
 			case TOp(op):
@@ -1091,10 +1208,10 @@ class Parser {
 					switch( expr(e1) ) {
 						case EIdent(i), EParent(expr(_) => EIdent(i)):
 							var eret = parseExpr();
-							return mk(EFunction([{ name : i }], mk(EReturn(eret),pmin(eret))), pmin(e1));
+							return mk(EFunction([{ name : i, opt: false, value: null, t: null }], mk(EReturn(eret),pmin(eret))), pmin(e1));
 						case ECheckType(expr(_) => EIdent(i), t):
 							var eret = parseExpr();
-							return mk(EFunction([{ name : i, t : t }], mk(EReturn(eret),pmin(eret))), pmin(e1));
+							return mk(EFunction([{ name : i, t : t, opt: false, value: null }], mk(EReturn(eret),pmin(eret))), pmin(e1));
 						default:
 					}
 					unexpected(tk);
@@ -1133,8 +1250,8 @@ class Parser {
 		}
 	}
 
-	function parseFunctionArgs() {
-		var args = new Array();
+	function parseFunctionArgs():Array<Argument> {
+		var args:Array<Argument> = [];
 		var tk = token();
 		if( tk != TPClose ) {
 			var done = false;
@@ -1152,7 +1269,7 @@ class Parser {
 						unexpected(tk);
 						break;
 				}
-				var arg : Argument = { name : name };
+				var arg : Argument = { name : name, opt: false, value: null, t: null };
 				args.push(arg);
 				if( opt ) arg.opt = true;
 				if( allowTypes ) {
@@ -1177,7 +1294,7 @@ class Parser {
 		return args;
 	}
 
-	function parseFunctionDecl() {
+	function parseFunctionDecl():FunctionDecl {
 		ensure(TPOpen);
 		var args = parseFunctionArgs();
 		var ret = null;
@@ -1191,7 +1308,7 @@ class Parser {
 		return { args : args, ret : ret, body : parseExpr() };
 	}
 
-	function parsePath() {
+	function parsePath():Array<String> {
 		var path = [getIdent()];
 		while( true ) {
 			var t = token();
@@ -1292,7 +1409,7 @@ class Parser {
 				}
 			case TBrOpen:
 				var fields = [];
-				var meta = null;
+				var meta:Array<MetadataEntry> = null;
 				while( true ) {
 					t = token();
 					switch( t ) {
@@ -1334,7 +1451,7 @@ class Parser {
 		}
 	}
 
-	function parseTypeNext( t : CType ) {
+	function parseTypeNext( t : CType ): CType {
 		var tk = token();
 		switch( tk ) {
 			case TOp(op):
@@ -1356,8 +1473,8 @@ class Parser {
 		}
 	}
 
-	function parseExprList( etk ) {
-		var args = new Array();
+	function parseExprList( etk:Token ): Array<Expr> {
+		var args:Array<Expr> = [];
 		var tk = token();
 		if( tk == etk )
 			return args;
@@ -1378,13 +1495,13 @@ class Parser {
 
 	// ------------------------ module -------------------------------
 
-	public function parseModule( content : String, ?origin : String = "hscript" ) {
+	public function parseModule( content : String, ?origin : String = "hscript" ):Array<ModuleDecl> {
 		initParser(origin);
 		input = content;
 		readPos = 0;
 		allowTypes = true;
 		allowMetadata = true;
-		var decls = [];
+		var decls:Array<ModuleDecl> = [];
 		while( true ) {
 			var tk = token();
 			if( tk == TEof ) break;
@@ -1395,7 +1512,7 @@ class Parser {
 	}
 
 	function parseMetadata() : Metadata {
-		var meta = [];
+		var meta:Array<MetadataEntry> = [];
 		while( true ) {
 			var tk = token();
 			switch( tk ) {
@@ -1409,7 +1526,7 @@ class Parser {
 		return meta;
 	}
 
-	function parseParams() {
+	function parseParams():{} {
 		if( maybe(TOp("<")) )
 			error(EInvalidOp("Unsupported class type parameters"), readPos, readPos);
 		return {};
@@ -1535,7 +1652,7 @@ class Parser {
 						access : access,
 						kind : KFunction({
 							args : inf.args,
-							expr : inf.body,
+							body : inf.body,
 							ret : inf.ret,
 						}),
 					};
@@ -1582,11 +1699,11 @@ class Parser {
 
 	// ------------------------ lexing -------------------------------
 
-	inline function readChar() {
+	inline function readChar():Int {
 		return StringTools.fastCodeAt(input, readPos++);
 	}
 
-	function readString(until, interpolate: Bool = false):String {
+	function readString(until:Int, interpolate: Bool = false):String {
 		var c = 0;
 		var b = new StringBuf();
 		var esc = false;
@@ -1676,7 +1793,7 @@ class Parser {
 		return b.toString();
 	}
 
-	function token(?infos : Null<haxe.PosInfos>) {
+	function token():Token {
 		#if hscriptPos
 		var t = tokens.pop();
 		if( t != null ) {
@@ -1692,7 +1809,7 @@ class Parser {
 		return t;
 	}
 
-	function _token() {
+	function _token():Token {
 		#else
 		if( !tokens.isEmpty() )
 			return tokens.pop();
@@ -1762,7 +1879,6 @@ class Parser {
 								if( n > 0 || exp > 0 )
 									invalidChar(char);
 								// read hexa
-								#if haxe3
 								var n = 0;
 								while( true ) {
 									char = readChar();
@@ -1779,33 +1895,10 @@ class Parser {
 											return TConst(CInt(n));
 									}
 								}
-								#else
-								var n = haxe.Int32.ofInt(0);
-								while( true ) {
-									char = readChar();
-									switch( char ) {
-										case 48,49,50,51,52,53,54,55,56,57: // 0-9
-											n = haxe.Int32.add(haxe.Int32.shl(n,4), cast (char - 48));
-										case 65,66,67,68,69,70: // A-F
-											n = haxe.Int32.add(haxe.Int32.shl(n,4), cast (char - 55));
-										case 97,98,99,100,101,102: // a-f
-											n = haxe.Int32.add(haxe.Int32.shl(n,4), cast (char - 87));
-										case '_'.code:
-										default:
-											this.char = char;
-											// we allow to parse hexadecimal Int32 in Neko, but when the value will be
-											// evaluated by Interpreter, a failure will occur if no Int32 operation is
-											// performed
-											var v = try CInt(haxe.Int32.toInt(n)) catch( e : Dynamic ) CInt32(n);
-											return TConst(v);
-									}
-								}
-								#end
 							case "b".code: // Custom thing, not supported in haxe
 								if (n > 0 || exp > 0)
 									invalidChar(char);
 								// read binary
-								#if haxe3
 								var n = 0;
 								while (true) {
 									char = readChar();
@@ -1818,24 +1911,6 @@ class Parser {
 											return TConst(CInt(n));
 									}
 								}
-								#else
-								var n = haxe.Int32.ofInt(0);
-								while (true) {
-									char = readChar();
-									switch (char) {
-										case 48, 49: // 0-1
-											n = haxe.Int32.add(haxe.Int32.shl(n, 1), cast(char - 48));
-										case '_'.code:
-										default:
-											this.char = char;
-											// we allow to parse binary Int32 in Neko, but when the value will be
-											// evaluated by Interpreter, a failure will occur if no Int32 operation is
-											// performed
-											var v = try CInt(haxe.Int32.toInt(n)) catch(e:Dynamic) CInt32(n);
-											return TConst(v);
-									}
-								}
-								#end
 							default:
 								this.char = char;
 								var i = Std.int(n);
@@ -1974,9 +2049,9 @@ class Parser {
 		return preprocesorValues.get(id);
 	}
 
-	var preprocStack : Array<{ r : Bool }>;
+	var preprocStack : Array<PreprocValue>;
 
-	function parsePreproCond() {
+	function parsePreproCond():Expr {
 		var tk = token();
 		return switch( tk ) {
 			case TPOpen:
@@ -2006,7 +2081,7 @@ class Parser {
 		}
 	}
 
-	function evalPreproCond( e : Expr ) {
+	function evalPreproCond( e : Expr ): Bool {
 		switch( expr(e) ) {
 			case EIdent(id):
 				return preprocValue(id) != null;
@@ -2037,10 +2112,10 @@ class Parser {
 			case "if":
 				var e = parsePreproCond();
 				if( evalPreproCond(e) ) {
-					preprocStack.push({ r : true });
+					preprocStack.push({r: true});
 					return token();
 				}
-				preprocStack.push({ r : false });
+				preprocStack.push({r: false});
 				skipTokens();
 				return token();
 			case "else", "elseif" if( preprocStack.length > 0 ):
@@ -2059,13 +2134,14 @@ class Parser {
 				}
 			case "end" if( preprocStack.length > 0 ):
 				preprocStack.pop();
+				preprocStack.push({r: true});
 				return token();
 			default:
 				return TPrepro(id);
 		}
 	}
 
-	function skipTokens() {
+	function skipTokens():Void {
 		var spos = preprocStack.length - 1;
 		var obj = preprocStack[spos];
 		var pos = readPos;
@@ -2086,7 +2162,7 @@ class Parser {
 		}
 	}
 
-	function tokenComment( op : String, char : Int ) {
+	function tokenComment( op : String, char : Int ):Token {
 		var c = op.charCodeAt(1);
 		var s = input;
 		if( c == '/'.code ) { // comment
@@ -2128,19 +2204,16 @@ class Parser {
 		return TOp(op);
 	}
 
-	function constString(c) {
+	function constString( c:Const ):String {
 		return switch(c) {
 			case CInt(v): Std.string(v);
 			case CFloat(f): Std.string(f);
 			case CString(s): s; // TODO : escape + quote
-			#if !haxe3
-			case CInt32(v): Std.string(v);
-			#end
 		}
 	}
 
-	function tokenString(t) {
-		return switch(t) {
+	function tokenString( t:Token ):String {
+		return switch( t ) {
 			case TEof: "<eof>";
 			case TConst(c): constString(c);
 			case TId(s): s;
@@ -2161,4 +2234,9 @@ class Parser {
 			case TPrepro(id): "#" + id;
 		}
 	}
+}
+
+@:structInit
+final class PreprocValue {
+	public var r : Bool;
 }

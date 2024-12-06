@@ -27,7 +27,7 @@ class Bytes {
 	var bin : haxe.io.Bytes;
 	var bout : haxe.io.BytesBuffer;
 	var pin : Int;
-	var hstrings : #if haxe3 Map<String,Int> #else Hash<Int> #end;
+	var hstrings : Map<String,Int>;
 	var strings : Array<String>;
 	var nstrings : Int;
 
@@ -35,7 +35,7 @@ class Bytes {
 		this.bin = bin;
 		pin = 0;
 		bout = new haxe.io.BytesBuffer();
-		hstrings = #if haxe3 new Map() #else new Hash() #end;
+		hstrings = new Map();
 		strings = [null];
 		nstrings = 1;
 	}
@@ -44,7 +44,7 @@ class Bytes {
 		var vid = hstrings.get(v);
 		if( vid == null ) {
 			if( nstrings == 256 ) {
-				hstrings = #if haxe3 new Map() #else new Hash() #end;
+				hstrings = new Map();
 				nstrings = 1;
 			}
 			hstrings.set(v,nstrings);
@@ -85,15 +85,6 @@ class Bytes {
 				bout.addByte(1);
 				doEncodeInt(v);
 			}
-		#if !haxe3
-		case CInt32(v):
-			bout.addByte(4);
-			var mid = haxe.Int32.toInt(haxe.Int32.and(v,haxe.Int32.ofInt(0xFFFFFF)));
-			bout.addByte(mid & 0xFF);
-			bout.addByte((mid >> 8) & 0xFF);
-			bout.addByte(mid >> 16);
-			bout.addByte(haxe.Int32.toInt(haxe.Int32.ushr(v, 24)));
-		#end
 		case CFloat(f):
 			bout.addByte(2);
 			doEncodeString(Std.string(f));
@@ -120,13 +111,6 @@ class Bytes {
 			CFloat( Std.parseFloat(doDecodeString()) );
 		case 3:
 			CString( doDecodeString() );
-		#if !haxe3
-		case 4:
-			var i = bin.get(pin) | (bin.get(pin+1) << 8) | (bin.get(pin+2) << 16);
-			var j = bin.get(pin+3);
-			pin += 4;
-			CInt32(haxe.Int32.or(haxe.Int32.ofInt(i), haxe.Int32.shl(haxe.Int32.ofInt(j), 24)));
-		#end
 		default:
 			throw "Invalid code "+bin.get(pin-1);
 		}
@@ -278,7 +262,7 @@ class Bytes {
 		case 3:
 			EParent(doDecode());
 		case 4:
-			var a = new Array();
+			var a = [];
 			for( i in 0...bin.get(pin++) )
 				a.push(doDecode());
 			EBlock(a);
@@ -295,7 +279,7 @@ class Bytes {
 			EUnop(op,prefix,doDecode());
 		case 8:
 			var e = doDecode();
-			var params = new Array();
+			var params = [];
 			for( i in 0...bin.get(pin++) )
 				params.push(doDecode());
 			ECall(e,params);
@@ -317,7 +301,7 @@ class Bytes {
 		case 14:
 			var params = new Array<Argument>();
 			for( i in 0...bin.get(pin++) )
-				params.push({ name : doDecodeString() });
+				params.push({ name : doDecodeString(), opt: false, value: null, t: null });
 			var e = doDecode();
 			var name = doDecodeString();
 			EFunction(params,e,(name == "") ? null: name);
@@ -327,13 +311,13 @@ class Bytes {
 			var e = doDecode();
 			EArray(e,doDecode());
 		case 17:
-			var el = new Array();
+			var el = [];
 			for( i in 0...bin.get(pin++) )
 				el.push(doDecode());
 			EArrayDecl(el);
 		case 18:
 			var cl = doDecodeString();
-			var el = new Array();
+			var el = [];
 			for( i in 0...bin.get(pin++) )
 				el.push(doDecode());
 			ENew(cl,el);
@@ -344,7 +328,7 @@ class Bytes {
 			var v = doDecodeString();
 			ETry(e,v,null,doDecode());
 		case 21:
-			var fl = new Array();
+			var fl:Array<ObjectField> = [];
 			for( i in 0...bin.get(pin++) ) {
 				var name = doDecodeString();
 				var e = doDecode();
@@ -358,7 +342,7 @@ class Bytes {
 			ETernary(cond, e1, e2);
 		case 23:
 			var e = doDecode();
-			var cases = [];
+			var cases:Array<SwitchCase> = [];
 			while( true ) {
 				var v = doDecode();
 				if( v == null ) break;

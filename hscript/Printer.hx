@@ -30,23 +30,23 @@ class Printer {
 	public function new() {
 	}
 
-	public function exprToString( e : Expr ) {
+	public function exprToString( e : Expr ):String {
 		buf = new StringBuf();
 		tabs = "";
 		expr(e);
 		return buf.toString();
 	}
 
-	public function typeToString( t : CType ) {
+	public function typeToString( t : CType ):String {
 		buf = new StringBuf();
 		tabs = "";
 		type(t);
 		return buf.toString();
 	}
 
-	inline function add<T>(s:T) buf.add(s);
+	inline function add<T>(s:T):Void buf.add(s);
 
-	function type( t : CType ) {
+	function type( t : CType ):Void {
 		switch( t ) {
 		case CTOpt(t):
 			add('?');
@@ -101,15 +101,15 @@ class Printer {
 		}
 	}
 
-	function addType( t : CType ) {
+	function addType( t : CType ):Void {
 		if( t != null ) {
 			add(" : ");
 			type(t);
 		}
 	}
 
-	function expr( e : Expr ) {
-		if(e == null) {
+	function expr( e : Expr ):Void {
+		if( e == null ) {
 			add("??NULL??");
 			return;
 		}

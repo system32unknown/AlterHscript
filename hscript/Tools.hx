@@ -24,7 +24,7 @@ import hscript.Expr;
 
 class Tools {
 
-	public static function iter( e : Expr, f : Expr -> Void ) {
+	public static function iter( e : Expr, f : Expr -> Void ):Void {
 		switch( expr(e) ) {
 		case EConst(_), EIdent(_):
 		case EImport(c): f(e);
@@ -63,10 +63,10 @@ class Tools {
 		}
 	}
 
-	public static function map( e : Expr, f : Expr -> Expr ) {
+	public static function map( e : Expr, f : Expr -> Expr ):Expr {
 		var edef = switch( expr(e) ) {
 		case EConst(_), EIdent(_), EBreak, EContinue: expr(e);
-		case EVar(n, t, e): EVar(n, t, if( e != null ) f(e) else null);
+		case EVar(n, t, e, isPublic, isStatic, isPrivate): EVar(n, t, if( e != null ) f(e) else null, isPublic, isStatic, isPrivate);
 		case EParent(e): EParent(f(e));
 		case EBlock(el): EBlock([for( e in el ) f(e)]);
 		case EField(e, fi): EField(f(e),fi);
@@ -77,7 +77,7 @@ class Tools {
 		case EWhile(c, e): EWhile(f(c),f(e));
 		case EDoWhile(c, e): EDoWhile(f(c),f(e));
 		case EFor(v, it, e): EFor(v, f(it), f(e));
-		case EFunction(args, e, name, t): EFunction(args, f(e), name, t);
+		case EFunction(args, e, name, t, isPublic, isStatic, isOverride, isPrivate): EFunction(args, f(e), name, t, isPublic, isStatic, isOverride, isPrivate);
 		case EReturn(e): EReturn(if( e != null ) f(e) else null);
 		case EArray(e, i): EArray(f(e),f(i));
 		case EArrayDecl(el): EArrayDecl([for( e in el ) f(e)]);
@@ -103,7 +103,7 @@ class Tools {
 		#end
 	}
 
-	public static inline function mk( e : ExprDef, p : Expr ) {
+	public static inline function mk( e : ExprDef, p : Expr ):Expr {
 		#if hscriptPos
 		return { e : e, pmin : p.pmin, pmax : p.pmax, origin : p.origin, line : p.line };
 		#else
