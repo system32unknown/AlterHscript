@@ -21,13 +21,13 @@
  */
 package hscript;
 
-typedef Int8 = #if cpp cpp.Int8 #elseif java java.Int8 #elseif cs cs.Int8 #else Int #end;
-typedef Int16 = #if cpp cpp.Int16 #elseif java java.Int16 #elseif cs cs.Int16 #else Int #end;
+typedef Int8 = #if cpp cpp.Int8 #else Int #end;
+typedef Int16 = #if cpp cpp.Int16 #else Int #end;
 typedef Int32 = #if cpp cpp.Int32 #else Int #end;
-typedef Int64 = #if cpp cpp.Int64 #elseif java java.Int64 #elseif cs cs.Int64 #else Int #end;
+typedef Int64 = #if cpp cpp.Int64 #else Int #end;
 
-typedef UInt8 = #if cpp cpp.UInt8 #elseif cs cs.UInt8 #else Int #end;
-typedef UInt16 = #if cpp cpp.UInt16 #elseif cs cs.UInt16 #else Int #end;
+typedef UInt8 = #if cpp cpp.UInt8 #else Int #end;
+typedef UInt16 = #if cpp cpp.UInt16 #else Int #end;
 typedef UInt32 = #if cpp cpp.UInt32 #else Int #end;
 typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 
@@ -35,6 +35,9 @@ enum Const {
 	CInt( v : Int );
 	CFloat( f : Float );
 	CString(s: String, ?interp: Bool);
+	#if !haxe3
+	CInt32( v : haxe.Int32 );
+	#end
 }
 
 #if hscriptPos
@@ -53,7 +56,7 @@ enum Expr {
 #end
 	EConst( c : Const );
 	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool );
+	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool );
 	EParent( e : Expr );
 	EBlock( e : Array<Expr> );
 	EField( e : Expr, f : String , ?safe : Bool );
@@ -65,14 +68,14 @@ enum Expr {
 	EFor( v : String, it : Expr, e : Expr, ?ithv: String);
 	EBreak;
 	EContinue;
-	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool );
+	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool );
 	EReturn( ?e : Expr );
 	EArray( e : Expr, index : Expr );
 	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
 	ENew( cl : String, params : Array<Expr> );
 	EThrow( e : Expr );
 	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
-	EObject( fl : Array<ObjectField> );
+	EObject( fl : Array<{ name : String, e : Expr }> );
 	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
 	ESwitch( e : Expr, cases : Array<SwitchCase>, ?defaultExpr : Expr );
 	EDoWhile( cond : Expr, e : Expr);
@@ -80,13 +83,8 @@ enum Expr {
 	ECheckType( e : Expr, t : CType );
 
 	EImport( c : String, ?asname:String );
-	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
-}
-
-@:structInit
-final class ObjectField {
-	public var name : String;
-	public var e : Expr;
+	EImportStar( c : String );
+	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String> );
 }
 
 @:structInit
@@ -95,21 +93,8 @@ final class SwitchCase {
 	public var expr : Expr;
 }
 
-@:structInit
-final class Argument {
-	public var name : String;
-	public var t : CType;
-	public var opt : Bool;
-	public var value : Expr;
-}
-
-@:structInit
-final class MetadataEntry {
-	public var name : String;
-	public var params : Array<Expr>;
-}
-
-typedef Metadata = Array<MetadataEntry>;
+typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };
+typedef Metadata = Array<{ name : String, params : Array<Expr> }>;
 
 enum CType {
 	CTPath( path : Array<String>, ?params : Array<CType> );
@@ -204,11 +189,10 @@ enum FieldKind {
 	KVar( v : VarDecl );
 }
 
-@:structInit
-final class FunctionDecl {
-	public var args : Array<Argument>;
-	public var body : Expr;
-	public var ret : Null<CType>;
+typedef FunctionDecl = {
+	var args : Array<Argument>;
+	var expr : Expr;
+	var ret : Null<CType>;
 }
 
 typedef VarDecl = {

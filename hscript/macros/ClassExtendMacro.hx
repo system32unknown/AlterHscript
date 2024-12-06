@@ -42,7 +42,6 @@ class ClassExtendMacro {
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
 		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("_HSC")) {
 			var metas = cl.meta.get();
-
 			for(m in metas)
 				if (unallowedMetas.contains(m.name))
 					return fields;
@@ -52,155 +51,23 @@ class ClassExtendMacro {
 
 			var key = cl.module;
 			var fkey = cl.module + "." + cl.name;
-			if(key == "sys.thread.FixedThreadPool") return fields; // Error: Type name sys.thread.Worker_HSX is redefined from module sys.thread.FixedThreadPool
-			if(key == "StdTypes") return fields; // Error: Cant extend basic class
-			if(key == "Xml") return fields; // Error: Cant extend basic class
-			if(key == "Date") return fields; // Error: Cant extend basic class
-			if(key == "away3d.tools.commands.Mirror") return fields; // Error: Unknown identifier
-			if(key == "away3d.tools.commands.SphereMaker") return fields; // Error: Unknown identifier
-			if(key == "away3d.tools.commands.Weld") return fields; // Error: Unknown identifier
+			switch (key) {
+				case "sys.thread.FixedThreadPool" // Error: Type name sys.thread.Worker_HSX is redefined from module sys.thread.
+					| "StdTypes" | "Xml" | "Date" // Error: Cant extend basic class
+					| "away3d.tools.commands.Mirror" // Error: Unknown identifier
+					| "away3d.tools.commands.SphereMaker" // Error: Unknown identifier
+					| "away3d.tools.commands.Weld" // Error: Unknown identifier
+					| "sys.thread.EventLoop": // Error: cant override force inlined
+						return fields;
+			}
 			if(fkey == "hscript.CustomClassHandler.TemplateClass") return fields; // Error: Redefined
-			if(key == "sys.thread.EventLoop") return fields; // Error: cant override force inlined
 			if(Config.DISALLOW_CUSTOM_CLASSES.contains(cl.module) || Config.DISALLOW_CUSTOM_CLASSES.contains(fkey)) return fields;
 			if(cl.module.contains("_")) return fields; // Weird issue, sorry
 
 			var superFields = [];
-			if(false && cl.superClass != null) {
-				var _superFields = cl.superClass.t.get().fields.get();
-				_superFields = []; // Comment to enable super support, (broken)
-
-				function convertField(field:ClassField) {
-					try {
-						var nfield = FixedTypeTools.toSimpleField(field);
-						switch ([field.kind, field.type]) {
-							case [FMethod(kind), TFun(args, ret)]:
-								if(kind == MethInline)
-									nfield.access.push(AInline);
-								if(kind == MethDynamic)
-									nfield.access.push(ADynamic);
-							default:
-						}
-
-						switch(nfield.kind) {
-							case FFun(fun):
-								if (fun.params != null && fun.params.length > 0)
-									return null;
-
-								//sfun.ret = Utils.fixStdTypes(fun.ret);
-
-								var metas = nfield.meta;
-								var defaultValues:Map<String, Dynamic> = [];
-								var defaultEntry = null;
-								var isGeneric = false;
-								for(m in metas) {
-									if(m.name == ":value") {
-										defaultEntry = m;
-										switch(m.params[0].expr) {
-											case EObjectDecl(fields):
-												for(fil in fields)
-													defaultValues[fil.field] = fil.expr;
-											default:
-										}
-									}
-									if(m.name == ":generic")
-										isGeneric = true;
-								}
-								if(isGeneric) return null;
-
-								if(defaultEntry != null)
-									metas.remove(defaultEntry);
-
-								for(arg in fun.args) {
-									var opt = false;
-									if(defaultValues.exists(arg.name)) {
-										arg.value = defaultValues[arg.name];
-										arg.opt = false;
-									}
-
-									arg.type = null;//Utils.fixStdTypes(arg.type);
-
-									//if(arg.opt) {
-									//	if(arg.type.getParameters()[0].name != "Null")
-									//		arg.type = TPath({name: "Null", params: [TPType(arg.type)], pack: []});//macro {Null<Dynamic>};
-									//}
-								}
-
-								trace(nfield.name);
-							default:
-						}
-						return nfield;
-					} catch(e) {
-						trace(field.name, e);
-						return null;
-					}
-				}
-
-				var didPrint = false;
-
-				var fieldNames = [for(f in fields) f.name];
-
-				/*for(field in _superFields) {
-					if(fieldNames.contains(field.name))
-						continue;
-
-					if(!field.kind.match(FMethod(_))) // only catch methods
-						continue;
-
-					if(field.name.startsWith("get_")) {
-						var access = FixedTypeTools.getAccess(field);
-						if(access.contains(AInline) || access.contains(AFinal) || field.isFinal)
-							continue;
-						var name = field.name;
-						superFields.push({
-							name: field.name,
-							pos: field.pos,
-							kind: FFun({
-								ret: null,
-								params: [],
-								expr: macro {
-									return super.$name();
-								},
-								args: []
-							}),
-							access: access,
-							meta: field.meta.get(),
-						});
-						//var f = convertField(field);
-						//if(f != null)
-						//	superFields.push(f);
-						if(field.name == "get_bgColor") {
-							if(!didPrint) {
-								trace(cl.name);
-								didPrint = true;
-							}
-							trace("> " + field.name + " : " + access, field);
-						}
-					}
-
-				}*/
-
-				// want to get this working
-				/*for(field in _superFields) {
-					if(fieldNames.contains(field.name))
-						continue;
-
-					if(!field.kind.match(FMethod(_))) // only catch methods
-						continue;
-
-					var f = convertField(field);
-					if(f != null)
-						superFields.push(f);
-				}*/
-				//superFields = [];
-			}
-
-			var shadowClass = macro class {
-
-			};
+			var shadowClass = macro class { };
 
 			var definedFields:Array<String> = [];
-
-			//trace(getModuleName(cl));
 
 			var hasNew = false;
 
@@ -214,7 +81,7 @@ class ClassExtendMacro {
 				}
 				if (f.name.startsWith(FUNC_PREFIX))
 					continue;
-				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline) || f.access.contains(AFinal))
+				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline))
 					continue;
 
 				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes, yet
@@ -243,12 +110,10 @@ class ClassExtendMacro {
 
 						if (returns) {
 							overrideExpr = macro {
-								var name:String = $v{name};
-
 								if (__custom__variables != null) {
-									if(__custom__variables.exists(name)) {
+									if(__custom__variables.exists($v{name})) {
 										var v:Dynamic = null;
-										if (Reflect.isFunction(v = __custom__variables.get(name))) {
+										if (Reflect.isFunction(v = __custom__variables.get($v{name}))) {
 											return v($a{arguments});
 										}
 									}
@@ -257,12 +122,10 @@ class ClassExtendMacro {
 							};
 						} else {
 							overrideExpr = macro {
-								var name:String = $v{name};
-
 								if (__custom__variables != null) {
-									if(__custom__variables.exists(name)) {
+									if(__custom__variables.exists($v{name})) {
 										var v:Dynamic = null;
-										if (Reflect.isFunction(v = __custom__variables.get(name))) {
+										if (Reflect.isFunction(v = __custom__variables.get($v{name}))) {
 											v($a{arguments});
 											return;
 										}
@@ -322,7 +185,6 @@ class ClassExtendMacro {
 			var totalFields = definedFields.length;
 
 			if(totalFields == 0 && !hasNew) {
-				//Sys.println(cl.pack.join(".") + "." + cl.name + ", " + totalFields);
 				return fields;
 			}
 
@@ -336,42 +198,37 @@ class ClassExtendMacro {
 			shadowClass.name = '${cl.name}$CLASS_SUFFIX';
 			var imports = Context.getLocalImports().copy();
 			Utils.setupMetas(shadowClass, imports);
-			Utils.processImport(imports, "hscript.utils.UnsafeReflect", "UnsafeReflect");
+			Utils.processImport(imports, "hscript.UnsafeReflect", "UnsafeReflect");
 
 			// Adding hscript getters and setters
-
 			shadowClass.fields.push({
 				name: "__interp",
 				pos: Context.currentPos(),
-				kind: FVar(macro: hscript.Interp),
+				kind: FVar(TPath({
+					pack: ['hscript'],
+					name: 'Interp'
+				})),
 				access: [APublic]
 			});
 
 			shadowClass.fields.push({
 				name: "__custom__variables",
 				pos: Context.currentPos(),
-				kind: FVar(macro: Map<String, Dynamic>),
+				kind: FVar(TPath({
+					pack: [],
+					name: 'Map',
+					params: [TPType(TPath({name: "String", pack: []})), TPType(TPath({name: "Dynamic", pack: []}))]
+				})),
 				access: [APublic]
 			});
 
 			shadowClass.fields.push({
 				name: "__allowSetGet",
 				pos: Context.currentPos(),
-				kind: FVar(macro: Bool, macro true),
-				access: [APublic]
-			});
-
-			shadowClass.fields.push({
-				name: "__real_fields",
-				pos: Context.currentPos(),
-				kind: FVar(macro: Array<String>),
-				access: [APublic]
-			});
-
-			shadowClass.fields.push({
-				name: "__class__fields",
-				pos: Context.currentPos(),
-				kind: FVar(macro: Array<String>),
+				kind: FVar(TPath({
+					pack: [],
+					name: 'Bool',
+				}), macro true),
 				access: [APublic]
 			});
 
@@ -379,7 +236,7 @@ class ClassExtendMacro {
 				name: "__callGetter",
 				pos: Context.currentPos(),
 				kind: FFun({
-					ret: macro: Dynamic,
+					ret: TPath({name: 'Dynamic', pack: []}),
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
@@ -392,7 +249,7 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: macro: String
+							type: TPath({name: "String", pack: []})
 						}
 					]
 				}),
@@ -403,7 +260,7 @@ class ClassExtendMacro {
 				name: "__callSetter",
 				pos: Context.currentPos(),
 				kind: FFun({
-					ret: macro: Dynamic,
+					ret: TPath({name: 'Dynamic', pack: []}),
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
@@ -416,13 +273,13 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: macro: String
+							type: TPath({name: "String", pack: []})
 						},
 						{
 							name: "val",
 							opt: false,
 							meta: [],
-							type: macro: Dynamic
+							type: TPath({name: "Dynamic", pack: []})
 						}
 					]
 				}),
@@ -483,7 +340,7 @@ class ClassExtendMacro {
 						return __callGetter(name);
 					if (__custom__variables.exists(name))
 						return __custom__variables.get(name);
-					return UnsafeReflect.getProperty(this, name);
+					return Reflect.getProperty(this, name);
 				}
 			}
 
@@ -495,11 +352,7 @@ class ClassExtendMacro {
 						__custom__variables.set(name, val);
 						return val;
 					}
-					if(__real_fields.contains(name)) {
-						UnsafeReflect.setProperty(this, name, val);
-						return UnsafeReflect.field(this, name);
-					}
-					return super.hset(name, val);
+					return super.hset(this, name);
 				}
 			} else {
 				macro {
@@ -509,25 +362,17 @@ class ClassExtendMacro {
 						__custom__variables.set(name, val);
 						return val;
 					}
-					if(__real_fields.contains(name)) {
-						UnsafeReflect.setProperty(this, name, val);
-						return UnsafeReflect.field(this, name);
-					}
-					__custom__variables.set(name, val);
-					return val;
+					Reflect.setProperty(this, name, val);
+					return Reflect.field(this, name);
 				}
 			}
-
-			//if(hasHsetInSuper || hasHgetInSuper) return fields;
-
-			//trace(cl.name);
 
 			shadowClass.fields.push({
 				name: "hset",
 				pos: Context.currentPos(),
 				access: hasHsetInSuper ? [AOverride, APublic] : [APublic],
 				kind: FFun({
-					ret: macro: Dynamic,
+					ret: TPath({name: 'Dynamic', pack: []}),
 					params: [],
 					expr: hsetField,
 					args: [
@@ -535,13 +380,13 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: macro: String
+							type: TPath({name: "String", pack: []})
 						},
 						{
 							name: "val",
 							opt: false,
 							meta: [],
-							type: macro: Dynamic
+							type: TPath({name: "Dynamic", pack: []})
 						}
 					]
 				})
@@ -552,7 +397,7 @@ class ClassExtendMacro {
 				pos: Context.currentPos(),
 				access: hasHgetInSuper ? [AOverride, APublic] : [APublic],
 				kind: FFun({
-					ret: macro: Dynamic,
+					ret: TPath({name: 'Dynamic', pack: []}),
 					params: [],
 					expr: hgetField,
 					args: [
@@ -560,18 +405,11 @@ class ClassExtendMacro {
 							name: "name",
 							opt: false,
 							meta: [],
-							type: macro: String
+							type: TPath({name: "String", pack: []})
 						}
 					]
 				})
 			});
-
-			/*var p = new Printer();
-			var aa = p.printTypeDefinition(shadowClass);
-			if(aa.length < 5024)
-			trace(aa);
-			if(aa.indexOf("pack") >= 0)
-			if(cl.name == "FunkinShader")*/
 
 			Context.defineModule(cl.module, [shadowClass], imports);
 		}

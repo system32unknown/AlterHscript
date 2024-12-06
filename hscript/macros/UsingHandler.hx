@@ -32,33 +32,31 @@ class UsingHandler {
 			var trimEnum = cl.name.substr(0, cl.name.length - 6);
 
 			var key = cl.module;
-			var fkey = cl.module + "." + trimEnum;
-			if(key == "lime.system.Locale") return fields; // Error: Unknown identifier : currentLocale, Due to Func
-			if(key == "cpp.Function") return fields; // Error: Unknown identifier : nativeGetProcAddress, Due to Func
-			if(key == "haxe.ds.Vector") return fields; // Error: haxe.ds._Vector.VectorData<blit.T> has no field blit, Due to Func
-			if(key == "haxe.display.Display") return fields; // Error: haxe.display.DisplayItemKind<haxe.display.DisplayLiteral<Dynamic>> has no field Null, Due to Func
-			if(key == "cpp.Callable") return fields; // Error: cpp.Function.fromStaticFunction must be called on static function, Due to Func
-			if(key == "haxe.display.JsonAnonStatusKind") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
-			if(key == "cpp.CharStar") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
-			if(Config.DISALLOW_ABSTRACT_AND_ENUM.contains(cl.module) || Config.DISALLOW_ABSTRACT_AND_ENUM.contains(fkey)) return fields;
-			if(cl.module.contains("_")) return fields; // Weird issue, sorry
+			var fkey = key + "." + trimEnum;
+			if(key.contains("_")) return fields; // Weird issue, sorry
+			switch (key)
+			{
+				case "lime.system.Locale" // Error: Unknown identifier : currentLocale, Due to Func
+					| "cpp.Function" // Error: Unknown identifier : nativeGetProcAddress, Due to Func
+					| "haxe.ds.Vector" // Error: haxe.ds._Vector.VectorData<blit.T> has no field blit, Due to Func
+					| "haxe.display.Display" // Error: haxe.display.DisplayItemKind<haxe.display.DisplayLiteral<Dynamic>> has no field Null, Due to Func
+					| "cpp.Callable" // Error: cpp.Function.fromStaticFunction must be called on static function, Due to Func
+					| "haxe.display.JsonAnonStatusKind" // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
+					| "cpp.CharStar": // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
+						return fields;
+			}
+			if(Config.DISALLOW_ABSTRACT_AND_ENUM.contains(key) || Config.DISALLOW_ABSTRACT_AND_ENUM.contains(fkey)) return fields;
 
-			var shadowClass = macro class {
-
-			};
+			var shadowClass = macro class { };
 			shadowClass.kind = TDClass();
 			shadowClass.params = switch(cl.params.length) {
 				case 0:
 					null;
-				case 1:
-					[{
-						name: "T",
-					}];
 				default:
 					[for(k=>e in cl.params) {
-						name: "T" + Std.int(k+1)
+						name: e.name
 					}];
-			};
+			}
 			shadowClass.name = '${cl.name.substr(0, cl.name.length - 6)}_HSC';
 
 			var imports = Context.getLocalImports().copy();
@@ -72,33 +70,6 @@ class UsingHandler {
 							if (fun.expr != null) {
 								fun.expr = macro @:privateAccess $e{fun.expr};
 								shadowClass.fields.push(f);
-
-								/*var trimEnum = cl.name.substr(0, cl.name.length - 6);
-
-								var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
-
-								var name = f.name;
-
-								var arguments = fun.args == null ? [] : [for(a in fun.args) macro $i{a.name}];
-
-								var expr:Expr = Context.parse('${returns?"return " : ""} $trimEnum.$name(${[for(a in fun.args) a.name].join(", ")})', f.pos);
-
-								var func:Function = {
-									ret: fun.ret,
-									params: fun.params.copy(),
-									expr: expr,
-									args: fun.args.copy()
-								};
-
-								var field:Field = {
-									pos: f.pos,
-									name: f.name,
-									meta: f.meta,
-									kind: FFun(func),
-									doc: null,//f.doc,
-									access: [APublic, AStatic]
-								}
-								shadowClass.fields.push(field);*/
 							}
 						}
 					case FProp(get, set, t, e):

@@ -1,4 +1,4 @@
-package hscript.utils;
+package hscript;
 
 #if cpp
 import cpp.ObjectType;

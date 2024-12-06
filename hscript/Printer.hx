@@ -23,7 +23,6 @@ package hscript;
 import hscript.Expr;
 
 class Printer {
-
 	var buf : StringBuf;
 	var tabs : String;
 
@@ -48,56 +47,56 @@ class Printer {
 
 	function type( t : CType ):Void {
 		switch( t ) {
-		case CTOpt(t):
-			add('?');
-			type(t);
-		case CTPath(path, params):
-			add(path.join("."));
-			if( params != null ) {
-				add("<");
+			case CTOpt(t):
+				add('?');
+				type(t);
+			case CTPath(path, params):
+				add(path.join("."));
+				if( params != null ) {
+					add("<");
+					var first = true;
+					for( p in params ) {
+						if( first ) first = false else add(", ");
+						type(p);
+					}
+					add(">");
+				}
+			case CTNamed(name, t):
+				add(name);
+				add(':');
+				type(t);
+			case CTFun(args, ret) if (Lambda.exists(args, function (a) return a.match(CTNamed(_, _)))):
+				add('(');
+				for (a in args)
+					switch a {
+						case CTNamed(_, _): type(a);
+						default: type(CTNamed('_', a));
+					}
+				add(')->');
+				type(ret);
+			case CTFun(args, ret):
+				if( args.length == 0 )
+					add("Void -> ");
+				else {
+					for( a in args ) {
+						type(a);
+						add(" -> ");
+					}
+				}
+				type(ret);
+			case CTAnon(fields):
+				add("{");
 				var first = true;
-				for( p in params ) {
-					if( first ) first = false else add(", ");
-					type(p);
+				for( f in fields ) {
+					if( first ) { first = false; add(" "); } else add(", ");
+					add(f.name + " : ");
+					type(f.t);
 				}
-				add(">");
-			}
-		case CTNamed(name, t):
-			add(name);
-			add(':');
-			type(t);
-		case CTFun(args, ret) if (Lambda.exists(args, function (a) return a.match(CTNamed(_, _)))):
-			add('(');
-			for (a in args)
-				switch a {
-					case CTNamed(_, _): type(a);
-					default: type(CTNamed('_', a));
-				}
-			add(')->');
-			type(ret);
-		case CTFun(args, ret):
-			if( args.length == 0 )
-				add("Void -> ");
-			else {
-				for( a in args ) {
-					type(a);
-					add(" -> ");
-				}
-			}
-			type(ret);
-		case CTAnon(fields):
-			add("{");
-			var first = true;
-			for( f in fields ) {
-				if( first ) { first = false; add(" "); } else add(", ");
-				add(f.name + " : ");
-				type(f.t);
-			}
-			add(first ? "}" : " }");
-		case CTParent(t):
-			add("(");
-			type(t);
-			add(")");
+				add(first ? "}" : " }");
+			case CTParent(t):
+				add("(");
+				type(t);
+				add(")");
 		}
 	}
 
@@ -114,6 +113,8 @@ class Printer {
 			return;
 		}
 		switch( #if hscriptPos e.e #else e #end ) {
+			case EImportStar(c):
+				add("import " + c + "*");
 			case EImport(c, n):
 				add("import " + c);
 				if(n != null)
@@ -127,9 +128,6 @@ class Printer {
 				}
 				add(' {\n');
 				tabs += "\t";
-				//for(field in fields) {
-				//	expr(field);
-				//}
 
 				tabs = tabs.substr(1);
 				add("}");
