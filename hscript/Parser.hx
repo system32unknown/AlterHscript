@@ -64,7 +64,7 @@ class Parser {
 	/**
 		allows to check for #if / #else in code
 	**/
-	public var preprocesorValues : Map<String,Dynamic> = new Map();
+	public var preprocessorValues : Map<String,Dynamic> = new Map();
 
 	/**
 		activate JSON compatiblity
@@ -1980,7 +1980,7 @@ class Parser {
 	}
 
 	function preprocValue( id : String ) : Dynamic {
-		return preprocesorValues.get(id);
+		return preprocessorValues.get(id);
 	}
 
 	var preprocStack : Array<PreprocValue>;
@@ -2167,6 +2167,10 @@ class Parser {
 		case TPrepro(id): "#" + id;
 		}
 	}
+
+	public var preprocesorValues(get, set) : Map<String,Dynamic>;
+	inline function get_preprocesorValues() return preprocessorValues;
+	inline function set_preprocesorValues(v) return preprocessorValues = v;
 }
 
 @:structInit
