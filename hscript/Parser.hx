@@ -993,7 +993,7 @@ class Parser {
 								case "extends":
 									var e = parseType();
 									switch(e) {
-										case CTPath(path, params):
+										case CTPath(path, _):
 											if(extend != null) {
 												error(ECustom('Cannot extend a class twice.'), 0, 0);
 											}
@@ -1173,7 +1173,6 @@ class Parser {
 		var tk = token();
 		switch( tk ) {
 			case TOp(op):
-
 				if( op == "->" ) {
 					// single arg reinterpretation of `f -> e` , `(f) -> e` and `(f:T) -> e`
 					switch( expr(e1) ) {
@@ -1193,7 +1192,7 @@ class Parser {
 					return e1;
 				}
 
-				if( opPriority.get(op) == -1 ) {
+				if(opPriority.get(op) == -1) {
 					if( isBlock(e1) || switch(expr(e1)) { case EParent(_): true; default: false; } ) {
 						push(tk);
 						return e1;
@@ -1240,7 +1239,7 @@ class Parser {
 						unexpected(tk);
 						break;
 				}
-				var arg : Argument = { name : name };
+				var arg : Argument = {name : name};
 				args.push(arg);
 				if( opt ) arg.opt = true;
 				if( allowTypes ) {
@@ -1300,7 +1299,7 @@ class Parser {
 		return path;
 	}
 
-	function parseType() : CType {
+	function parseType(): CType {
 		var t = token();
 		switch( t ) {
 			case TId(v):
@@ -1339,8 +1338,7 @@ class Parser {
 				}
 				return parseTypeNext(CTPath(path, params));
 			case TPOpen:
-				var a = token(),
-					b = token();
+				var a = token(), b = token();
 
 				push(b);
 				push(a);
@@ -1369,7 +1367,6 @@ class Parser {
 
 						return withReturn(args);
 					default:
-
 						var t = parseType();
 						return switch token() {
 							case TComma:

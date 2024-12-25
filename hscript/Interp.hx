@@ -544,7 +544,6 @@ class Interp {
 
 	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
-
 		if (rethrow)
 			this.rethrow(e)
 		else throw e;
@@ -553,8 +552,7 @@ class Interp {
 
 	inline function warn(e: #if hscriptPos ErrorDef #else Error #end):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
-
-		alterhscript.AlterHscript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
+		AlterHscript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
 		return null;
 	}
 	inline function rethrow(e:Dynamic) {
@@ -1334,6 +1332,10 @@ class Interp {
 	var usings:Array<UsingEntry> = [];
 
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		for (_using in usings) {
+			var v = _using.call(o, f, args);
+			if (v != null) return v;
+		}
 		if(o == CustomClassHandler.staticHandler && scriptObject != null) {
 			return UnsafeReflect.callMethod(scriptObject, UnsafeReflect.field(scriptObject, "_HX_SUPER__" + f), args);
 		}
