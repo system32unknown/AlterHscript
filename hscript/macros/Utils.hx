@@ -80,22 +80,6 @@ class Utils {
 		);
 	}
 
-
-	/*public static function getModuleName(path:Type) {
-		switch(path) {
-			case TPath(name, pack):// | TDClass(name, pack):
-				var str = "";
-				for(p in pack) {
-					str += p + ".";
-				}
-				str += name;
-				return str;
-
-			default:
-		}
-		return "INVALID";
-	}*/
-
 	public static function fixModuleName(name:String) {
 		return [for(s in name.split(".")) if (s.charAt(0) == "_") s.substr(1) else s].join(".");
 	}
@@ -142,7 +126,6 @@ class Utils {
 
 							}
 						default:
-
 					}
 				}
 			case EParenthesis(e):

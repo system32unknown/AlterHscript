@@ -61,7 +61,6 @@ class UsingHandler {
 
 			var imports = Context.getLocalImports().copy();
 			Utils.setupMetas(shadowClass, imports);
-			//trace(cl.module);
 
 			for(f in fields)
 				switch(f.kind) {
@@ -82,8 +81,6 @@ class UsingHandler {
 							var enumType:String = cl.name;
 							var pack = cl.module.split(".");
 
-							//trace(pack, cl.name, name, cl.module);
-
 							if(pack[pack.length - 1] == trimEnum)
 								pack.pop();
 
@@ -91,7 +88,6 @@ class UsingHandler {
 							if(complexType == null && e != null) {
 								complexType = switch(e.expr) {
 									case EConst(CRegexp(_)): TPath({ name: "EReg", pack: [] });
-
 									default: null;
 								}
 							}
@@ -117,10 +113,6 @@ class UsingHandler {
 						}
 					default:
 				}
-
-			//var printer = new Printer();
-			//for(field in shadowClass.fields)
-			//	trace(printer.printField(field));
 
 			Context.defineModule(cl.module, [shadowClass], imports);
 		}

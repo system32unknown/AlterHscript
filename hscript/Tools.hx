@@ -60,6 +60,7 @@ class Tools {
 				if( def != null ) f(def);
 			case EMeta(name, args, e): if( args != null ) for( a in args ) f(a); f(e);
 			case ECheckType(e,_): f(e);
+			default:
 		}
 	}
 
@@ -92,6 +93,7 @@ class Tools {
 			case EImport(c): EImport(c);
 			case EImportStar(c): EImportStar(c);
 			case EClass(name, el, extend, interfaces): EClass(name, [for( e in el ) f(e)], extend, interfaces);
+			default: #if hscriptPos e.e #else e #end;
 		}
 		return mk(edef, e);
 	}
@@ -112,4 +114,98 @@ class Tools {
 		#end
 	}
 
+	public static function removeInnerClass(name: String): String {
+		var ll = name.lastIndexOf(".");
+		if (name.indexOf(".") != ll) { // checks if there are 2 or more dots
+			// wtf did i make -neo
+			// this is awesome -crow
+			return name.substr(0, name.lastIndexOf(".", ll - 1)) + "." + name.substr(ll + 1);
+		}
+		// only one dot or no dots (will work since -1 + 1 = 0)
+		return name.substr(ll + 1);
+	}
+	public static function getClass(name: String): Dynamic {
+		var c: Dynamic = Type.resolveClass(name);
+		if (c == null) // try importing as enum
+			try
+				c = Type.resolveEnum(name);
+		if (c == null) {
+			// lastly try removing any inner class from it
+			// this allows you to import stuff like
+			// flixel.text.FlxText.FlxTextBorderStyle
+			// without the script crashing immediately
+			var className = removeInnerClass(name);
+			if (className != name) {
+				c = Type.resolveClass(className);
+				if (c == null)
+					c = Type.resolveEnum(className);
+			}
+		}
+		return c;
+	}
+
+	public inline static function last(arr: Array<String>): String
+		return arr[arr.length - 1];
+	public static function isIterable(v: Dynamic): Bool {
+		// TODO: test for php and lua, they might have issues with this check
+		return v != null && v.iterator != null;
+	}
+
+	/**
+	 * DO NOT USE INLINE ON THIS FUNCTION
+	**/
+	public static function argCount(func: haxe.Constraints.Function): Int {
+		#if cpp
+		return untyped __cpp__("{0}->__ArgCount()", func);
+		#elseif js
+		return untyped js.Syntax.code("{0}.length", func);
+		#else
+		return -1;
+		#end
+	}
+}
+
+class EnumValue {
+	public var enumName: String;
+	public var name: String;
+	public var index: Int;
+	public var args: Array<Dynamic>;
+
+	public function new(enumName: String, name: String, index: Int, ?args: Array<Dynamic>) {
+		this.enumName = enumName;
+		this.name = name;
+		this.index = index;
+		this.args = args;
+	}
+
+	public function toString(): String {
+		if (args == null)
+			return enumName + "." + name;
+		return enumName + "." + name + "(" + [for (arg in args) arg].join(", ") + ")";
+	}
+
+	public inline function getEnumName(): String
+		return this.enumName;
+
+	public inline function getConstructorArgs(): Array<Dynamic>
+		return this.args != null ? this.args : [];
+
+	public function compare(other: EnumValue): Bool {
+		if (enumName != other.enumName || name != other.name)
+			return false;
+		if (args == null && other.args == null)
+			return true;
+		if (args == null || other.args == null)
+			return false;
+		if (args.length != other.args.length)
+			return false;
+
+		for (i in 0...args.length) {
+			// TODO: allow deep comparison, like arrays
+			if (args[i] != other.args[i])
+				return false;
+		}
+
+		return true;
+	}
 }

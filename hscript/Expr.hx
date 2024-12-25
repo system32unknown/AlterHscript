@@ -48,43 +48,58 @@ final class Expr {
 	public var pmax : Int;
 	public var origin : String;
 	public var line : Int;
+
+	public function toString():String {
+		return Std.string({
+			e: e,
+			pmin: pmin,
+			pmax: pmax,
+			origin: origin,
+			line: line
+		});
+	}
 }
-enum ExprDef {
+
+enum ExprDef
 #else
 typedef ExprDef = Expr;
-enum Expr {
+enum Expr
 #end
-	EConst( c : Const );
-	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool );
-	EParent( e : Expr );
-	EBlock( e : Array<Expr> );
-	EField( e : Expr, f : String , ?safe : Bool );
-	EBinop( op : String, e1 : Expr, e2 : Expr );
-	EUnop( op : String, prefix : Bool, e : Expr );
-	ECall( e : Expr, params : Array<Expr> );
-	EIf( cond : Expr, e1 : Expr, ?e2 : Expr );
-	EWhile( cond : Expr, e : Expr );
-	EFor( v : String, it : Expr, e : Expr, ?ithv: String);
+{
+	EIgnore(skipSemicolon:Bool);
+	EConst(c:Const);
+	EIdent(v:String);
+	EVar(n:String, ?t:CType, ?e:Expr, ?isPublic:Bool, ?isStatic:Bool);
+	EParent(e:Expr);
+	EBlock(e:Array<Expr>);
+	EField(e:Expr, f:String, ?safe:Bool);
+	EBinop(op:String, e1:Expr, e2:Expr);
+	EUnop(op:String, prefix:Bool, e:Expr);
+	ECall(e:Expr, params:Array<Expr>);
+	EIf(cond:Expr, e1:Expr, ?e2:Expr);
+	EWhile(cond:Expr, e:Expr);
+	EFor(v:String, it:Expr, e:Expr, ?ithv:String);
 	EBreak;
 	EContinue;
-	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool );
-	EReturn( ?e : Expr );
-	EArray( e : Expr, index : Expr );
+	EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType, ?isPublic: Bool, ?isStatic: Bool, ?isOverride: Bool);
+	EReturn(?e:Expr);
+	EArray(e:Expr, index:Expr);
 	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
-	ENew( cl : String, params : Array<Expr> );
-	EThrow( e : Expr );
-	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
-	EObject( fl : Array<{ name : String, e : Expr }> );
-	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
-	ESwitch( e : Expr, cases : Array<SwitchCase>, ?defaultExpr : Expr );
-	EDoWhile( cond : Expr, e : Expr);
-	EMeta( name : String, args : Array<Expr>, e : Expr );
-	ECheckType( e : Expr, t : CType );
+	ENew(cl:String, params:Array<Expr>);
+	EThrow(e:Expr);
+	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
+	EObject(fl:Array<{ name : String, e : Expr }>);
+	ETernary(cond:Expr, e1:Expr, e2:Expr);
+	ESwitch(e:Expr, cases:Array<SwitchCase>, ?defaultExpr:Expr);
+	EDoWhile(cond:Expr, e:Expr);
+	EMeta(name:String, args:Array<Expr>, e:Expr);
+	ECheckType(e:Expr, t:CType);
 
-	EImport( c : String, ?asname:String );
-	EImportStar( c : String );
-	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String> );
+	EImport(c:String, ?asname:String);
+	EImportStar(c:String);
+	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
+	EEnum(name:String, fields:Array<EnumType>);
+	EUsing(name:String);
 }
 
 @:structInit
@@ -97,12 +112,12 @@ typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };
 typedef Metadata = Array<{ name : String, params : Array<Expr> }>;
 
 enum CType {
-	CTPath( path : Array<String>, ?params : Array<CType> );
-	CTFun( args : Array<CType>, ret : CType );
-	CTAnon( fields : Array<{ name : String, t : CType, ?meta : Metadata }> );
-	CTParent( t : CType );
-	CTOpt( t : CType );
-	CTNamed( n : String, t : CType );
+	CTPath(path: Array<String>, ?params: Array<CType>);
+	CTFun(args: Array<CType>, ret: CType);
+	CTAnon(fields: Array<{name: String, t: CType, ?meta: Metadata}>);
+	CTParent(t: CType);
+	CTOpt(t: CType);
+	CTNamed(n: String, t: CType);
 }
 
 #if hscriptPos
@@ -200,4 +215,9 @@ typedef VarDecl = {
 	var set : Null<String>;
 	var expr : Null<Expr>;
 	var type : Null<CType>;
+}
+
+enum EnumType {
+	ESimple(name: String);
+	EConstructor(name: String, args: Array<Argument>);
 }

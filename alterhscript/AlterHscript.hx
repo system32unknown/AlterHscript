@@ -4,6 +4,7 @@ import haxe.ds.StringMap;
 import hscript.*;
 import alterhscript.ErrorSeverity;
 import alterhscript.AlterConfig;
+import alterhscript.utils.UsingEntry;
 import haxe.PosInfos;
 
 using alterhscript.utils.Ansi;
@@ -38,6 +39,38 @@ class AlterHscript {
 	 * Map with stored instances of scripts.
 	**/
 	public static var instances:StringMap<AlterHscript> = new StringMap<AlterHscript>();
+
+	public static var registeredUsingEntries:Array<UsingEntry> = [
+		new UsingEntry("StringTools", function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+			if (f == "isEof") // has @:noUsing
+				return null;
+			switch (Type.typeof(o)) {
+				case TInt if (f == "hex"):
+					return StringTools.hex(o, args[0]);
+				case TClass(String):
+					if (Reflect.hasField(StringTools, f)) {
+						var field = Reflect.field(StringTools, f);
+						if (Reflect.isFunction(field)) {
+							return Reflect.callMethod(StringTools, field, [o].concat(args));
+						}
+					}
+				default:
+			}
+			return null;
+		}),
+		new UsingEntry("Lambda", function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+			if (Tools.isIterable(o)) {
+				// TODO: Check if the values are Iterable<T>
+				if (Reflect.hasField(Lambda, f)) {
+					var field = Reflect.field(Lambda, f);
+					if (Reflect.isFunction(field)) {
+						return Reflect.callMethod(Lambda, field, [o].concat(args));
+					}
+				}
+			}
+			return null;
+		}),
+	];
 
 	static function getDefaultPos(name:String = "hscript-alter"):PosInfos {
 		return {
@@ -193,6 +226,7 @@ class AlterHscript {
 		if (expr == null) expr = parse();
 		@:privateAccess interp.execute(parser.mk(EBlock([]), 0, 0));
 		instances.set(this.name, this);
+		this.config.packageName = parser.packageName;
 		return interp.execute(expr);
 	}
 
@@ -216,7 +250,7 @@ class AlterHscript {
 		#if hscriptPos
 		// overriding trace for good measure.
 		// if you're a game developer or a fnf modder (hi guys),
-		// you might wanna use Iris.print for your on-screen consoles and such.
+		// you might wanna use AlterHscript.print for your on-screen consoles and such.
 		set("trace", Reflect.makeVarArgs(function(x:Array<Dynamic>) {
 			var pos = this.interp != null ? this.interp.posInfos() : getDefaultPos(this.name);
 			var v = x.shift();
@@ -324,6 +358,12 @@ class AlterHscript {
 
 		instances.clear();
 		instances = new StringMap<AlterHscript>();
+	}
+
+	public static function registerUsingGlobal(name: String, call:UsingCall):UsingEntry {
+		var entry = new UsingEntry(name, call);
+		registeredUsingEntries.push(entry);
+		return entry;
 	}
 
 	public function setParent(parent:Dynamic) {

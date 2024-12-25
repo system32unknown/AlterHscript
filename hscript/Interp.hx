@@ -28,10 +28,14 @@
  */
 package hscript;
 
-import haxe.PosInfos;
-import hscript.Expr;
-import haxe.Constraints.IMap;
+import Type.ValueType;
+import alterhscript.AlterHscript;
+import alterhscript.utils.UsingEntry;
 import hscript.UnsafeReflect;
+import hscript.Expr;
+import hscript.Tools;
+import haxe.Constraints.IMap;
+import haxe.PosInfos;
 
 using StringTools;
 
@@ -249,13 +253,14 @@ class Interp {
 		return allowStaticVariables && staticVariables.exists(name) || allowPublicVariables && publicVariables.exists(name) || variables.exists(name);
 	}
 
-	public function setVar(name:String, v:Dynamic):Void {
+	public function setVar(name:String, v:Dynamic):Dynamic {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
 		else if (allowPublicVariables && publicVariables.exists(name))
 			publicVariables.set(name, v);
 		else
 			variables.set(name, v);
+		return v;
 	}
 
 	// ENUM!!!!
@@ -562,9 +567,6 @@ class Interp {
 
 	public function resolve(id:String, doException:Bool = true):Dynamic {
 		if (id == null) return null;
-		id = StringTools.trim(id);
-		if (locals.exists(id))
-			return locals.get(id).r;
 
 		if (variables.exists(id))
 			return variables.get(id);
@@ -702,6 +704,7 @@ class Interp {
 
 				return null;
 
+			case EIgnore(_):
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -712,6 +715,9 @@ class Interp {
 					#end
 				}
 			case EIdent(id):
+				var id = StringTools.trim(id);
+				if (locals.exists(id))
+					return locals.get(id).r;
 				return resolve(id);
 			case EVar(n, _, e, isPublic, isStatic):
 				declared.push({n: n, old: locals.get(n), depth: depth});
@@ -843,6 +849,7 @@ class Interp {
 						try {
 							r = me.exprReturn(fexpr);
 						} catch (e:Dynamic) {
+							restore(oldDecl);
 							me.locals = old;
 							me.depth = depth;
 							#if neko
@@ -900,7 +907,11 @@ class Interp {
 								keys.push(key);
 								values.push(value);
 							}
-							default: throw("=> expected");
+							default:
+								#if hscriptPos
+								curExpr = e;
+								#end
+								error(ECustom("Invalid map key => value expression"));
 						}
 					}
 
@@ -1012,6 +1023,51 @@ class Interp {
 				return val;
 			case ECheckType(e, _):
 				return expr(e);
+			case EEnum(enumName, fields):
+				var obj = {};
+				for (index => field in fields) {
+					switch (field) {
+						case ESimple(name):
+							Reflect.setField(obj, name, new EnumValue(enumName, name, index, null));
+						case EConstructor(name, params):
+							var hasOpt = false, minParams = 0;
+							for (p in params)
+								if (p.opt)
+									hasOpt = true;
+								else
+									minParams++;
+							var f = function(args: Array<Dynamic>) {
+								if (((args == null) ? 0 : args.length) != params.length) {
+									if (args.length < minParams) {
+										var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
+										if (enumName != null)
+											str += " for enum '" + enumName + "'";
+										error(ECustom(str));
+									}
+									// make sure mandatory args are forced
+									var args2 = [];
+									var extraParams = args.length - minParams;
+									var pos = 0;
+									for (p in params)
+										if (p.opt) {
+											if (extraParams > 0) {
+												args2.push(args[pos++]);
+												extraParams--;
+											} else
+												args2.push(null);
+										} else
+											args2.push(args[pos++]);
+									args = args2;
+								}
+								return new EnumValue(enumName, name, index, args);
+							};
+							var f = Reflect.makeVarArgs(f);
+							Reflect.setField(obj, name, f);
+					}
+				}
+				variables.set(enumName, obj);
+			case EUsing(name):
+				useUsing(name);
 		}
 		return null;
 	}
@@ -1183,6 +1239,99 @@ class Interp {
 			UnsafeReflect.setProperty(o, f, v);
 		return v;
 	}
+
+	function useUsing(name:String):Void {
+		for (us in AlterHscript.registeredUsingEntries) {
+			if (us.name == name) {
+				if (usings.indexOf(us) == -1)
+					usings.push(us);
+				return;
+			}
+		}
+
+		var cls = Tools.getClass(name);
+		if (cls != null) {
+			var fieldName = '__alterUsing_' + StringTools.replace(name, ".", "_");
+			if (Reflect.hasField(cls, fieldName)) {
+				var fields = Reflect.field(cls, fieldName);
+				if (fields == null)
+					return;
+
+				var entry = new UsingEntry(name, function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+					if (!fields.exists(f))
+						return null;
+					var type:ValueType = Type.typeof(o);
+					var valueType:ValueType = fields.get(f);
+
+					// If we figure out a better way to get the types as the real ValueType, we can use this instead
+					// if (Type.enumEq(valueType, type))
+					//	return Reflect.callMethod(cls, Reflect.field(cls, f), [o].concat(args));
+
+					var canCall = valueType == null ? true : switch (valueType) {
+						case TEnum(null):
+							type.match(TEnum(_));
+						case TClass(null):
+							type.match(TClass(_));
+						case TClass(IMap): // if we don't check maps like this, it just doesn't work
+							type.match(TClass(IMap) | TClass(haxe.ds.ObjectMap) | TClass(haxe.ds.StringMap) | TClass(haxe.ds.IntMap) | TClass(haxe.ds.EnumValueMap));
+						default:
+							Type.enumEq(type, valueType);
+					}
+
+					return canCall ? Reflect.callMethod(cls, Reflect.field(cls, f), [o].concat(args)) : null;
+				});
+
+				#if ALTER_DEBUG
+				trace("Registered macro based using entry for " + name);
+				#end
+
+				AlterHscript.registeredUsingEntries.push(entry);
+				usings.push(entry);
+				return;
+			}
+
+			// Use reflection to generate the using entry
+			var entry = new UsingEntry(name, function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+				if (!Reflect.hasField(cls, f))
+					return null;
+				var field = Reflect.field(cls, f);
+				if (!Reflect.isFunction(field))
+					return null;
+
+				// invalid if the function has no arguments
+				var totalArgs = Tools.argCount(field);
+				if (totalArgs == 0)
+					return null;
+
+				// todo make it check if the first argument is the correct type
+
+				return Reflect.callMethod(cls, field, [o].concat(args));
+			});
+
+			#if ALTER_DEBUG
+			trace("Registered reflection based using entry for " + name);
+			#end
+
+			AlterHscript.registeredUsingEntries.push(entry);
+			usings.push(entry);
+			return;
+		}
+		warn(ECustom("Unknown using class " + name));
+	}
+
+	/**
+	 * List of components that allow using static methods on objects.
+	 * This only works if you do
+	 * ```haxe
+	 * var result = "Hello ".trim();
+	 * ```
+	 * and not
+	 * ```haxe
+	 * var trim = "Hello ".trim;
+	 * var result = trim();
+	 * ```
+	 */
+	var usings:Array<UsingEntry> = [];
 
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 		if(o == CustomClassHandler.staticHandler && scriptObject != null) {

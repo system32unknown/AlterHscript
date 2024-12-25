@@ -13,7 +13,7 @@ enum ErrorSeverity {
 	FATAL;
 }
 
-class ErrorSeverityTools {
+class ErrorSeverityTools implements AlterUsingClass {
 	public static function getPrefix(severity:ErrorSeverity):String {
 		return switch (severity) {
 			case NONE: "";

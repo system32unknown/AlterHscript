@@ -1,8 +1,7 @@
 package hscript;
 
-#if cpp
-import cpp.ObjectType;
-#end
+#if cpp import cpp.ObjectType; #end
+import haxe.Constraints.Function;
 
 @:analyzer(ignore)
 class UnsafeReflect {
@@ -68,11 +67,11 @@ class UnsafeReflect {
 		#end
 	}
 
-	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+	public inline static function callMethod(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
 		return Reflect.callMethod(o, func, args);
 	}
 
-	public #if !cpp inline #end static function callMethodSafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+	public #if !cpp inline #end static function callMethodSafe(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
 		#if cpp
 		untyped {
 			if (func == null)
@@ -85,7 +84,7 @@ class UnsafeReflect {
 		#end
 	}
 
-	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
 		#if cpp
 		untyped {
 			untyped func.__SetThis(o);

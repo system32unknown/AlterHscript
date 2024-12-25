@@ -67,7 +67,7 @@ abstract AnsiTextAttribute(Int) {
 	final STRIKTHROUGH_OFF:AnsiTextAttribute = 29;
 }
 
-class Ansi {
+class Ansi implements AlterUsingClass {
 	/**
 	 * ANSI escape sequence header
 	 */

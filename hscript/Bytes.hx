@@ -5,8 +5,7 @@
  * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
+ * and/or sell copies of the Software, and to permit1 * Software is furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
@@ -101,7 +100,11 @@ class Bytes {
 		return i;
 	}
 
-	function doDecodeConst() {
+	function doEncodeBool(v: Bool) {
+		bout.addByte(v ? 1 : 0);
+	}
+
+	function doDecodeConst():Const {
 		return switch (bin.get(pin++)) {
 			case 0:
 				CInt(bin.get(pin++));
@@ -117,6 +120,25 @@ class Bytes {
 		}
 	}
 
+	function doDecodeArg(): Argument {
+		var name = doDecodeString();
+		var opt = doDecodeBool();
+		return {
+			name: name,
+			opt: opt,
+			t: null
+		};
+	}
+
+	function doEncodeArg(a: Argument) {
+		doEncodeString(a.name);
+		doEncodeBool(a.opt);
+	}
+
+	function doDecodeBool(): Bool {
+		return bin.get(pin++) != 0;
+	}
+
 	function doEncode(e:Expr) {
 		#if hscriptPos
 		doEncodeString(e.origin);
@@ -125,12 +147,7 @@ class Bytes {
 		#end
 		bout.addByte(Type.enumIndex(e));
 		switch (e) {
-			case EImportStar(c):
-				// TODO
-			case EImport(c):
-				// TODO
-			case EClass(_, _, _, _):
-				// TODO
+			case EIgnore(_):
 			case EConst(c):
 				doEncodeConst(c);
 			case EIdent(v):
@@ -238,6 +255,29 @@ class Bytes {
 				doEncode(e);
 			case ECheckType(e, _):
 				doEncode(e);
+			case EEnum(name, fields):
+				doEncodeString(name);
+				bout.addByte(fields.length);
+				for (f in fields)
+					switch (f) {
+						case ESimple(name):
+							bout.addByte(0);
+							doEncodeString(name);
+						case EConstructor(name, args):
+							bout.addByte(1);
+							doEncodeString(name);
+							bout.addByte(args.length);
+							for (a in args)
+								doEncodeArg(a);
+					}
+			case EUsing(name):
+				doEncodeString(name);
+			case EImportStar(c):
+				// TODO
+			case EImport(c):
+				// TODO
+			case EClass(_, _, _, _):
+				// TODO
 		}
 	}
 
@@ -368,6 +408,28 @@ class Bytes {
 				EMeta(name, args, doDecode());
 			case 26:
 				ECheckType(doDecode(), CTPath(["Void"]));
+			case 27:
+				var name = doDecodeString();
+				var fields: Array<EnumType> = [];
+				for (i in 0...bin.get(pin++)) {
+					switch (bin.get(pin++)) {
+						case 0:
+							var name = doDecodeString();
+							fields.push(ESimple(name));
+						case 1:
+							var name = doDecodeString();
+							var args: Array<Argument> = [];
+							for (i in 0...bin.get(pin++))
+								args.push(doDecodeArg());
+							fields.push(EConstructor(name, args));
+						default:
+							throw "Invalid code " + bin.get(pin - 1);
+					}
+				}
+				EEnum(name, fields);
+			case 28:
+				var name = doDecodeString();
+				EUsing(name);
 			case 255:
 				null;
 			default:

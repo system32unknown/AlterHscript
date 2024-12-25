@@ -84,14 +84,19 @@ class Parser {
 	**/
 	public var resumeErrors : Bool;
 
-	// implementation
-	var input : String;
-	var readPos : Int;
+	/**
+		package name, set when using "package;" in your script.
+	**/
+	public var packageName:String = null;
 
-	var char : Int;
-	var ops : Array<Bool>;
-	var idents : Array<Bool>;
-	var uid : Int = 0;
+	// implementation
+	var input:String;
+	var readPos:Int;
+
+	var char:Int;
+	var ops:Array<Bool>;
+	var idents:Array<Bool>;
+	var uid:Int = 0;
 
 	var disableOrOp : Bool = false;
 
@@ -293,6 +298,7 @@ class Parser {
 			case EReturn(e): e != null && isBlock(e);
 			case ETry(_, _, _, e): isBlock(e);
 			case EMeta(_, _, e): isBlock(e);
+			case EIgnore(skipSemicolon): skipSemicolon;
 			default: false;
 		}
 	}
@@ -856,7 +862,6 @@ class Parser {
 				push(tk);
 				mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride),p1,pmax(inf.body));
 			case "import":
-				var oldReadPos = readPos;
 				var tk = token();
 				switch( tk ) {
 					case TPOpen:
@@ -1098,6 +1103,21 @@ class Parser {
 					}
 				}
 				mk(ESwitch(e, cases, def), p1, tokenMax);
+
+			case "using":
+				var path = parsePath();
+				mk(EUsing(path.join(".")));
+			case "package":
+				// ignore package
+				var tk = token();
+				push(tk);
+				packageName = "";
+				if (tk == TSemicolon)
+					return mk(EIgnore(false));
+
+				var path = parsePath();
+				packageName = path.join(".");
+				mk(EIgnore(false));
 			default:
 				null;
 		}
@@ -1468,20 +1488,17 @@ class Parser {
 			case "import":
 				var path = [getIdent()];
 				var star = false;
-				while( true ) {
+				while (true) {
 					var t = token();
-					if( t != TDot ) {
+					if(t != TDot) {
 						push(t);
 						break;
 					}
 					t = token();
-					switch( t ) {
-						case TId(id):
-							path.push(id);
-						case TOp("*"):
-							star = true;
-						default:
-							unexpected(t);
+					switch (t) {
+						case TId(id): path.push(id);
+						case TOp("*"): star = true;
+						default: unexpected(t);
 					}
 				}
 				ensure(TSemicolon);
@@ -1526,11 +1543,11 @@ class Parser {
 				ensureToken(TOp("="));
 				var t = parseType();
 				return DTypedef({
-					name : name,
-					meta : meta,
-					params : params,
-					isPrivate : isPrivate,
-					t : t,
+					name: name,
+					meta: meta,
+					params: params,
+					isPrivate: isPrivate,
+					t: t,
 				});
 			default:
 				unexpected(TId(ident));
@@ -2004,7 +2021,7 @@ class Parser {
 		return preprocesorValues.get(id);
 	}
 
-	var preprocStack : Array<{ r : Bool }>;
+	var preprocStack:Array<PreprocessStackValue>;
 
 	function parsePreproCond():Expr {
 		var tk = token();
@@ -2074,13 +2091,13 @@ class Parser {
 				skipTokens();
 				return token();
 			case "else", "elseif" if( preprocStack.length > 0 ):
-				if( preprocStack[preprocStack.length - 1].r ) {
+				if (preprocStack[preprocStack.length - 1].r) {
 					preprocStack[preprocStack.length - 1].r = false;
 					skipTokens();
 					return token();
 				} else if( id == "else" ) {
 					preprocStack.pop();
-					preprocStack.push({ r : true });
+					preprocStack.push({r : true});
 					return token();
 				} else {
 					// elseif
@@ -2102,7 +2119,7 @@ class Parser {
 		var pos = readPos;
 		while( true ) {
 			var tk = token();
-			if( tk == TEof ) {
+			if (tk == TEof) {
 				if (preprocStack.length != 0) {
 					error(EInvalidPreprocessor("Unclosed"), pos, pos);
 				} else {
@@ -2191,5 +2208,13 @@ class Parser {
 			case TPrepro(id): "#" + id;
 		}
 	}
+}
 
+@:structInit
+final class PreprocessStackValue {
+	public var r: Bool;
+
+	public function new(r: Bool) {
+		this.r = r;
+	}
 }
