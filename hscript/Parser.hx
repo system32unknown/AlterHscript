@@ -239,7 +239,11 @@ class Parser {
 
 	function getIdent():String {
 		var tk = token();
-		switch( tk ) {
+		return extractIdent(tk);
+	}
+
+	function extractIdent(tk:Token):String {
+		switch (tk) {
 			case TId(id): return id;
 			default:
 				unexpected(tk);
@@ -285,7 +289,7 @@ class Parser {
 	function isBlock(e:Expr):Bool {
 		if( e == null ) return false;
 		return switch( expr(e) ) {
-			case EBlock(_), EObject(_), ESwitch(_): true;
+			case EBlock(_), EObject(_), ESwitch(_), EEnum(_, _): true;
 			case EFunction(_,e,_,_,_,_): isBlock(e);
 			case EClass(_,e,_,_): true;
 			case EVar(_, t, e, _,_): e != null ? isBlock(e) : t != null ? t.match(CTAnon(_)) : false;
@@ -924,7 +928,49 @@ class Parser {
 						unexpected(tk);
 						null;
 				}
-
+			case "enum":
+				var name = getIdent();
+	
+				ensure(TBrOpen);
+	
+				var fields = [];
+	
+				var currentName = "";
+				var currentArgs: Array<Argument> = null;
+	
+				while (true) {
+					var tk = token();
+					switch (tk) {
+						case TBrClose:
+							break;
+						case TSemicolon | TComma:
+							if (currentName == "")
+								continue;
+	
+							if (currentArgs != null && currentArgs.length > 0) {
+								fields.push(EnumType.EConstructor(currentName, currentArgs));
+								currentArgs = null;
+							} else {
+								fields.push(EnumType.ESimple(currentName));
+							}
+							currentName = "";
+						case TPOpen:
+							if (currentArgs != null) {
+								error(ECustom("Cannot have multiple argument lists in one enum constructor"), tokenMin, tokenMax);
+								break;
+							}
+							currentArgs = parseFunctionArgs();
+						default:
+							if (currentName != "") {
+								error(ECustom("Expected comma or semicolon"), tokenMin, tokenMax);
+								break;
+							}
+							var name = extractIdent(tk);
+							currentName = name;
+					}
+				}
+	
+				mk(EEnum(name, fields));
 			case "class":
 				// example: class ClassName
 				var tk = token();
@@ -1243,9 +1289,9 @@ class Parser {
 
 	function parsePath():Array<String> {
 		var path = [getIdent()];
-		while( true ) {
+		while (true) {
 			var t = token();
-			if( t != TDot ) {
+			if(t != TDot) {
 				push(t);
 				break;
 			}
@@ -1270,18 +1316,18 @@ class Parser {
 								params.push(parseType());
 								t = token();
 								switch( t ) {
-								case TComma: continue;
-								case TOp(op):
-									if( op == ">" ) break;
-									if( op.charCodeAt(0) == ">".code ) {
-										#if hscriptPos
-										tokens.add({ t : TOp(op.substr(1)), min : tokenMax - op.length - 1, max :tokenMax });
-										#else
-										tokens.add(TOp(op.substr(1)));
-										#end
-										break;
-									}
-								default:
+									case TComma: continue;
+									case TOp(op):
+										if( op == ">" ) break;
+										if( op.charCodeAt(0) == ">".code ) {
+											#if hscriptPos
+											tokens.add({ t : TOp(op.substr(1)), min : tokenMax - op.length - 1, max :tokenMax });
+											#else
+											tokens.add(TOp(op.substr(1)));
+											#end
+											break;
+										}
+									default:
 								}
 								unexpected(t);
 								break;
