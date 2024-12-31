@@ -1352,8 +1352,7 @@ class Interp {
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
 		var cl:String = cast cl;
 		var c:Dynamic = resolve(cl);
-		if (c == null)
-			c = Type.resolveClass(cl);
+		if (c == null) c = Type.resolveClass(cl);
 		return (c is IHScriptCustomConstructor) ? cast(c, IHScriptCustomConstructor).hnew(args) : Type.createInstance(c, args);
 	}
 }

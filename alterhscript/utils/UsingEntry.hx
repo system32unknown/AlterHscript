@@ -1,7 +1,7 @@
 package alterhscript.utils;
 
 @:dox(hide)
-typedef UsingCall = (o: Dynamic, f: String, args: Array<Dynamic>) -> Dynamic;
+typedef UsingCall = (o:Dynamic, f:String, args:Array<Dynamic>) -> Dynamic;
 
 @:dox(hide)
 class UsingEntry {

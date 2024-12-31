@@ -97,13 +97,6 @@ class UnsafeReflect {
 
 	public inline static function fields(o:Dynamic):Array<String>
 		return Reflect.fields(o);
-		/*untyped {
-			if (o == null)
-				return new Array();
-			var a:Array<String> = [];
-			o.__GetFields(a);
-			return a;
-		}*/
 
 	public #if !cpp inline #end static function isFunction(f:Dynamic):Bool
 		#if cpp
@@ -116,7 +109,6 @@ class UnsafeReflect {
 
 	public inline static function compare<T>(a:T, b:T):Int {
 		return Reflect.compare(a, b);
-		//return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
 	}
 
 	public inline static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {

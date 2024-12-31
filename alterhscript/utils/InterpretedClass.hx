@@ -6,7 +6,7 @@ class InterpretedClass {
 	/**
 	 * This is your class's name
 	**/
-	public var name: String;
+	public var name:String;
 	/**
 	 * This is your class's parent class.
 	 *
@@ -14,13 +14,13 @@ class InterpretedClass {
 	 *
 	 * class MyClass extends ParentClass {}
 	**/
-	public var parent: Dynamic;
+	public var parent:Dynamic;
 	/**
 	 * This is used for interfaces.
 	 *
 	 * class MyClass implements Interface1 implements Interface2...
 	**/
-	public var siblings: Array<Dynamic>;
+	public var siblings:Array<Dynamic>;
 	/**
 	 * Creates a new interpreted class.
 	 * @param name 			Name of the class, used to store it globally.
@@ -30,8 +30,7 @@ class InterpretedClass {
 	public function new(name: String, ?parent: Dynamic, ?siblings: Array<Dynamic>) {
 		this.name = name;
 		this.parent = parent;
-		if (siblings == null)
-			siblings = [];
+		if (siblings == null) siblings = [];
 		this.siblings = siblings;
 	}
 	/**

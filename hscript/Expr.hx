@@ -32,31 +32,25 @@ typedef UInt32 = #if cpp cpp.UInt32 #else Int #end;
 typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 
 enum Const {
-	CInt( v : Int );
-	CFloat( f : Float );
-	CString(s: String, ?interp: Bool);
+	CInt(v:Int);
+	CFloat(f:Float);
+	CString(s:String, ?interp: Bool);
 	#if !haxe3
-	CInt32( v : haxe.Int32 );
+	CInt32(v:haxe.Int32);
 	#end
 }
 
 #if hscriptPos
 @:structInit
 final class Expr {
-	public var e : ExprDef;
-	public var pmin : Int;
-	public var pmax : Int;
-	public var origin : String;
-	public var line : Int;
+	public var e:ExprDef;
+	public var pmin:Int;
+	public var pmax:Int;
+	public var origin:String;
+	public var line:Int;
 
 	public function toString():String {
-		return Std.string({
-			e: e,
-			pmin: pmin,
-			pmax: pmax,
-			origin: origin,
-			line: line
-		});
+		return Std.string({e: e, pmin: pmin, pmax: pmax, origin: origin, line: line});
 	}
 }
 
@@ -81,14 +75,14 @@ enum Expr
 	EFor(v:String, it:Expr, e:Expr, ?ithv:String);
 	EBreak;
 	EContinue;
-	EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType, ?isPublic: Bool, ?isStatic: Bool, ?isOverride: Bool);
+	EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType, ?isPublic:Bool, ?isStatic:Bool, ?isOverride:Bool);
 	EReturn(?e:Expr);
 	EArray(e:Expr, index:Expr);
-	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
+	EArrayDecl(e:Array<Expr>, ?wantedType:CType);
 	ENew(cl:String, params:Array<Expr>);
 	EThrow(e:Expr);
 	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
-	EObject(fl:Array<{ name : String, e : Expr }>);
+	EObject(fl:Array<{name:String, e:Expr}>);
 	ETernary(cond:Expr, e1:Expr, e2:Expr);
 	ESwitch(e:Expr, cases:Array<SwitchCase>, ?defaultExpr:Expr);
 	EDoWhile(cond:Expr, e:Expr);
@@ -97,36 +91,37 @@ enum Expr
 
 	EImport(c:String, ?asname:String);
 	EImportStar(c:String);
-	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
+	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
 	EEnum(name:String, fields:Array<EnumType>);
 	EUsing(name:String);
 }
 
 @:structInit
 final class SwitchCase {
-	public var values : Array<Expr>;
-	public var expr : Expr;
+	public var values:Array<Expr>;
+	public var expr:Expr;
 }
 
-typedef Argument = { name : String, ?t : CType, ?opt : Bool, ?value : Expr };
-typedef Metadata = Array<{ name : String, params : Array<Expr> }>;
+typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr};
+typedef Metadata = Array<{name:String, params:Array<Expr>}>;
 
 enum CType {
-	CTPath(path: Array<String>, ?params: Array<CType>);
-	CTFun(args: Array<CType>, ret: CType);
-	CTAnon(fields: Array<{name: String, t: CType, ?meta: Metadata}>);
-	CTParent(t: CType);
-	CTOpt(t: CType);
-	CTNamed(n: String, t: CType);
+	CTPath(path:Array<String>, ?params:Array<CType>);
+	CTFun(args:Array<CType>, ret:CType);
+	CTAnon(fields:Array<{name:String, t:CType, ?meta:Metadata}>);
+	CTParent(t:CType);
+	CTOpt(t:CType);
+	CTNamed(n:String, t:CType);
 }
 
 #if hscriptPos
 class Error {
-	public var e : ErrorDef;
-	public var pmin : Int;
-	public var pmax : Int;
-	public var origin : String;
-	public var line : Int;
+	public var e:ErrorDef;
+	public var pmin:Int;
+	public var pmax:Int;
+	public var origin:String;
+	public var line:Int;
+
 	public function new(e, pmin, pmax, origin, line) {
 		this.e = e;
 		this.pmin = pmin;
@@ -134,60 +129,64 @@ class Error {
 		this.origin = origin;
 		this.line = line;
 	}
-	public function toString(): String {
+
+	public function toString():String {
 		return Printer.errorToString(this);
 	}
 }
+
 enum ErrorDef {
 #else
 enum Error {
 #end
-	EInvalidChar( c : Int );
-	EUnexpected( s : String );
+
+	EInvalidChar(c:Int);
+	EUnexpected(s:String);
 	EUnterminatedString;
 	EUnterminatedComment;
-	EInvalidPreprocessor( msg : String );
-	EUnknownVariable( v : String );
-	EInvalidIterator( v : String );
-	EInvalidOp( op : String );
-	EInvalidAccess( f : String );
-	ECustom( msg : String );
-	EInvalidClass( className : String);
-	EAlreadyExistingClass( className : String);
+	EInvalidPreprocessor(msg:String);
+	EUnknownVariable(v:String);
+	EInvalidIterator(v:String);
+	EInvalidOp(op:String);
+	EInvalidAccess(f:String);
+	ECustom(msg:String);
+	EInvalidClass(className:String);
+	EAlreadyExistingClass(className:String);
 	EEmptyExpression;
 }
 
-
 enum ModuleDecl {
-	DPackage( path : Array<String> );
-	DImport( path : Array<String>, ?everything : Bool );
-	DClass( c : ClassDecl );
-	DTypedef( c : TypeDecl );
+	DPackage(path:Array<String>);
+	DImport(path:Array<String>, ?everything:Bool);
+	DClass(c:ClassDecl);
+	DTypedef(c:TypeDecl);
 }
 
 typedef ModuleType = {
-	var name : String;
-	var params : {}; // TODO : not yet parsed
-	var meta : Metadata;
-	var isPrivate : Bool;
+	var name:String;
+	var params:{}; // TODO : not yet parsed
+	var meta:Metadata;
+	var isPrivate:Bool;
 }
 
-typedef ClassDecl = {> ModuleType,
-	var extend : Null<CType>;
-	var implement : Array<CType>;
-	var fields : Array<FieldDecl>;
-	var isExtern : Bool;
+typedef ClassDecl = {
+	> ModuleType,
+	var extend:Null<CType>;
+	var implement:Array<CType>;
+	var fields:Array<FieldDecl>;
+	var isExtern:Bool;
 }
 
-typedef TypeDecl = {> ModuleType,
-	var t : CType;
+typedef TypeDecl = {
+	> ModuleType,
+	var t:CType;
 }
 
 typedef FieldDecl = {
-	var name : String;
-	var meta : Metadata;
-	var kind : FieldKind;
-	var access : Array<FieldAccess>;
+	var name:String;
+	var meta:Metadata;
+	var kind:FieldKind;
+	var access:Array<FieldAccess>;
 }
 
 enum abstract FieldAccess(UInt8) {
@@ -200,21 +199,21 @@ enum abstract FieldAccess(UInt8) {
 }
 
 enum FieldKind {
-	KFunction( f : FunctionDecl );
-	KVar( v : VarDecl );
+	KFunction(f:FunctionDecl);
+	KVar(v:VarDecl);
 }
 
 typedef FunctionDecl = {
-	var args : Array<Argument>;
-	var expr : Expr;
-	var ret : Null<CType>;
+	var args:Array<Argument>;
+	var expr:Expr;
+	var ret:Null<CType>;
 }
 
 typedef VarDecl = {
-	var get : Null<String>;
-	var set : Null<String>;
-	var expr : Null<Expr>;
-	var type : Null<CType>;
+	var get:Null<String>;
+	var set:Null<String>;
+	var expr:Null<Expr>;
+	var type:Null<CType>;
 }
 
 enum EnumType {

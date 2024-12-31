@@ -19,45 +19,49 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hscript;
+
 import hscript.Expr;
 
 class Printer {
-	var buf : StringBuf;
-	var tabs : String;
+	var buf:StringBuf;
+	var tabs:String;
 
-	var indent: String = "  ";
+	var indent:String = "  ";
 
 	public function new() {}
 
-	public function exprToString( e : Expr ):String {
+	public function exprToString(e:Expr):String {
 		buf = new StringBuf();
 		tabs = "";
 		expr(e);
 		return buf.toString();
 	}
 
-	public function typeToString( t : CType ):String {
+	public function typeToString(t:CType):String {
 		buf = new StringBuf();
 		tabs = "";
 		type(t);
 		return buf.toString();
 	}
 
-	inline function add<T>(s:T):Void buf.add(s);
+	inline function add<T>(s:T):Void
+		buf.add(s);
 
-	function type( t : CType ):Void {
-		switch( t ) {
+	function type(t:CType):Void {
+		switch (t) {
 			case CTOpt(t):
 				add('?');
 				type(t);
 			case CTPath(path, params):
 				add(path.join("."));
-				if( params != null ) {
+				if (params != null) {
 					add("<");
 					var first = true;
-					for( p in params ) {
-						if( first ) first = false else add(", ");
+					for (p in params) {
+						if (first) first = false
+						else add(", ");
 						type(p);
 					}
 					add(">");
@@ -66,7 +70,7 @@ class Printer {
 				add(name);
 				add(':');
 				type(t);
-			case CTFun(args, ret) if (Lambda.exists(args, function (a) return a.match(CTNamed(_, _)))):
+			case CTFun(args, ret) if (Lambda.exists(args, function(a) return a.match(CTNamed(_, _)))):
 				add('(');
 				for (a in args)
 					switch a {
@@ -76,10 +80,10 @@ class Printer {
 				add(')->');
 				type(ret);
 			case CTFun(args, ret):
-				if( args.length == 0 )
+				if (args.length == 0)
 					add("Void -> ");
 				else {
-					for( a in args ) {
+					for (a in args) {
 						type(a);
 						add(" -> ");
 					}
@@ -88,8 +92,11 @@ class Printer {
 			case CTAnon(fields):
 				add("{");
 				var first = true;
-				for( f in fields ) {
-					if( first ) { first = false; add(" "); } else add(", ");
+				for (f in fields) {
+					if (first) {
+						first = false;
+						add(" ");
+					} else add(", ");
 					add(f.name + " : ");
 					type(f.t);
 				}
@@ -101,36 +108,35 @@ class Printer {
 		}
 	}
 
-	function addType( t : CType ):Void {
-		if( t != null ) {
+	function addType(t:CType):Void {
+		if (t != null) {
 			add(" : ");
 			type(t);
 		}
 	}
 
-	function addArgument(a: Argument) {
+	function addArgument(a:Argument) {
 		if (a.opt) add("?");
 		add(a.name);
 		addType(a.t);
 	}
 
-	function expr( e : Expr ):Void {
-		if( e == null ) {
+	function expr(e:Expr):Void {
+		if (e == null) {
 			add("??NULL??");
 			return;
 		}
-		switch( #if hscriptPos e.e #else e #end ) {
+		switch (#if hscriptPos e.e #else e #end) {
 			case EImportStar(c):
 				add("import " + c + "*");
 			case EImport(c, n):
 				add("import " + c);
-				if(n != null)
-					add(' as $n');
+				if (n != null) add(' as $n');
 			case EClass(name, fields, extend, interfaces):
 				add('class $name');
 				if (extend != null)
 					add(' extends $extend');
-				for(_interface in interfaces) {
+				for (_interface in interfaces) {
 					add(' implements $_interface');
 				}
 				add(' {\n');
@@ -140,29 +146,34 @@ class Printer {
 				add("}");
 			case EIgnore(_):
 			case EConst(c):
-				switch( c ) {
+				switch (c) {
 					case CInt(i): add(i);
 					case CFloat(f): add(f);
-					case CString(s): add('"'); add(s.split('"').join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t")); add('"');
+					case CString(s):
+						add('"');
+						add(s.split('"').join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t"));
+						add('"');
 				}
 			case EIdent(v):
 				add(v);
 			case EVar(n, t, e): // TODO: static, public, override
 				add("var " + n);
 				addType(t);
-				if( e != null ) {
+				if (e != null) {
 					add(" = ");
 					expr(e);
 				}
 			case EParent(e):
-				add("("); expr(e); add(")");
+				add("(");
+				expr(e);
+				add(")");
 			case EBlock(el):
-				if( el.length == 0 ) {
+				if (el.length == 0) {
 					add("{}");
 				} else {
 					tabs += "\t";
 					add("{\n");
-					for( e in el ) {
+					for (e in el) {
 						add(tabs);
 						expr(e);
 						add(";\n");
@@ -178,7 +189,7 @@ class Printer {
 				add(" " + op + " ");
 				expr(e2);
 			case EUnop(op, pre, e):
-				if( pre ) {
+				if (pre) {
 					add(op);
 					expr(e);
 				} else {
@@ -186,48 +197,48 @@ class Printer {
 					add(op);
 				}
 			case ECall(e, args):
-				if( e == null )
+				if (e == null)
 					expr(e);
-				else switch( #if hscriptPos e.e #else e #end ) {
-				case EField(_), EIdent(_), EConst(_):
-					expr(e);
-				default:
-					add("(");
-					expr(e);
-					add(")");
-				}
+				else
+					switch (#if hscriptPos e.e #else e #end) {
+						case EField(_), EIdent(_), EConst(_):
+							expr(e);
+						default:
+							add("(");
+							expr(e);
+							add(")");
+					}
 				add("(");
 				var first = true;
-				for( a in args ) {
-					if( first ) first = false else add(", ");
+				for (a in args) {
+					if (first) first = false
+					else add(", ");
 					expr(a);
 				}
 				add(")");
-			case EIf(cond,e1,e2):
+			case EIf(cond, e1, e2):
 				add("if( ");
 				expr(cond);
 				add(" ) ");
 				expr(e1);
-				if( e2 != null ) {
+				if (e2 != null) {
 					add(" else ");
 					expr(e2);
 				}
-			case EWhile(cond,e):
+			case EWhile(cond, e):
 				add("while( ");
 				expr(cond);
 				add(" ) ");
 				expr(e);
-			case EDoWhile(cond,e):
+			case EDoWhile(cond, e):
 				add("do ");
 				expr(e);
 				add(" while ( ");
 				expr(cond);
 				add(" )");
 			case EFor(v, it, e, ithv):
-				if(ithv != null)
-					add("for( "+ithv+" => "+v+" in ");
-				else
-					add("for( "+v+" in ");
+				if (ithv != null) add("for( " + ithv + " => " + v + " in ");
+				else add("for( " + v + " in ");
 				expr(it);
 				add(" ) ");
 				expr(e);
@@ -237,13 +248,14 @@ class Printer {
 				add("continue");
 			case EFunction(params, e, name, ret): // TODO: static, public, override
 				add("function");
-				if( name != null )
+				if (name != null)
 					add(" " + name);
 				add("(");
 				var first = true;
-				for( a in params ) {
-					if( first ) first = false else add(", ");
-					if( a.opt ) add("?");
+				for (a in params) {
+					if (first) first = false
+					else add(", ");
+					if (a.opt) add("?");
 					add(a.name);
 					addType(a.t);
 				}
@@ -253,11 +265,11 @@ class Printer {
 				expr(e);
 			case EReturn(e):
 				add("return");
-				if( e != null ) {
+				if (e != null) {
 					add(" ");
 					expr(e);
 				}
-			case EArray(e,index):
+			case EArray(e, index):
 				expr(e);
 				add("[");
 				expr(index);
@@ -265,16 +277,18 @@ class Printer {
 			case EArrayDecl(el, _):
 				add("[");
 				var first = true;
-				for( e in el ) {
-					if( first ) first = false else add(", ");
+				for (e in el) {
+					if (first) first = false
+					else add(", ");
 					expr(e);
 				}
 				add("]");
 			case ENew(cl, args):
 				add("new " + cl + "(");
 				var first = true;
-				for( e in args ) {
-					if( first ) first = false else add(", ");
+				for (e in args) {
+					if (first) first = false
+					else add(", ");
 					expr(e);
 				}
 				add(")");
@@ -289,21 +303,21 @@ class Printer {
 				add(") ");
 				expr(ecatch);
 			case EObject(fl):
-				if( fl.length == 0 ) {
+				if (fl.length == 0) {
 					add("{}");
 				} else {
 					tabs += "\t";
 					add("{\n");
-					for( f in fl ) {
+					for (f in fl) {
 						add(tabs);
-						add(f.name+" : ");
+						add(f.name + " : ");
 						expr(f.e);
 						add(",\n");
 					}
 					tabs = tabs.substr(1);
 					add("}");
 				}
-			case ETernary(c,e1,e2):
+			case ETernary(c, e1, e2):
 				expr(c);
 				add(" ? ");
 				expr(e1);
@@ -313,18 +327,21 @@ class Printer {
 				add("switch( ");
 				expr(e);
 				add(") {");
-				for( c in cases ) {
+				for (c in cases) {
 					add("case ");
 					var first = true;
-					for( v in c.values ) {
-						if( first ) first = false else add(", ");
+					for (v in c.values) {
+						if (first)
+							first = false
+						else
+							add(", ");
 						expr(v);
 					}
 					add(": ");
 					expr(c.expr);
 					add(";\n");
 				}
-				if( def != null ) {
+				if (def != null) {
 					add("default: ");
 					expr(def);
 					add(";\n");
@@ -333,11 +350,12 @@ class Printer {
 			case EMeta(name, args, e):
 				add("@");
 				add(name);
-				if( args != null && args.length > 0 ) {
+				if (args != null && args.length > 0) {
 					add("(");
 					var first = true;
-					for( a in args ) {
-						if( first ) first = false else add(", ");
+					for (a in args) {
+						if (first) first = false
+						else add(", ");
 						expr(e);
 					}
 					add(")");
@@ -383,25 +401,26 @@ class Printer {
 	inline function incrementIndent() {
 		tabs += indent;
 	}
+
 	inline function decrementIndent() {
 		tabs = tabs.substr(indent.length);
 	}
 
-	public static function toString( e : Expr ):String {
+	public static function toString(e:Expr):String {
 		return new Printer().exprToString(e);
 	}
 
 	public static function errorToString(e:Expr.Error, showPos:Bool = true):String {
-		var message:String = switch( #if hscriptPos e.e #else e #end ) {
-			case EInvalidChar(c): "Invalid character: '"+(StringTools.isEof(c) ? "EOF (End Of File)" : String.fromCharCode(c))+"' ("+c+")";
-			case EUnexpected(s): "Unexpected token: \""+s+"\"";
+		var message:String = switch (#if hscriptPos e.e #else e #end) {
+			case EInvalidChar(c): "Invalid character: '" + (StringTools.isEof(c) ? "EOF (End Of File)" : String.fromCharCode(c)) + "' (" + c + ")";
+			case EUnexpected(s): "Unexpected token: \"" + s + "\"";
 			case EUnterminatedString: "Unterminated string";
 			case EUnterminatedComment: "Unterminated comment";
 			case EEmptyExpression: "Expression cannot be empty";
 			case EInvalidPreprocessor(str): "Invalid preprocessor (" + str + ")";
-			case EUnknownVariable(v): "Unknown variable: "+v;
-			case EInvalidIterator(v): "Invalid iterator: "+v;
-			case EInvalidOp(op): "Invalid operator: "+op;
+			case EUnknownVariable(v): "Unknown variable: " + v;
+			case EInvalidIterator(v): "Invalid iterator: " + v;
+			case EInvalidOp(op): "Invalid operator: " + op;
 			case EInvalidAccess(f): "Invalid access to field " + f;
 			case ECustom(msg): msg;
 			case EInvalidClass(cla): "Invalid class: " + cla + " was not found.";

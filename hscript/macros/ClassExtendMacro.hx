@@ -410,7 +410,6 @@ class ClassExtendMacro {
 					]
 				})
 			});
-
 			Context.defineModule(cl.module, [shadowClass], imports);
 		}
 
