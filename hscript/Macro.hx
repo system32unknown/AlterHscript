@@ -119,10 +119,8 @@ class Macro {
 	function convertType(t:Expr.CType):ComplexType {
 		return switch (t) {
 			case CTOpt(t): TOptional(convertType(t));
-			case CTPath(pack):
+			case CTPath(pack, args):
 				var params = [];
-				var args = pack.params;
-				var pack = pack.pack;
 				if (args != null)
 					for (t in args)
 						params.push(TPType(convertType(t)));
@@ -169,8 +167,8 @@ class Macro {
 						EConst(CType(v));
 					else
 					#end
-					EConst(CIdent(v));
-				case EVar(n, t, e, c):
+						EConst(CIdent(v));
+				case EVar(n, t, e):
 					EVars([{name: n, expr: if (e == null) null else convert(e), type: if (t == null) null else convertType(t)}]);
 				case EParent(e):
 					EParenthesis(convert(e));

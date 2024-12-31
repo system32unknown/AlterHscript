@@ -35,7 +35,6 @@ enum Token {
 	TBrOpen;
 	TBrClose;
 	TDot;
-	TQuestionDot;
 	TComma;
 	TSemicolon;
 	TBkOpen;
@@ -44,7 +43,22 @@ enum Token {
 	TDoubleDot;
 	TMeta(s:String);
 	TPrepro(s:String);
+	TQuestionDot;
 }
+
+#if hscriptPos
+class TokenPos {
+	public var t:Token;
+	public var min:Int;
+	public var max:Int;
+
+	public function new(t, min, max) {
+		this.t = t;
+		this.min = min;
+		this.max = max;
+	}
+}
+#end
 
 class Parser {
 	// config / variables
@@ -106,7 +120,7 @@ class Parser {
 	var tokenMax:Int;
 	var oldTokenMin:Int;
 	var oldTokenMax:Int;
-	var tokens:List<{min:Int, max:Int, t:Token}>;
+	var tokens:List<TokenPos>;
 	#else
 	static inline var p1 = 0;
 	static inline var tokenMin = 0;
@@ -211,7 +225,7 @@ class Parser {
 
 	inline function push(tk:Token) {
 		#if hscriptPos
-		tokens.push({t: tk, min: tokenMin, max: tokenMax});
+		tokens.push(new TokenPos(tk, tokenMin, tokenMax));
 		tokenMin = oldTokenMin;
 		tokenMax = oldTokenMax;
 		#else
@@ -229,7 +243,7 @@ class Parser {
 		if (!Type.enumEq(t, tk)) unexpected(t);
 	}
 
-	function maybe(tk:Token) {
+	function maybe(tk:Token):Bool {
 		var t = token();
 		if (Type.enumEq(t, tk)) return true;
 		push(t);
@@ -275,7 +289,7 @@ class Parser {
 		if (e == null) return null;
 		if (pmin == null) pmin = tokenMin;
 		if (pmax == null) pmax = tokenMax;
-		return { e : e, pmin : pmin, pmax : pmax, origin : origin, line : line };
+		return {e: e, pmin: pmin, pmax: pmax, origin: origin, line: line};
 		#else
 		return e;
 		#end
@@ -305,13 +319,15 @@ class Parser {
 
 	function parseFullExpr(exprs:Array<Expr>):Void {
 		var e = parseExpr();
-		exprs.push(e);
+		if (!expr(e).match(EIgnore(_)))
+			exprs.push(e);
 
 		var tk = token();
 		// this is a hack to support var a,b,c; with a single EVar
 		while (tk == TComma && e != null && expr(e).match(EVar(_))) {
 			e = parseStructure("var"); // next variable
-			exprs.push(e);
+			if (!expr(e).match(EIgnore(_)))
+				exprs.push(e);
 			tk = token();
 		}
 
@@ -358,18 +374,18 @@ class Parser {
 		return parseExprNext(mk(EObject(fl), p1));
 	}
 
-	function interpolateString(s: String):Expr {
+	function interpolateString(s:String):Expr {
 		var exprs = [];
 		var dollarPos: Int = s.indexOf('$');
 		while (dollarPos > -1) {
-			var pos: Int = dollarPos;
-			var pre: String = s.substr(0, pos);
-			var next: String = s.charAt(++pos);
+			var pos:Int = dollarPos;
+			var pre:String = s.substr(0, pos);
+			var next:String = s.charAt(++pos);
 			if (next == '{') {
 				if (pre != '')
 					exprs.push(mk(EConst(CString(pre))));
-				var exprStr: String = '';
-				var depth: Int = 1;
+				var exprStr:String = '';
+				var depth:Int = 1;
 				while (true) {
 					next = s.charAt(++pos);
 					if (next == '{') {
@@ -399,14 +415,14 @@ class Parser {
 			} else if (next == '_' || (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z')) {
 				if (pre != '')
 					exprs.push(mk(EConst(CString(pre))));
-				var ident: String = '';
+				var ident:String = '';
 				while (next == '_' || (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') || (next >= '0' && next <= '9')) {
 					ident += next;
 					next = s.charAt(++pos);
 				}
 				exprs.push(mk(EIdent(ident)));
 			} else if (next == '$') {
-				var secondToNext: String = s.charAt(pos);
+				var secondToNext:String = s.charAt(pos);
 				if (secondToNext == "$") { // if its another dollar, skip...
 					s = pre + s.substr(pos, pos + 1); // remove $ ahead of the current one
 					break;
@@ -422,8 +438,7 @@ class Parser {
 			exprs.push(mk(EConst(CString(s))));
 			var expr = exprs[0];
 			for (i => nextExpr in exprs) {
-				if (i == 0)
-					continue;
+				if (i == 0) continue;
 				// NOTE: probably look into const optimization if possible, cause i really couldnt figure it out
 				expr = mk(EBinop('+', expr, nextExpr));
 			}
@@ -649,7 +664,7 @@ class Parser {
 		return mk(edef, pmin(e), pmax(e));
 	}
 
-	function makeUnop( op:String, e:Expr ):Expr {
+	function makeUnop(op:String, e:Expr):Expr {
 		if (e == null && resumeErrors)
 			return null;
 		return switch (expr(e)) {
@@ -659,7 +674,7 @@ class Parser {
 		}
 	}
 
-	function makeBinop( op:String, e1:Expr, e:Expr ):Expr {
+	function makeBinop(op:String, e1:Expr, e:Expr):Expr {
 		if (e == null && resumeErrors)
 			return mk(EBinop(op, e1, e), pmin(e1), pmax(e1));
 		return switch (expr(e)) {
@@ -855,215 +870,9 @@ class Parser {
 				var tk = token();
 				push(tk);
 				mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride), p1, pmax(inf.body));
-			case "import":
-				var tk = token();
-				switch (tk) {
-					case TPOpen:
-						var tok = token();
-						switch (tok) {
-							case TConst(c):
-								switch (c) {
-									case CString(s):
-										token();
-										ensure(TSemicolon);
-										push(TSemicolon);
-										mk(StringTools.endsWith(s, "*") ? EImportStar(s.substr(0, s.length - 1)) : EImport(s), p1);
-									default:
-										unexpected(tok);
-										null;
-								}
-							default:
-								unexpected(tok);
-								null;
-						}
-					case TId(id):
-						var path = [id];
-						var asname:String = null;
-						var t = null;
-						var star:Bool = false;
-						while (true) {
-							t = token();
-							if (t != TDot) {
-								if (t.match(TId("as"))) {
-									t = token();
-									switch (t) {
-										case TId(id):
-											asname = id;
-										default:
-											unexpected(t);
-									}
-									break;
-								}
-
-								push(t);
-								break;
-							}
-							t = token();
-							switch (t) {
-								case TId(id):
-									path.push(id);
-								case TOp("*"):
-									if (star)
-										unexpected(t);
-									star = true;
-								default:
-									unexpected(t);
-							}
-						}
-						ensure(TSemicolon);
-						push(TSemicolon);
-						var p = path.join(".");
-						mk(star ? EImportStar(p) : EImport(p, asname), p1);
-					default:
-						unexpected(tk);
-						null;
-				}
-			case "enum":
-				var name = getIdent();
-	
-				ensure(TBrOpen);
-	
-				var fields = [];
-	
-				var currentName = "";
-				var currentArgs: Array<Argument> = null;
-	
-				while (true) {
-					var tk = token();
-					switch (tk) {
-						case TBrClose:
-							break;
-						case TSemicolon | TComma:
-							if (currentName == "")
-								continue;
-	
-							if (currentArgs != null && currentArgs.length > 0) {
-								fields.push(EnumType.EConstructor(currentName, currentArgs));
-								currentArgs = null;
-							} else {
-								fields.push(EnumType.ESimple(currentName));
-							}
-							currentName = "";
-						case TPOpen:
-							if (currentArgs != null) {
-								error(ECustom("Cannot have multiple argument lists in one enum constructor"), tokenMin, tokenMax);
-								break;
-							}
-							currentArgs = parseFunctionArgs();
-						default:
-							if (currentName != "") {
-								error(ECustom("Expected comma or semicolon"), tokenMin, tokenMax);
-								break;
-							}
-							var name = extractIdent(tk);
-							currentName = name;
-					}
-				}
-	
-				mk(EEnum(name, fields));
-			case "typedef":
-				var name = getIdent();
-				ensureToken(TOp("="));
-
-				var t = parseType();
-				switch (t) {
-					case CTAnon(_) | CTExtend(_) | CTIntersection(_) | CTFun(_):
-						mk(EIgnore(true));
-					case CTPath(tp):
-						var path = tp.pack.concat([tp.name]);
-						var params = tp.params;
-						if (params != null && params.length > 1)
-							error(ECustom("Typedefs can't have parameters"), tokenMin, tokenMax);
-	
-						if (path.length == 0)
-							error(ECustom("Typedefs can't be empty"), tokenMin, tokenMax);
-	
-						{
-							var className = path.join(".");
-							var cl = Tools.getClass(className);
-							if (cl != null) {
-								return mk(EVar(name, null, mk(EDirectValue(cl))));
-							}
-						}
-	
-						var expr = mk(EIdent(path.shift()));
-						while (path.length > 0) {
-							expr = mk(EField(expr, path.shift(), false));
-						}
-	
-						// todo? add import to the beginning of the file?
-						mk(EVar(name, null, expr));
-					default:
-						error(ECustom("Typedef, unknown type " + t), tokenMin, tokenMax);
-						null;
-				}
-			case "class":
-				// example: class ClassName
-				var tk = token();
-				var name = null;
-
-				switch (tk) {
-					case TId(id): name = id;
-					default: push(tk);
-				}
-
-				var extend:String = null;
-				var interfaces:Array<String> = [];
-				// optional - example: extends BaseClass
-
-				while (true) {
-					var t = token();
-					switch (t) {
-						case TId(id):
-							switch (id) {
-								case "extends":
-									var e = parseType();
-									switch (e) {
-										case CTPath(path):
-											if (extend != null) {
-												error(ECustom('Cannot extend a class twice.'), 0, 0);
-											}
-											extend = path.pack.join(".");
-										default:
-											error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
-									}
-								case "implements":
-									var e = parseType();
-									switch (e) {
-										case CTPath(path):
-											var strPath = path.pack.join(".");
-											if (interfaces.contains(strPath)) {
-												error(ECustom('Cannot implement ${strPath} in class twice.'), 0, 0);
-											}
-											interfaces.push(strPath);
-										default:
-											error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
-									}
-							}
-						default:
-							push(t);
-							break;
-					}
-				}
-
-				var fields = [];
-				ensure(TBrOpen);
-				while (true) {
-					parseFullExpr(fields);
-					tk = token();
-					if (tk == TBrClose || (resumeErrors && tk == TEof))
-						break;
-					push(tk);
-				}
-
-				var tk = token();
-				push(tk);
-				mk(EClass(name, fields, extend, interfaces), p1);
-
 			case "return":
 				var tk = token();
 				push(tk);
-				// TODO: Fix bug with function return
 				var e = if (tk == TSemicolon) null else parseExpr();
 				mk(EReturn(e), p1, if (e == null) tokenMax else pmax(e));
 			case "new":
@@ -1141,6 +950,14 @@ class Parser {
 							c.expr = if( exprs.length == 1) exprs[0];
 							else if( exprs.length == 0 ) mk(EBlock([]), tokenMin, tokenMin);
 							else mk(EBlock(exprs), pmin(exprs[0]), pmax(exprs[exprs.length - 1]));
+
+							for (i in c.values) {
+								switch Tools.expr(i) {
+									case EIdent("_"):
+										def = c.expr;
+									case _:
+								}
+							}
 						case TId("default"):
 							if (def != null) unexpected(tk);
 							ensure(TDoubleDot);
@@ -1168,6 +985,169 @@ class Parser {
 					}
 				}
 				mk(ESwitch(e, cases, def), p1, tokenMax);
+			case "import":
+				var tk = token();
+				switch (tk) {
+					case TPOpen:
+						var tok = token();
+						switch (tok) {
+							case TConst(c):
+								switch (c) {
+									case CString(s):
+										token();
+										ensure(TSemicolon);
+										push(TSemicolon);
+										mk(StringTools.endsWith(s, "*") ? EImportStar(s.substr(0, s.length - 1)) : EImport(s), p1);
+									default:
+										unexpected(tok);
+										null;
+								}
+							default:
+								unexpected(tok);
+								null;
+						}
+					case TId(id):
+						var path = [id];
+						var asname:String = null;
+						var t = null;
+						var star:Bool = false;
+						while (true) {
+							t = token();
+							if (t != TDot) {
+								if (t.match(TId("as"))) {
+									t = token();
+									switch (t) {
+										case TId(id): asname = id;
+										default: unexpected(t);
+									}
+									break;
+								}
+	
+								push(t);
+								break;
+							}
+							t = token();
+							switch (t) {
+								case TId(id): path.push(id);
+								case TOp("*"):
+									if (star) unexpected(t);
+									star = true;
+								default: unexpected(t);
+							}
+						}
+						ensure(TSemicolon);
+						push(TSemicolon);
+						var p = path.join(".");
+						mk(star ? EImportStar(p) : EImport(p, asname), p1);
+					default:
+						unexpected(tk);
+						null;
+				}
+			case "enum":
+				var name = getIdent();
+
+				ensure(TBrOpen);
+
+				var fields = [];
+
+				var currentName = "";
+				var currentArgs: Array<Argument> = null;
+
+				while (true) {
+					var tk = token();
+					switch (tk) {
+						case TBrClose:
+							break;
+						case TSemicolon | TComma:
+							if (currentName == "")
+								continue;
+
+							if (currentArgs != null && currentArgs.length > 0) {
+								fields.push(EnumType.EConstructor(currentName, currentArgs));
+								currentArgs = null;
+							} else {
+								fields.push(EnumType.ESimple(currentName));
+							}
+							currentName = "";
+						case TPOpen:
+							if (currentArgs != null) {
+								error(ECustom("Cannot have multiple argument lists in one enum constructor"), tokenMin, tokenMax);
+								break;
+							}
+							currentArgs = parseFunctionArgs();
+						default:
+							if (currentName != "") {
+								error(ECustom("Expected comma or semicolon"), tokenMin, tokenMax);
+								break;
+							}
+							var name = extractIdent(tk);
+							currentName = name;
+					}
+				}
+		
+				mk(EEnum(name, fields));
+			case "class":
+				// example: class ClassName
+				var tk = token();
+				var name = null;
+	
+				switch (tk) {
+					case TId(id): name = id;
+					default: push(tk);
+				}
+	
+				var extend:String = null;
+				var interfaces:Array<String> = [];
+				// optional - example: extends BaseClass
+	
+				while (true) {
+					var t = token();
+					switch (t) {
+						case TId(id):
+							switch (id) {
+								case "extends":
+									var e = parseType();
+									switch (e) {
+										case CTPath(path, _):
+											if (extend != null) {
+												error(ECustom('Cannot extend a class twice.'), 0, 0);
+											}
+											extend = path.join(".");
+										default:
+											error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
+									}
+								case "implements":
+									var e = parseType();
+									switch (e) {
+										case CTPath(path, _):
+											var strPath = path.join(".");
+											if (interfaces.contains(strPath)) {
+												error(ECustom('Cannot implement ${strPath} in class twice.'), 0, 0);
+											}
+											interfaces.push(strPath);
+										default:
+											error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
+									}
+							}
+						default:
+							push(t);
+							break;
+					}
+				}
+	
+				var fields = [];
+				ensure(TBrOpen);
+				while (true) {
+					parseFullExpr(fields);
+					tk = token();
+					if (tk == TBrClose || (resumeErrors && tk == TEof))
+						break;
+					push(tk);
+				}
+	
+				var tk = token();
+				push(tk);
+				mk(EClass(name, fields, extend, interfaces), p1);
 			case "using":
 				var path = parsePath();
 				mk(EUsing(path.join(".")));
@@ -1327,7 +1307,6 @@ class Parser {
 			case TId(v):
 				push(t);
 				var path = parsePath();
-				var name = path.pop();
 				var params = null;
 				t = token();
 				switch (t) {
@@ -1340,8 +1319,7 @@ class Parser {
 								switch (t) {
 									case TComma: continue;
 									case TOp(op):
-										if (op == ">")
-											break;
+										if (op == ">") break;
 										if (op.charCodeAt(0) == ">".code) {
 											#if hscriptPos
 											tokens.add(new TokenPos(TOp(op.substr(1)), tokenMax - op.length - 1, tokenMax));
@@ -1359,7 +1337,7 @@ class Parser {
 					default:
 						push(t);
 				}
-				return parseTypeNext(CTPath({pack: path, params: params, sub: null, name: name}));
+				return parseTypeNext(CTPath(path, params));
 			case TPOpen:
 				var a = token(), b = token();
 
@@ -1698,7 +1676,7 @@ class Parser {
 		return StringTools.fastCodeAt(input, readPos++);
 	}
 
-	function readString(until:Int, interpolate: Bool = false):String {
+	function readString(until:Int, interpolate:Bool = false):String {
 		var c = 0;
 		var b = new StringBuf();
 		var esc = false;
@@ -2187,7 +2165,6 @@ class Parser {
 		var pos = readPos;
 		while (true) {
 			var tk = token();
-			// TODO: Fix ending in with #end in the file
 			if (tk == TEof) {
 				if (preprocStack.length != 0) {
 					error(EInvalidPreprocessor("Unclosed"), pos, pos);
@@ -2264,7 +2241,6 @@ class Parser {
 			case TBrOpen: "{";
 			case TBrClose: "}";
 			case TDot: ".";
-			case TQuestionDot: "?.";
 			case TComma: ",";
 			case TSemicolon: ";";
 			case TBkOpen: "[";
@@ -2273,6 +2249,7 @@ class Parser {
 			case TDoubleDot: ":";
 			case TMeta(id): "@" + id;
 			case TPrepro(id): "#" + id;
+			case TQuestionDot: "?.";
 		}
 	}
 }

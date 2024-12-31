@@ -53,11 +53,10 @@ enum abstract BytesExpr(ByteInt) from ByteInt to ByteInt {
 	var EMeta = 25;
 	var ECheckType = 26;
 	var EEnum = 27;
-	var EDirectValue = 28;
-	var EUsing = 29;
-	var EImportStar = 30;
-	var EImport = 31;
-	var EClass = 32;
+	var EUsing = 28;
+	var EImportStar = 29;
+	var EImport = 30;
+	var EClass = 31;
 }
 
 enum abstract BytesConst(ByteInt) from ByteInt to ByteInt {
@@ -452,9 +451,6 @@ class Bytes {
 			case EUsing(name):
 				doEncodeExprType(EUsing);
 				doEncodeString(name);
-			case EDirectValue(value):
-				doEncodeExprType(EDirectValue);
-				doEncodeString(haxe.Serializer.run(value));
 			case EImportStar(c):
 				doEncodeExprType(EImportStar);
 				doEncodeString(c);
@@ -594,12 +590,7 @@ class Bytes {
 				var args = count == 0 ? null : [for (i in 0...count - 1) doDecode()];
 				EMeta(name, args, doDecode());
 			case ECheckType:
-				ECheckType(doDecode(), CTPath({
-					pack: [],
-					params: null,
-					sub: null,
-					name: "Void"
-				}));
+				ECheckType(doDecode(), CTPath(["Void"]));
 			case EEnum:
 				var name = doDecodeString();
 				var fields: Array<EnumType> = [];
@@ -618,9 +609,6 @@ class Bytes {
 					}
 				}
 				EEnum(name, fields);
-			case EDirectValue:
-				var value = doDecodeString();
-				EDirectValue(haxe.Unserializer.run(value));
 			case EUsing:
 				var name = doDecodeString();
 				EUsing(name);

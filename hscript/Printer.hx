@@ -49,33 +49,23 @@ class Printer {
 	inline function add<T>(s:T):Void
 		buf.add(s);
 
-	public function typePath(tp: TypePath) {
-		add(tp.pack.join("."));
-		if (tp.pack.length > 0)
-			add(".");
-		add(tp.name);
-		add((tp.sub != null && tp.sub.length > 0) ? "." + tp.sub : "");
-		if (tp.params != null && tp.params.length > 0) {
-			add("<");
-			var first = true;
-			for (p in tp.params) {
-				if (first)
-					first = false
-				else
-					add(", ");
-				type(p);
-			}
-			add(">");
-		}
-	}
-
 	function type(t:CType):Void {
 		switch (t) {
 			case CTOpt(t):
 				add('?');
 				type(t);
-			case CTPath(path):
-				typePath(path);
+			case CTPath(path, params):
+				add(path.join("."));
+				if (params != null) {
+					add("<");
+					var first = true;
+					for (p in params) {
+						if (first) first = false
+						else add(", ");
+						type(p);
+					}
+					add(">");
+				}
 			case CTNamed(name, t):
 				add(name);
 				add(':');
@@ -115,34 +105,6 @@ class Printer {
 				add("(");
 				type(t);
 				add(")");
-			case CTExtend(t, fields):
-				add("{");
-				var first = true;
-				for (f in t) {
-					if (first) {
-						first = false;
-						add(" ");
-					} else
-						add(", ");
-					typePath(f);
-				}
-				var first = true;
-				for (f in fields) {
-					if (first) {
-						first = false;
-						add(" ");
-					} else
-						add(", ");
-					add(f.name + " : ");
-					type(f.t);
-				}
-				add(first ? "}" : " }");
-			case CTIntersection(types):
-				for (i => t in types) {
-					type(t);
-					if (i < types.length - 1)
-						add(" & ");
-				}
 		}
 	}
 
@@ -430,8 +392,6 @@ class Printer {
 				decrementIndent();
 				add(tabs);
 				add("}");
-			case EDirectValue(value):
-				add("<Internal Value " + value + ">");
 			case EUsing(name):
 				add("using ");
 				add(name);

@@ -93,7 +93,6 @@ enum Expr
 	EImportStar(c:String);
 	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
 	EEnum(name:String, fields:Array<EnumType>);
-	EDirectValue(value:Dynamic);
 	EUsing(name:String);
 }
 
@@ -106,22 +105,13 @@ final class SwitchCase {
 typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr};
 typedef Metadata = Array<{name:String, params:Array<Expr>}>;
 
-typedef TypePath = {
-	var pack:Array<String>;
-	var name:String;
-	var params:Array<CType>;
-	var sub:String;
-}
-
 enum CType {
-	CTPath(path:TypePath);
+	CTPath(path:Array<String>, ?params:Array<CType>);
 	CTFun(args:Array<CType>, ret:CType);
 	CTAnon(fields:Array<{name:String, t:CType, ?meta:Metadata}>);
-	CTExtend(t:Array<TypePath>, fields:Array<{name: String, t:CType, ?meta:Metadata}>);
 	CTParent(t:CType);
 	CTOpt(t:CType);
 	CTNamed(n:String, t:CType);
-	CTIntersection(types:Array<CType>);
 }
 
 #if hscriptPos

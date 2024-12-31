@@ -237,8 +237,7 @@ class Interp {
 	function checkIsType(e1:Expr,e2:Expr): Bool {
 		var expr1:Dynamic = expr(e1);
 
-		return switch(Tools.expr(e2))
-		{
+		return switch(Tools.expr(e2)) {
 			case EIdent("Class"):
 				Std.isOfType(expr1, Class);
 			case EIdent("Map") | EIdent("IMap"):
@@ -276,7 +275,7 @@ class Interp {
 				} catch(ex) throw e;
 			}
 		}
-		if (asName == null){
+		if (asName == null) {
 			var splitName = Type.getEnumName(enm).split(".");
 			variables.set(splitName[splitName.length - 1], enumThingy);
 		}else{
@@ -699,17 +698,16 @@ class Interp {
 						variables.set(toSetName, cl);
 					}
 				}
-
 				return null;
 
 			case EIgnore(_):
 			case EConst(c):
-				switch (c) {
-					case CInt(v): return v;
-					case CFloat(f): return f;
-					case CString(s): return s;
+				return switch (c) {
+					case CInt(v):  v;
+					case CFloat(f): f;
+					case CString(s): s;
 					#if !haxe3
-					case CInt32(v): return v;
+					case CInt32(v): v;
 					#end
 				}
 			case EIdent(id):
@@ -750,23 +748,24 @@ class Interp {
 					error(EInvalidOp(op));
 				return fop(e1, e2);
 			case EUnop(op, prefix, e):
-				switch (op) {
+				return switch (op) {
 					case "!":
-						return expr(e) != true;
+						expr(e) != true;
 					case "-":
-						return -expr(e);
+						-expr(e);
 					case "++":
-						return increment(e, prefix, 1);
+						increment(e, prefix, 1);
 					case "--":
-						return increment(e, prefix, -1);
+						increment(e, prefix, -1);
 					case "~":
 						#if (neko && !haxe3)
-						return haxe.Int32.complement(expr(e));
+						haxe.Int32.complement(expr(e));
 						#else
-						return ~expr(e);
+						~expr(e);
 						#end
 					default:
 						error(EInvalidOp(op));
+						null;
 				}
 			case ECall(e, params):
 				var args:Array<Dynamic> = [for(p in params) expr(p)];
@@ -803,7 +802,7 @@ class Interp {
 			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride):
 				var __capturedLocals = duplicate(locals);
 				var capturedLocals:Map<String, DeclaredVar> = [];
-				for(k=>e in __capturedLocals)
+				for(k => e in __capturedLocals)
 					if (e != null && e.depth > 0)
 						capturedLocals.set(k, e);
 

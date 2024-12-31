@@ -178,7 +178,6 @@ class ClassExtendMacro {
 						definedFields.push(f.name);
 					default:
 						// fuck off >:(
-
 				}
 			}
 

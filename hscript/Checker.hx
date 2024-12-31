@@ -419,8 +419,8 @@ class Checker {
 
 	function makeType(t:CType, e:Expr):TType {
 		return switch (t) {
-			case CTPath(path):
-				var ct = types.resolve(path.pack.join("."), path.params == null ? [] : [for (p in path.params) makeType(p, e)]);
+			case CTPath(path, params):
+				var ct = types.resolve(path.join("."), params == null ? [] : [for (p in params) makeType(p, e)]);
 				if (ct == null) {
 					error("Unknown type " + path, e);
 					ct = TDynamic;

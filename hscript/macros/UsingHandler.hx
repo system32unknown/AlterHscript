@@ -26,7 +26,7 @@ class UsingHandler {
 		if (clRef == null) return fields;
 		var cl = clRef.get();
 
-		if (/* cl.name.startsWith("Flx") && */ cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType") && !cl.name.contains("_HSC")) {
+		if (cl.name.endsWith("_Impl_") && cl.params.length <= 0 && !cl.meta.has(":multiType") && !cl.name.contains("_HSC")) {
 			var metas = cl.meta.get();
 
 			var trimEnum = cl.name.substr(0, cl.name.length - 6);
@@ -34,8 +34,7 @@ class UsingHandler {
 			var key = cl.module;
 			var fkey = key + "." + trimEnum;
 			if(key.contains("_")) return fields; // Weird issue, sorry
-			switch (key)
-			{
+			switch (key) {
 				case "lime.system.Locale" // Error: Unknown identifier : currentLocale, Due to Func
 					| "cpp.Function" // Error: Unknown identifier : nativeGetProcAddress, Due to Func
 					| "haxe.ds.Vector" // Error: haxe.ds._Vector.VectorData<blit.T> has no field blit, Due to Func
@@ -50,12 +49,8 @@ class UsingHandler {
 			var shadowClass = macro class { };
 			shadowClass.kind = TDClass();
 			shadowClass.params = switch(cl.params.length) {
-				case 0:
-					null;
-				default:
-					[for(k=>e in cl.params) {
-						name: e.name
-					}];
+				case 0: null;
+				default: [for (k => e in cl.params) {name: e.name}];
 			}
 			shadowClass.name = '${cl.name.substr(0, cl.name.length - 6)}_HSC';
 
@@ -113,7 +108,6 @@ class UsingHandler {
 						}
 					default:
 				}
-
 			Context.defineModule(cl.module, [shadowClass], imports);
 		}
 
