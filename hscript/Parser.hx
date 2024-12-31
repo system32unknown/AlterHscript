@@ -961,6 +961,42 @@ class Parser {
 				}
 	
 				mk(EEnum(name, fields));
+			case "typedef":
+				var name = getIdent();
+				ensureToken(TOp("="));
+
+				var t = parseType();
+				switch (t) {
+					case CTAnon(_) | CTExtend(_) | CTIntersection(_) | CTFun(_):
+						mk(EIgnore(true));
+					case CTPath(tp):
+						var path = tp.pack.concat([tp.name]);
+						var params = tp.params;
+						if (params != null && params.length > 1)
+							error(ECustom("Typedefs can't have parameters"), tokenMin, tokenMax);
+	
+						if (path.length == 0)
+							error(ECustom("Typedefs can't be empty"), tokenMin, tokenMax);
+	
+						{
+							var className = path.join(".");
+							var cl = Tools.getClass(className);
+							if (cl != null) {
+								return mk(EVar(name, null, mk(EDirectValue(cl))));
+							}
+						}
+	
+						var expr = mk(EIdent(path.shift()));
+						while (path.length > 0) {
+							expr = mk(EField(expr, path.shift(), false));
+						}
+	
+						// todo? add import to the beginning of the file?
+						mk(EVar(name, null, expr));
+					default:
+						error(ECustom("Typedef, unknown type " + t), tokenMin, tokenMax);
+						null;
+				}
 			case "class":
 				// example: class ClassName
 				var tk = token();
@@ -983,19 +1019,19 @@ class Parser {
 								case "extends":
 									var e = parseType();
 									switch (e) {
-										case CTPath(path, _):
+										case CTPath(path):
 											if (extend != null) {
 												error(ECustom('Cannot extend a class twice.'), 0, 0);
 											}
-											extend = path.join(".");
+											extend = path.pack.join(".");
 										default:
 											error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
 									}
 								case "implements":
 									var e = parseType();
 									switch (e) {
-										case CTPath(path, _):
-											var strPath = path.join(".");
+										case CTPath(path):
+											var strPath = path.pack.join(".");
 											if (interfaces.contains(strPath)) {
 												error(ECustom('Cannot implement ${strPath} in class twice.'), 0, 0);
 											}
@@ -1291,6 +1327,7 @@ class Parser {
 			case TId(v):
 				push(t);
 				var path = parsePath();
+				var name = path.pop();
 				var params = null;
 				t = token();
 				switch (t) {
@@ -1303,10 +1340,11 @@ class Parser {
 								switch (t) {
 									case TComma: continue;
 									case TOp(op):
-										if (op == ">") break;
+										if (op == ">")
+											break;
 										if (op.charCodeAt(0) == ">".code) {
 											#if hscriptPos
-											tokens.add({t: TOp(op.substr(1)), min: tokenMax - op.length - 1, max: tokenMax});
+											tokens.add(new TokenPos(TOp(op.substr(1)), tokenMax - op.length - 1, tokenMax));
 											#else
 											tokens.add(TOp(op.substr(1)));
 											#end
@@ -1321,7 +1359,7 @@ class Parser {
 					default:
 						push(t);
 				}
-				return parseTypeNext(CTPath(path, params));
+				return parseTypeNext(CTPath({pack: path, params: params, sub: null, name: name}));
 			case TPOpen:
 				var a = token(), b = token();
 

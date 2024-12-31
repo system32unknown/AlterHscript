@@ -22,29 +22,138 @@
 package hscript;
 
 import hscript.Expr;
+import hscript.Types.ByteInt;
+
+enum abstract BytesExpr(ByteInt) from ByteInt to ByteInt {
+	var EIdent = 0;
+	var EVar = 1;
+	var EConst = 2;
+	var EParent = 3;
+	var EBlock = 4;
+	var EField = 5;
+	var EBinop = 6;
+	var EUnop = 7;
+	var ECall = 8;
+	var EIf = 9;
+	var EWhile = 10;
+	var EFor = 11;
+	var EBreak = 12;
+	var EContinue = 13;
+	var EFunction = 14;
+	var EReturn = 15;
+	var EArray = 16;
+	var EArrayDecl = 17;
+	var ENew = 18;
+	var EThrow = 19;
+	var ETry = 20;
+	var EObject = 21;
+	var ETernary = 22;
+	var ESwitch = 23;
+	var EDoWhile = 24;
+	var EMeta = 25;
+	var ECheckType = 26;
+	var EEnum = 27;
+	var EDirectValue = 28;
+	var EUsing = 29;
+	var EImportStar = 30;
+	var EImport = 31;
+	var EClass = 32;
+}
+
+enum abstract BytesConst(ByteInt) from ByteInt to ByteInt {
+	var CInt = 0;
+	var CIntByte = 1;
+	var CFloat = 2;
+	var CString = 3;
+	#if !haxe3
+	var CInt32 = 4;
+	#end
+}
+
+enum abstract BytesIntSize(ByteInt) from ByteInt to ByteInt {
+	var I8;
+	var I16;
+	var I32;
+	var N8;
+	var N16;
+	var N32;
+}
 
 class Bytes {
 	var bin:haxe.io.Bytes;
 	var bout:haxe.io.BytesBuffer;
 	var pin:Int;
-	var hstrings:Map<String, Int>;
+	var hstrings:#if haxe3 Map<String, Int> #else Hash<Int> #end;
 	var strings:Array<String>;
 	var nstrings:Int;
+
+	var opMap:Map<String, Int>;
 
 	function new(?bin) {
 		this.bin = bin;
 		pin = 0;
 		bout = new haxe.io.BytesBuffer();
-		hstrings = new Map();
+		hstrings = #if haxe3 new Map() #else new Hash() #end;
 		strings = [null];
 		nstrings = 1;
+
+		opMap = new Map();
+		opMap.set("+", 0);
+		opMap.set("-", 1);
+		opMap.set("*", 2);
+		opMap.set("/", 3);
+		opMap.set("%", 4);
+		opMap.set("&", 5);
+		opMap.set("|", 6);
+		opMap.set("^", 7);
+		opMap.set("<<", 8);
+		opMap.set(">>", 9);
+		opMap.set(">>>", 10);
+		opMap.set("==", 11);
+		opMap.set("!=", 12);
+		opMap.set(">=", 13);
+		opMap.set("<=", 14);
+		opMap.set(">", 15);
+		opMap.set("<", 16);
+		opMap.set("||", 17);
+		opMap.set("&&", 18);
+		opMap.set("=", 19);
+		opMap.set("??", 20);
+		opMap.set("...", 21);
+		// unary
+		opMap.set("!", 22);
+		opMap.set("~", 24);
+
+		for (key => value in opMap) opMap.set(key, value << 1); // make place for the isAssign
+	}
+
+	function doEncodeOp(op: String) {
+		var isAssign = !opMap.exists(op) && op.charCodeAt(op.length - 1) == "=".code;
+		var _op = op;
+		if (isAssign) {
+			op = op.substr(0, op.length - 1);
+		}
+		var v = opMap.get(op);
+		if (v == null)
+			throw "Invalid operator " + _op;
+		bout.addByte(v);
+	}
+
+	function doDecodeOp(): String {
+		var v = bin.get(pin++);
+		var isAssign = (v & 1) != 0;
+		v >>= 1;
+		for (key => value in opMap)
+			if (value == v)
+				return key + (isAssign ? "=" : "");
+		throw "Invalid operator " + v;
 	}
 
 	function doEncodeString(v:String) {
 		var vid = hstrings.get(v);
 		if (vid == null) {
 			if (nstrings == 256) {
-				hstrings = new Map();
+				hstrings = #if haxe3 new Map() #else new Hash() #end;
 				nstrings = 1;
 			}
 			hstrings.set(v, nstrings);
@@ -71,71 +180,115 @@ class Bytes {
 		return strings[id];
 	}
 
-	function doEncodeInt(v:Int) {
-		bout.addInt32(v);
-	}
-
-	function doEncodeConst(c:Const) {
-		switch (c) {
-			case CInt(v):
-				if (v >= 0 && v <= 255) {
-					bout.addByte(0);
-					bout.addByte(v);
-				} else {
-					bout.addByte(1);
-					doEncodeInt(v);
-				}
-			case CFloat(f):
-				bout.addByte(2);
-				doEncodeString(Std.string(f));
-			case CString(s):
-				bout.addByte(3);
-				doEncodeString(s);
+	function doEncodeInt(v: Int) {
+		var isNeg = v < 0;
+		if (isNeg)
+			v = -v;
+		if (v >= 0 && v <= 255) {
+			bout.addByte(isNeg ? N8 : I8);
+			bout.addByte(v);
+		} else if (v >= 0 && v <= 65535) {
+			bout.addByte(isNeg ? N16 : I16);
+			bout.addByte(v & 0xFF);
+			bout.addByte((v >> 8) & 0xFF);
+		} else {
+			bout.addByte(isNeg ? N32 : I32);
+			bout.addInt32(v);
 		}
-	}
-
-	function doDecodeInt() {
-		var i = bin.getInt32(pin);
-		pin += 4;
-		return i;
 	}
 
 	function doEncodeBool(v: Bool) {
 		bout.addByte(v ? 1 : 0);
 	}
 
+	function doEncodeConst(c:Const) {
+		switch (c) {
+			case CInt(v):
+				if (v >= 0 && v <= 255) {
+					bout.addByte(CIntByte);
+					bout.addByte(v & 0xFF);
+				} else {
+					bout.addByte(CInt);
+					doEncodeInt(v);
+				}
+			case CFloat(f):
+				bout.addByte(CFloat);
+				doEncodeString(Std.string(f));
+			case CString(s):
+				bout.addByte(CString);
+				doEncodeString(s);
+			#if !haxe3
+			case CInt32(v):
+				bout.addByte(CInt32);
+				var mid = haxe.Int32.toInt(haxe.Int32.and(v, haxe.Int32.ofInt(0xFFFFFF)));
+				bout.addByte(mid & 0xFF);
+				bout.addByte((mid >> 8) & 0xFF);
+				bout.addByte(mid >> 16);
+				bout.addByte(haxe.Int32.toInt(haxe.Int32.ushr(v, 24)));
+			#end
+		}
+	}
+
+	function doDecodeInt() {
+		var size = cast(bin.get(pin++), BytesIntSize);
+		var i = switch (size) {
+			case I8 | N8: bin.get(pin++);
+			case I16 | N16: bin.get(pin++) | bin.get(pin++) << 8;
+			case I32 | N32: bin.getInt32(pin);
+		}
+		switch (size) {
+			case I8 | N8:
+			case I16 | N16:
+			case I32 | N32:
+				pin += 4;
+		}
+		switch (size) {
+			case N8 | N16 | N32:
+				i = -i;
+			default:
+		}
+		return i;
+	}
+
 	function doDecodeConst():Const {
 		return switch (bin.get(pin++)) {
-			case 0:
+			case CIntByte:
 				CInt(bin.get(pin++));
-			case 1:
+			case CInt:
 				var i = doDecodeInt();
 				CInt(i);
-			case 2:
+			case CFloat:
 				CFloat(Std.parseFloat(doDecodeString()));
-			case 3:
+			case CString:
 				CString(doDecodeString());
+			#if !haxe3
+			case CInt32:
+				var i = bin.get(pin) | (bin.get(pin + 1) << 8) | (bin.get(pin + 2) << 16);
+				var j = bin.get(pin + 3);
+				pin += 4;
+				CInt32(haxe.Int32.or(haxe.Int32.ofInt(i), haxe.Int32.shl(haxe.Int32.ofInt(j), 24)));
+			#end
 			default:
 				throw "Invalid code " + bin.get(pin - 1);
 		}
 	}
 
-	function doDecodeArg(): Argument {
+	function doDecodeArg():Argument {
 		var name = doDecodeString();
 		var opt = doDecodeBool();
-		return {
-			name: name,
-			opt: opt,
-			t: null
-		};
+		return {name: name, opt: opt, t: null};
 	}
 
-	function doEncodeArg(a: Argument) {
+	function doEncodeExprType(t:BytesExpr) {
+		bout.addByte(t);
+	}
+
+	function doEncodeArg(a:Argument) {
 		doEncodeString(a.name);
 		doEncodeBool(a.opt);
 	}
 
-	function doDecodeBool(): Bool {
+	function doDecodeBool():Bool {
 		return bin.get(pin++) != 0;
 	}
 
@@ -149,37 +302,46 @@ class Bytes {
 		switch (e) {
 			case EIgnore(_):
 			case EConst(c):
+				doEncodeExprType(EConst);
 				doEncodeConst(c);
 			case EIdent(v):
+				doEncodeExprType(EIdent);
 				doEncodeString(v);
 			case EVar(n, _, e):
+				doEncodeExprType(EVar);
 				doEncodeString(n);
 				if (e == null)
 					bout.addByte(255);
 				else
 					doEncode(e);
 			case EParent(e):
+				doEncodeExprType(EParent);
 				doEncode(e);
 			case EBlock(el):
-				bout.addByte(el.length);
+				doEncodeExprType(EBlock);
+				doEncodeInt(el.length);
 				for (e in el) doEncode(e);
 			case EField(e, f):
+				doEncodeExprType(EField);
 				doEncode(e);
 				doEncodeString(f);
 			case EBinop(op, e1, e2):
+				doEncodeExprType(EBinop);
 				doEncodeString(op);
 				doEncode(e1);
 				doEncode(e2);
 			case EUnop(op, prefix, e):
+				doEncodeExprType(EUnop);
 				doEncodeString(op);
-				bout.addByte(prefix ? 1 : 0);
+				doEncodeBool(prefix);
 				doEncode(e);
 			case ECall(e, el):
+				doEncodeExprType(ECall);
 				doEncode(e);
 				bout.addByte(el.length);
-				for (e in el)
-					doEncode(e);
+				for (e in el) doEncode(e);
 			case EIf(cond, e1, e2):
+				doEncodeExprType(EIf);
 				doEncode(cond);
 				doEncode(e1);
 				if (e2 == null)
@@ -187,57 +349,71 @@ class Bytes {
 				else
 					doEncode(e2);
 			case EWhile(cond, e):
+				doEncodeExprType(EWhile);
 				doEncode(cond);
 				doEncode(e);
 			case EDoWhile(cond, e):
+				doEncodeExprType(EDoWhile);
 				doEncode(cond);
 				doEncode(e);
 			case EFor(v, it, e):
+				doEncodeExprType(EFor);
 				doEncodeString(v);
 				doEncode(it);
 				doEncode(e);
-			case EBreak, EContinue:
+			case EBreak: doEncodeExprType(EBreak);
+			case EContinue: doEncodeExprType(EContinue);
 			case EFunction(params, e, name, _):
+				doEncodeExprType(EFunction);
 				bout.addByte(params.length);
 				for (p in params)
 					doEncodeString(p.name);
 				doEncode(e);
 				doEncodeString(name == null ? "" : name);
 			case EReturn(e):
+				doEncodeExprType(EReturn);
 				if (e == null)
 					bout.addByte(255);
 				else
 					doEncode(e);
 			case EArray(e, index):
+				doEncodeExprType(EArray);
 				doEncode(e);
 				doEncode(index);
 			case EArrayDecl(el):
+				doEncodeExprType(EArrayDecl);
 				if (el.length >= 255) throw "assert";
 				bout.addByte(el.length);
 				for (e in el)
 					doEncode(e);
 			case ENew(cl, params):
+				doEncodeExprType(ENew);
 				doEncodeString(cl);
 				bout.addByte(params.length);
 				for (e in params)
 					doEncode(e);
 			case EThrow(e):
+				doEncodeExprType(EThrow);
 				doEncode(e);
 			case ETry(e, v, _, ecatch):
+				doEncodeExprType(ETry);
 				doEncode(e);
 				doEncodeString(v);
 				doEncode(ecatch);
 			case EObject(fl):
+				doEncodeExprType(EObject);
 				bout.addByte(fl.length);
 				for (f in fl) {
 					doEncodeString(f.name);
 					doEncode(f.e);
 				}
 			case ETernary(cond, e1, e2):
+				doEncodeExprType(ETernary);
 				doEncode(cond);
 				doEncode(e1);
 				doEncode(e2);
 			case ESwitch(e, cases, def):
+				doEncodeExprType(ESwitch);
 				doEncode(e);
 				for (c in cases) {
 					if (c.values.length == 0) throw "assert";
@@ -249,13 +425,16 @@ class Bytes {
 				bout.addByte(255);
 				if( def == null ) bout.addByte(255) else doEncode(def);
 			case EMeta(name, args, e):
+				doEncodeExprType(EMeta);
 				doEncodeString(name);
 				bout.addByte(args == null ? 0 : args.length + 1);
 				if( args != null ) for( e in args ) doEncode(e);
 				doEncode(e);
 			case ECheckType(e, _):
+				doEncodeExprType(ECheckType);
 				doEncode(e);
 			case EEnum(name, fields):
+				doEncodeExprType(EEnum);
 				doEncodeString(name);
 				bout.addByte(fields.length);
 				for (f in fields)
@@ -271,17 +450,24 @@ class Bytes {
 								doEncodeArg(a);
 					}
 			case EUsing(name):
+				doEncodeExprType(EUsing);
 				doEncodeString(name);
+			case EDirectValue(value):
+				doEncodeExprType(EDirectValue);
+				doEncodeString(haxe.Serializer.run(value));
 			case EImportStar(c):
-				// TODO
+				doEncodeExprType(EImportStar);
+				doEncodeString(c);
 			case EImport(c):
+				doEncodeExprType(EImport);
+				doEncodeString(c);
+			case EClass(n, f, e, i):
 				// TODO
-			case EClass(_, _, _, _):
-				// TODO
+				doEncodeExprType(EClass);
 		}
 	}
 
-	function doDecode() : Expr {
+	function doDecode():Expr {
 	#if hscriptPos
 		if (bin.get(pin) == 255) {
 			pin++;
@@ -289,87 +475,88 @@ class Bytes {
 		}
 		var origin = doDecodeString();
 		var line = doDecodeInt();
-		return { e : _doDecode(), pmin : 0, pmax : 0, origin : origin, line : line };
+		return {e: _doDecode(), pmin: 0, pmax: 0, origin: origin, line: line};
 	}
 	function _doDecode():ExprDef {
 	#end
-		return switch (bin.get(pin++)) {
-			case 0:
+		var type:BytesExpr = bin.get(pin++);
+		return switch (type) {
+			case EConst:
 				EConst(doDecodeConst());
-			case 1:
+			case EIdent:
 				EIdent(doDecodeString());
-			case 2:
+				case EVar:
 				var v = doDecodeString();
 				EVar(v, doDecode());
-			case 3:
+			case EParent:
 				EParent(doDecode());
-			case 4:
+			case EBlock:
 				var a = [];
 				for (i in 0...bin.get(pin++))
 					a.push(doDecode());
 				EBlock(a);
-			case 5:
+			case EField:
 				var e = doDecode();
 				EField(e, doDecodeString());
-			case 6:
+			case EBinop:
 				var op = doDecodeString();
 				var e1 = doDecode();
 				EBinop(op, e1, doDecode());
-			case 7:
+			case EUnop:
 				var op = doDecodeString();
 				var prefix = bin.get(pin++) != 0;
 				EUnop(op, prefix, doDecode());
-			case 8:
+			case ECall:
 				var e = doDecode();
 				var params = [];
 				for (i in 0...bin.get(pin++))
 					params.push(doDecode());
 				ECall(e, params);
-			case 9:
+			case EIf:
 				var cond = doDecode();
 				var e1 = doDecode();
 				EIf(cond, e1, doDecode());
-			case 10:
+			case EWhile:
 				var cond = doDecode();
 				EWhile(cond, doDecode());
-			case 11:
+			case EFor:
 				var v = doDecodeString();
 				var it = doDecode();
 				EFor(v, it, doDecode());
-			case 12:
+			case EBreak:
 				EBreak;
-			case 13:
+			case EContinue:
 				EContinue;
-			case 14:
+			case EFunction:
 				var params = new Array<Argument>();
 				for (i in 0...bin.get(pin++))
 					params.push({name: doDecodeString()});
 				var e = doDecode();
 				var name = doDecodeString();
 				EFunction(params, e, (name == "") ? null : name);
-			case 15:
+			case EReturn:
 				EReturn(doDecode());
-			case 16:
+			case EArray:
 				var e = doDecode();
 				EArray(e, doDecode());
-			case 17:
+			case EArrayDecl:
 				var el = [];
 				for (i in 0...bin.get(pin++))
 					el.push(doDecode());
 				EArrayDecl(el);
-			case 18:
+			case ENew:
 				var cl = doDecodeString();
 				var el = [];
 				for (i in 0...bin.get(pin++))
 					el.push(doDecode());
 				ENew(cl, el);
-			case 19:
+			case EThrow:
 				EThrow(doDecode());
-			case 20:
+			case ETry:
 				var e = doDecode();
 				var v = doDecodeString();
 				ETry(e, v, null, doDecode());
-			case 21:
+			case EObject:
 				var fl = new Array();
 				for (i in 0...bin.get(pin++)) {
 					var name = doDecodeString();
@@ -377,12 +564,12 @@ class Bytes {
 					fl.push({name: name, e: e});
 				}
 				EObject(fl);
-			case 22:
+			case ETernary:
 				var cond = doDecode();
 				var e1 = doDecode();
 				var e2 = doDecode();
 				ETernary(cond, e1, e2);
-			case 23:
+			case ESwitch:
 				var e = doDecode();
 				var cases:Array<SwitchCase> = [];
 				while (true) {
@@ -398,17 +585,22 @@ class Bytes {
 				}
 				var def = doDecode();
 				ESwitch(e, cases, def);
-			case 24:
+			case EDoWhile:
 				var cond = doDecode();
 				EDoWhile(cond, doDecode());
-			case 25:
+			case EMeta:
 				var name = doDecodeString();
 				var count = bin.get(pin++);
 				var args = count == 0 ? null : [for (i in 0...count - 1) doDecode()];
 				EMeta(name, args, doDecode());
-			case 26:
-				ECheckType(doDecode(), CTPath(["Void"]));
-			case 27:
+			case ECheckType:
+				ECheckType(doDecode(), CTPath({
+					pack: [],
+					params: null,
+					sub: null,
+					name: "Void"
+				}));
+			case EEnum:
 				var name = doDecodeString();
 				var fields: Array<EnumType> = [];
 				for (i in 0...bin.get(pin++)) {
@@ -422,12 +614,14 @@ class Bytes {
 							for (i in 0...bin.get(pin++))
 								args.push(doDecodeArg());
 							fields.push(EConstructor(name, args));
-						default:
-							throw "Invalid code " + bin.get(pin - 1);
+						default: throw "Invalid code " + bin.get(pin - 1);
 					}
 				}
 				EEnum(name, fields);
-			case 28:
+			case EDirectValue:
+				var value = doDecodeString();
+				EDirectValue(haxe.Unserializer.run(value));
+			case EUsing:
 				var name = doDecodeString();
 				EUsing(name);
 			case 255:

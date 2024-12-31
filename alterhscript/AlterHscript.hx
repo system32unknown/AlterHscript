@@ -41,7 +41,7 @@ class AlterHscript {
 	public static var instances:StringMap<AlterHscript> = new StringMap<AlterHscript>();
 
 	public static var registeredUsingEntries:Array<UsingEntry> = [
-		new UsingEntry("StringTools", function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+		new UsingEntry("StringTools", function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			if (f == "isEof") // has @:noUsing
 				return null;
 			switch (Type.typeof(o)) {
@@ -224,7 +224,6 @@ class AlterHscript {
 		if (interp == null) throw "Attempt to run script failed, script is probably destroyed.";
 
 		if (expr == null) expr = parse();
-		@:privateAccess interp.execute(parser.mk(EBlock([]), 0, 0));
 		instances.set(this.name, this);
 		this.config.packageName = parser.packageName;
 		return interp.execute(expr);
@@ -265,7 +264,9 @@ class AlterHscript {
 	 * @param field 	The field that needs to be looked for.
 	 */
 	public function get(field:String):Dynamic {
+		#if ALTER_DEBUG
 		if (interp == null) fatal("[AlterHscript:get()]: " + interpErrStr + ", when trying to get variable \"" + field + "\", returning false...");
+		#end
 		return interp != null ? interp.variables.get(field) : false;
 	}
 
@@ -277,7 +278,9 @@ class AlterHscript {
 	 */
 	public function set(name:String, value:Dynamic, allowOverride:Bool = true):Void {
 		if (interp == null || interp.variables == null) {
+			#if ALTER_DEBUG
 			fatal("[AlterHscript:set()]: " + interpErrStr + ", when trying to set variable \"" + name + "\" so variables cannot be set.");
+			#end
 			return;
 		}
 		if (allowOverride || !interp.variables.exists(name)) interp.setVar(name, value);
@@ -290,7 +293,9 @@ class AlterHscript {
 	 */
 	public function call(fun:String, ?args:Array<Dynamic>):AlterCall {
 		if (interp == null) {
+			#if ALTER_DEBUG
 			trace("[AlterHscript:call()]: " + interpErrStr + ", so functions cannot be called.");
+			#end
 			return null;
 		}
 		args ??= [];
@@ -316,7 +321,9 @@ class AlterHscript {
 	 * @param field 		The field to check if exists.
 	 */
 	public function exists(field:String):Bool {
+		#if ALTER_DEBUG
 		if (interp == null) trace("[AlterHscript:exists()]: " + interpErrStr + ", returning false...");
+		#end
 		return interp != null ? interp.variables.exists(field) : false;
 	}
 
@@ -326,7 +333,7 @@ class AlterHscript {
 	 *
 	 * **WARNING**: this action CANNOT be undone.
 	**/
-	public function destroy() @:privateAccess {
+	public function destroy():Void @:privateAccess {
 		//First, Stopping Hscript-improved variables
 		interp.__instanceFields = [];
 		interp.binops.clear();
