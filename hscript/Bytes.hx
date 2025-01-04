@@ -275,7 +275,7 @@ class Bytes {
 	function doDecodeArg():Argument {
 		var name = doDecodeString();
 		var opt = doDecodeBool();
-		return {name: name, opt: opt, t: null};
+		return {name: name, opt: opt, t: null, value: null};
 	}
 
 	function doEncodeExprType(t:BytesExpr) {
@@ -526,7 +526,7 @@ class Bytes {
 			case EFunction:
 				var params = new Array<Argument>();
 				for (i in 0...bin.get(pin++))
-					params.push({name: doDecodeString()});
+					params.push({name: doDecodeString(), opt: false, t: null, value: null});
 				var e = doDecode();
 				var name = doDecodeString();
 				EFunction(params, e, (name == "") ? null : name);
@@ -553,7 +553,7 @@ class Bytes {
 				var v = doDecodeString();
 				ETry(e, v, null, doDecode());
 			case EObject:
-				var fl = new Array();
+				var fl:Array<ObjectField> = [];
 				for (i in 0...bin.get(pin++)) {
 					var name = doDecodeString();
 					var e = doDecode();

@@ -159,11 +159,11 @@ class Async {
 	}
 
 	inline function fun(arg:String, e, ?name) {
-		return mk(EFunction([{name: arg, t: null}], e, name), e);
+		return mk(EFunction([{name: arg, t: null, opt: false, value: null}], e, name), e);
 	}
 
 	inline function funs(arg:Array<String>, e, ?name) {
-		return mk(EFunction([for (a in arg) {name: a, t: null}], e, name), e);
+		return mk(EFunction([for (a in arg) {name: a, t: null, opt: false, value: null}], e, name), e);
 	}
 
 	inline function block(arr:Array<Expr>, e) {
@@ -267,7 +267,7 @@ class Async {
 					defineVar(name, Defined);
 				for (a in args)
 					defineVar(a.name, Defined);
-				args.unshift({name: "_onEnd", t: null});
+				args.unshift({name: "_onEnd", t: null, opt: false, value: null});
 				var frest = ident("_onEnd", e);
 				currentFun = name;
 				var body = toCps(body, frest, frest);
@@ -418,9 +418,9 @@ class Async {
 				return block([retNull(currentLoop, e), mk(EReturn(), e)], e);
 			case ESwitch(v, cases, def):
 				var cases:Array<SwitchCase> = [for (c in cases) {values: c.values, expr: toCps(c.expr, rest, exit)}];
-				return toCps(v, mk(EFunction([{name: "_c", t: null}], mk(ESwitch(ident("_c", v), cases, def == null ? retNull(rest) : toCps(def, rest, exit)), e)), e), exit);
+				return toCps(v, mk(EFunction([{name: "_c", t: null, opt: false, value: null}], mk(ESwitch(ident("_c", v), cases, def == null ? retNull(rest) : toCps(def, rest, exit)), e)), e), exit);
 			case EThrow(v):
-				return toCps(v, mk(EFunction([{name: "_v", t: null}], mk(EThrow(v), v)), v), exit);
+				return toCps(v, mk(EFunction([{name: "_v", t: null, opt: false, value: null}], mk(EThrow(v), v)), v), exit);
 			case EMeta(name, _, e) if (name.charCodeAt(0) == ":".code): // ignore custom ":" metadata
 				return toCps(e, rest, exit);
 			default:
