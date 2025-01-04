@@ -81,7 +81,7 @@ class UsingHandler {
 							var complexType:ComplexType = t;
 							if(complexType == null && e != null) {
 								complexType = switch(e.expr) {
-									case EConst(CRegexp(_)): TPath({ name: "EReg", pack: [] });
+									case EConst(CRegexp(_)): TPath({name: "EReg", pack: []});
 									default: null;
 								}
 							}

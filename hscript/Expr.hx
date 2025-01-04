@@ -82,7 +82,7 @@ enum Expr
 	ENew(cl:String, params:Array<Expr>);
 	EThrow(e:Expr);
 	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
-	EObject(fl:Array<{name:String, e:Expr}>);
+	EObject(fl:Array<ObjectField>);
 	ETernary(cond:Expr, e1:Expr, e2:Expr);
 	ESwitch(e:Expr, cases:Array<SwitchCase>, ?defaultExpr:Expr);
 	EDoWhile(cond:Expr, e:Expr);
@@ -97,13 +97,32 @@ enum Expr
 }
 
 @:structInit
+final class ObjectField {
+	public var name:String;
+	public var e:Expr;
+}
+
+@:structInit
 final class SwitchCase {
 	public var values:Array<Expr>;
 	public var expr:Expr;
 }
 
-typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr};
-typedef Metadata = Array<{name:String, params:Array<Expr>}>;
+@:structInit
+final class Argument {
+	public var name:String;
+	public var t:CType;
+	public var opt:Bool;
+	public var value:Expr;
+}
+
+@:structInit
+final class MetadataEntry {
+	public var name:String;
+	public var params:Array<Expr>;
+}
+
+typedef Metadata = Array<MetadataEntry>;
 
 enum CType {
 	CTPath(path:Array<String>, ?params:Array<CType>);
@@ -139,7 +158,6 @@ enum ErrorDef {
 #else
 enum Error {
 #end
-
 	EInvalidChar(c:Int);
 	EUnexpected(s:String);
 	EUnterminatedString;
@@ -190,12 +208,12 @@ typedef FieldDecl = {
 }
 
 enum abstract FieldAccess(UInt8) {
-	var APublic;
-	var APrivate;
-	var AInline;
-	var AOverride;
-	var AStatic;
-	var AMacro;
+	var APublic:FieldAccess;
+	var APrivate:FieldAccess;
+	var AInline:FieldAccess;
+	var AOverride:FieldAccess;
+	var AStatic:FieldAccess;
+	var AMacro:FieldAccess;
 }
 
 enum FieldKind {
@@ -203,10 +221,11 @@ enum FieldKind {
 	KVar(v:VarDecl);
 }
 
-typedef FunctionDecl = {
-	var args:Array<Argument>;
-	var expr:Expr;
-	var ret:Null<CType>;
+@:structInit
+final class FunctionDecl {
+	public var args:Array<Argument>;
+	public var body:Expr;
+	public var ret:Null<CType>;
 }
 
 typedef VarDecl = {
@@ -217,6 +236,6 @@ typedef VarDecl = {
 }
 
 enum EnumType {
-	ESimple(name: String);
-	EConstructor(name: String, args: Array<Argument>);
+	ESimple(name:String);
+	EConstructor(name:String, args:Array<Argument>);
 }

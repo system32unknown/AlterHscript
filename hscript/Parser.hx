@@ -489,14 +489,14 @@ class Parser {
 								return parseExprNext(mk(ECheckType(e, t), p1, tokenMax));
 							case TComma:
 								switch (expr(e)) {
-									case EIdent(v): return parseLambda([{name: v, t: t}], pmin(e));
+									case EIdent(v): return parseLambda([{name : v, t : t, opt: false, value: null}], pmin(e));
 									default:
 								}
 							default:
 						}
 					case TComma:
 						switch (expr(e)) {
-							case EIdent(v): return parseLambda([{name: v}], pmin(e));
+							case EIdent(v): return parseLambda([{name: v, opt: false, value: null, t: null}], pmin(e));
 							default:
 						}
 					default:
@@ -603,7 +603,7 @@ class Parser {
 		while (true) {
 			var id = getIdent();
 			var t = maybe(TDoubleDot) ? parseType() : null;
-			args.push({name: id, t: t});
+			args.push({name: id, t: t, opt: false, value: null});
 			var tk = token();
 			switch (tk) {
 				case TComma:
@@ -1176,10 +1176,10 @@ class Parser {
 					switch (expr(e1)) {
 						case EIdent(i), EParent(expr(_) => EIdent(i)):
 							var eret = parseExpr();
-							return mk(EFunction([{name: i}], mk(EReturn(eret), pmin(eret))), pmin(e1));
+							return mk(EFunction([{name: i, opt: false, value: null, t: null}], mk(EReturn(eret), pmin(eret))), pmin(e1));
 						case ECheckType(expr(_) => EIdent(i), t):
 							var eret = parseExpr();
-							return mk(EFunction([{name: i, t: t}], mk(EReturn(eret), pmin(eret))), pmin(e1));
+							return mk(EFunction([{name: i, t: t, opt: false, value: null}], mk(EReturn(eret), pmin(eret))), pmin(e1));
 						default:
 					}
 					unexpected(tk);
@@ -1240,10 +1240,9 @@ class Parser {
 						unexpected(tk);
 						break;
 				}
-				var arg:Argument = {name: name};
+				var arg:Argument = {name: name, opt: false, value: null, t: null};
 				args.push(arg);
-				if (opt)
-					arg.opt = true;
+				if (opt) arg.opt = true;
 				if (allowTypes) {
 					if (maybe(TDoubleDot))
 						arg.t = parseType();
@@ -1625,7 +1624,7 @@ class Parser {
 						access: access,
 						kind: KFunction({
 							args: inf.args,
-							expr: inf.body,
+							body: inf.body,
 							ret: inf.ret,
 						}),
 					};
