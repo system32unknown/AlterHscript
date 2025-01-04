@@ -69,15 +69,11 @@ class Utils {
 		if (module.endsWith("_Impl_"))
 			module = module.substr(0, module.length - 6);
 
-		shadowClass.meta.push(
-			{
-				name: ':access',
-				params: [
-					Context.parse(fixModuleName(module.endsWith('.${n}') ? module : '${module}.${n}'), Context.currentPos())
-				],
-				pos: Context.currentPos()
-			}
-		);
+		shadowClass.meta.push({
+			name: ':access',
+			params: [Context.parse(fixModuleName(module.endsWith('.${n}') ? module : '${module}.${n}'), Context.currentPos())],
+			pos: Context.currentPos()
+		});
 	}
 
 	public static function fixModuleName(name:String) {

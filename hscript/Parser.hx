@@ -76,7 +76,7 @@ class Parser {
 	/**
 		allows to check for #if / #else in code
 	**/
-	public var preprocesorValues:Map<String, Dynamic> = new Map();
+	public var preprocessorValues:Map<String, Dynamic> = new Map();
 
 	/**
 		activate JSON compatiblity
@@ -144,11 +144,11 @@ class Parser {
 			["|", "&", "^"],
 			["==", "!=", ">", "<", ">=", "<="],
 			["..."],
+			["is"],
 			["&&"],
 			["||"],
 			["=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "|=", "&=", "^=", "=>", "??" + "="],
 			["->", "??"],
-			["is"]
 		];
 		#if haxe3
 		opPriority = new Map();
@@ -160,7 +160,7 @@ class Parser {
 		for (i in 0...priorities.length)
 			for (x in priorities[i]) {
 				opPriority.set(x, i);
-				if (i == 9) opRightAssoc.set(x, true);
+				if (i == 10) opRightAssoc.set(x, true);
 			}
 		for (x in ["!", "++", "--", "~"]) // unary "-" handled in parser directly!
 			opPriority.set(x, x == "++" || x == "--" ? -1 : -2);
@@ -208,7 +208,7 @@ class Parser {
 		if (s == "") s = "0;"; // fixing crash with empty file
 		input = s;
 		readPos = 0;
-		var a = new Array();
+		var a = [];
 		while (true) {
 			var tk = token();
 			if (tk == TEof) break;
@@ -223,7 +223,7 @@ class Parser {
 		return null;
 	}
 
-	inline function push(tk:Token) {
+	inline function push(tk:Token):Void {
 		#if hscriptPos
 		tokens.push(new TokenPos(tk, tokenMin, tokenMax));
 		tokenMin = oldTokenMin;
@@ -233,12 +233,12 @@ class Parser {
 		#end
 	}
 
-	inline function ensure(tk:Token) {
+	inline function ensure(tk:Token):Void {
 		var t = token();
 		if (t != tk) unexpected(t);
 	}
 
-	inline function ensureToken(tk:Token) {
+	inline function ensureToken(tk:Token):Void {
 		var t = token();
 		if (!Type.enumEq(t, tk)) unexpected(t);
 	}
@@ -341,7 +341,7 @@ class Parser {
 
 	function parseObject(p1:Int):Expr {
 		// parse object
-		var fl = [];
+		var fl:Array<ObjectField> = [];
 		while (true) {
 			var tk = token();
 			var id = null;
@@ -947,8 +947,8 @@ class Parser {
 										parseFullExpr(exprs);
 								}
 							}
-							c.expr = if( exprs.length == 1) exprs[0];
-							else if( exprs.length == 0 ) mk(EBlock([]), tokenMin, tokenMin);
+							c.expr = if (exprs.length == 1) exprs[0];
+							else if (exprs.length == 0) mk(EBlock([]), tokenMin, tokenMin);
 							else mk(EBlock(exprs), pmin(exprs[0]), pmax(exprs[exprs.length - 1]));
 
 							for (i in c.values) {
@@ -1266,7 +1266,7 @@ class Parser {
 		return args;
 	}
 
-	function parseFunctionDecl() {
+	function parseFunctionDecl():FunctionDecl {
 		ensure(TPOpen);
 		var args = parseFunctionArgs();
 		var ret = null;
@@ -1385,7 +1385,7 @@ class Parser {
 				}
 			case TBrOpen:
 				var fields = [];
-				var meta = null;
+				var meta:Array<MetadataEntry> = null;
 				while (true) {
 					t = token();
 					switch (t) {
@@ -1488,7 +1488,7 @@ class Parser {
 	}
 
 	function parseMetadata():Metadata {
-		var meta = [];
+		var meta:Array<MetadataEntry> = [];
 		while (true) {
 			var tk = token();
 			switch (tk) {
@@ -1699,7 +1699,7 @@ class Parser {
 					case 'r'.code: b.addChar('\r'.code);
 					case 't'.code: b.addChar('\t'.code);
 					case "'".code, '"'.code, '\\'.code: b.addChar(c);
-					case '/'.code: if( allowJSON ) b.addChar(c) else invalidChar(c);
+					case '/'.code: if (allowJSON) b.addChar(c) else invalidChar(c);
 					case "u".code:
 						if (!allowJSON) invalidChar(c);
 						var k = 0;
@@ -2064,7 +2064,7 @@ class Parser {
 	}
 
 	function preprocValue(id:String):Dynamic {
-		return preprocesorValues.get(id);
+		return preprocessorValues.get(id);
 	}
 
 	var preprocStack:Array<PreprocessStackValue>;
@@ -2170,7 +2170,6 @@ class Parser {
 					error(EInvalidPreprocessor("Unclosed"), pos, pos);
 				} else break;
 			}
-
 			if (preprocStack[spos] != obj) {
 				push(tk);
 				break;
@@ -2178,7 +2177,7 @@ class Parser {
 		}
 	}
 
-	function tokenComment(op:String, char:Int) {
+	function tokenComment(op:String, char:Int):Token {
 		var c = op.charCodeAt(1);
 		var s = input;
 		if (c == '/'.code) { // comment
