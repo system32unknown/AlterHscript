@@ -60,6 +60,7 @@ class ClassExtendMacro {
 			if(key == "away3d.tools.commands.SphereMaker") return fields; // Error: Unknown identifier
 			if(key == "away3d.tools.commands.Weld") return fields; // Error: Unknown identifier
 			if(fkey == "hscript.CustomClassHandler.TemplateClass") return fields; // Error: Redefined
+			if(fkey == "hscript.CustomClassHandler.CustomTemplateClass") return fields; // Error: Redefined
 			if(key == "sys.thread.EventLoop") return fields; // Error: cant override force inlined
 			if(Config.DISALLOW_CUSTOM_CLASSES.contains(cl.module) || Config.DISALLOW_CUSTOM_CLASSES.contains(fkey)) return fields;
 			if(cl.module.contains("_")) return fields; // Weird issue, sorry
@@ -330,7 +331,7 @@ class ClassExtendMacro {
 				pack: cl.pack.copy(),
 				name: cl.name
 			}, [
-				{name: "IHScriptCustomBehaviour", pack: ["hscript"]},
+				{name: "IHScriptCustomAccessBehaviour", pack: ["hscript"]},
 				{name: "IHScriptCustomClassBehaviour", pack: ["hscript"]}
 			], false, true, false);
 			shadowClass.name = '${cl.name}$CLASS_SUFFIX';

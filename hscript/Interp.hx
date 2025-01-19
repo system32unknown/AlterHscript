@@ -48,6 +48,7 @@ enum abstract ScriptObjectType(UInt8) {
 	var SStaticClass;
 	var SCustomClass; // custom classes
 	var SBehaviourClass; // hget and hset
+	var SAccessBehaviourObject; // hget and hset with __allowSetGet
 	var SNull;
 }
 
@@ -79,6 +80,8 @@ class Interp {
 					if(classFields != null)
 						__instanceFields = __instanceFields.concat(classFields);
 					_scriptObjectType = SCustomClass;
+				} else if(v is IHScriptCustomAccessBehaviour) {
+					_scriptObjectType = SAccessBehaviourObject;
 				} else if(v is IHScriptCustomBehaviour) {
 					_scriptObjectType = SBehaviourClass;
 				} else {
@@ -109,6 +112,7 @@ class Interp {
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
 
+	// warning can be null
 	public var locals:Map<String, DeclaredVar>;
 	var binops:Map<String, Expr->Expr->Dynamic>;
 
@@ -240,7 +244,8 @@ class Interp {
 		var v = expr(e2);
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
-				if (!locals.exists(id)) {
+				var l = locals.get(id);
+				if (l == null) {
 					if (_hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
 
@@ -256,7 +261,17 @@ class Interp {
 								return res;
 							}
 							return obj.hset(id, v);
-						} else if (_scriptObjectType == SBehaviourClass) {
+						} else if(_scriptObjectType == SAccessBehaviourObject) {
+							var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
+							if(isBypassAccessor) {
+								obj.__allowSetGet = false;
+								var res = obj.hset(id, v);
+								obj.__allowSetGet = true;
+								return res;
+							}
+							return obj.hset(id, v);
+						}
+						else if (_scriptObjectType == SBehaviourClass) {
 							var obj:IHScriptCustomBehaviour = cast scriptObject;
 							return obj.hset(id, v);
 						}
@@ -278,7 +293,6 @@ class Interp {
 						setVar(id, v);
 					}
 				} else {
-					var l = locals.get(id);
 					l.r = v;
 					if (l.depth == 0) {
 						setVar(id, v);
@@ -313,8 +327,9 @@ class Interp {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
+				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
-				if (!locals.exists(id)) {
+				if (l == null) {
 					if(_hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
 
@@ -330,7 +345,17 @@ class Interp {
 								return res;
 							}
 							return obj.hset(id, v);
-						} else if (_scriptObjectType == SBehaviourClass) {
+						} else if(_scriptObjectType == SAccessBehaviourObject) {
+							var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
+							if(isBypassAccessor) {
+								obj.__allowSetGet = false;
+								var res = obj.hset(id, v);
+								obj.__allowSetGet = true;
+								return res;
+							}
+							return obj.hset(id, v);
+						}
+						else if (_scriptObjectType == SBehaviourClass) {
 							var obj:IHScriptCustomBehaviour = cast scriptObject;
 							return obj.hset(id, v);
 						}
@@ -389,8 +414,8 @@ class Interp {
 		#end
 		switch (e) {
 			case EIdent(id):
-				if(locals.exists(id)) {
-					var l = locals.get(id);
+				var l = locals.get(id);
+				if(l != null) {
 					var v:Dynamic = l.r;
 					if (prefix) {
 						v += delta;
@@ -452,6 +477,8 @@ class Interp {
 		return exprReturn(expr);
 	}
 
+	public var printCallStack:Bool = true;
+
 	function exprReturn(e):Dynamic {
 		try {
 			try {
@@ -468,7 +495,10 @@ class Interp {
 						return v;
 				}
 			} catch(e) {
-				error(ECustom('${e.toString()}'));
+				if(printCallStack)
+					error(ECustom('${e.toString()}\n${CallStack.toString(CallStack.exceptionStack(true))}'));
+				else
+					error(ECustom(e.toString()));
 				return null;
 			}
 		} catch(e:Error) {
@@ -525,8 +555,12 @@ class Interp {
 		if (id == null)
 			return null;
 		id = StringTools.trim(id);
-		if (locals.exists(id))
-			return locals.get(id).r;
+
+		if (locals.exists(id)) {
+			var l = locals.get(id);
+			if(l != null)
+				return l.r;
+		}
 
 		if(variables.exists(id))
 			return variables.get(id);
@@ -548,6 +582,15 @@ class Interp {
 				return UnsafeReflect.field(scriptObject, id);
 			} else if(_scriptObjectType == SCustomClass && instanceHasField) {
 				var obj:IHScriptCustomClassBehaviour = cast scriptObject;
+				if(isBypassAccessor) {
+					obj.__allowSetGet = false;
+					var res = obj.hget(id);
+					obj.__allowSetGet = true;
+					return res;
+				}
+				return obj.hget(id);
+			} else if(_scriptObjectType == SAccessBehaviourObject) {
+				var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
 				if(isBypassAccessor) {
 					obj.__allowSetGet = false;
 					var res = obj.hget(id);
@@ -1171,6 +1214,17 @@ class Interp {
 			return obj.hget(f);
 		}
 
+		if (o is IHScriptCustomAccessBehaviour) {
+			var obj:IHScriptCustomAccessBehaviour = cast o;
+			if(isBypassAccessor) {
+				obj.__allowSetGet = false;
+				var res = obj.hget(f);
+				obj.__allowSetGet = true;
+				return res;
+			}
+			return obj.hget(f);
+		}
+
 		if (o is IHScriptCustomBehaviour) {
 			var obj:IHScriptCustomBehaviour = cast o;
 			return obj.hget(f);
@@ -1200,6 +1254,17 @@ class Interp {
 
 		if(o is IHScriptCustomClassBehaviour) {
 			var obj:IHScriptCustomClassBehaviour = cast o;
+			if(isBypassAccessor) {
+				obj.__allowSetGet = false;
+				var res = obj.hset(f, v);
+				obj.__allowSetGet = true;
+				return res;
+			}
+			return obj.hset(f, v);
+		}
+
+		if (o is IHScriptCustomAccessBehaviour) {
+			var obj:IHScriptCustomAccessBehaviour = cast o;
 			if(isBypassAccessor) {
 				obj.__allowSetGet = false;
 				var res = obj.hset(f, v);

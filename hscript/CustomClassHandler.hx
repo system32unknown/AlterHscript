@@ -22,7 +22,7 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		this.extend = extend;
 		this.interfaces = interfaces;
 
-		this.cl = extend == null ? TemplateClass : Type.resolveClass('${extend}_HSX');
+		this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
 		if(cl == null)
 			ogInterp.error(EInvalidClass(extend));
 	}
@@ -153,7 +153,7 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 	}
 }
 
-class TemplateClass implements IHScriptCustomClassBehaviour implements IHScriptCustomBehaviour {
+class CustomTemplateClass implements IHScriptCustomClassBehaviour implements IHScriptCustomAccessBehaviour {
 	public var __interp:Interp;
 	public var __allowSetGet:Bool = true;
 	public var __custom__variables:Map<String, Dynamic>;
@@ -193,6 +193,45 @@ class TemplateClass implements IHScriptCustomClassBehaviour implements IHScriptC
 	public function __callSetter(name:String, val:Dynamic):Dynamic {
 		__allowSetGet = false;
 		var v = __custom__variables.get("set_" + name)(val);
+		__allowSetGet = true;
+		return v;
+	}
+}
+
+
+/**
+ * This is for backwards compatibility with old hscript-improved, since some scripts use it
+**/
+@:dox(hide)
+@:keep
+class TemplateClass implements IHScriptCustomBehaviour implements IHScriptCustomAccessBehaviour {
+	public var __interp:Interp;
+	public var __allowSetGet:Bool = true;
+
+	public function hset(name:String, val:Dynamic):Dynamic {
+		var variables = __interp.variables;
+		if(__allowSetGet && variables.exists("set_" + name))
+			return __callSetter(name, val);
+		variables.set(name, val);
+		return val;
+	}
+	public function hget(name:String):Dynamic {
+		var variables = __interp.variables;
+		if(__allowSetGet && variables.exists("get_" + name))
+			return __callGetter(name);
+		return variables.get(name);
+	}
+
+	public function __callGetter(name:String):Dynamic {
+		__allowSetGet = false;
+		var v = __interp.variables.get("get_" + name)();
+		__allowSetGet = true;
+		return v;
+	}
+
+	public function __callSetter(name:String, val:Dynamic):Dynamic {
+		__allowSetGet = false;
+		var v = __interp.variables.get("set_" + name)(val);
 		__allowSetGet = true;
 		return v;
 	}
