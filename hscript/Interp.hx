@@ -477,7 +477,7 @@ class Interp {
 		return exprReturn(expr);
 	}
 
-	public var printCallStack:Bool = true;
+	public var printCallStack:Bool = false;
 
 	function exprReturn(e):Dynamic {
 		try {
