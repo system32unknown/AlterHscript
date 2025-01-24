@@ -5,6 +5,7 @@ import hscript.*;
 import alterhscript.ErrorSeverity;
 import alterhscript.AlterConfig;
 import alterhscript.utils.UsingEntry;
+import haxe.CallStack;
 import haxe.PosInfos;
 
 using alterhscript.utils.Ansi;
@@ -251,8 +252,8 @@ class AlterHscript {
 		// if you're a game developer or a fnf modder (hi guys),
 		// you might wanna use AlterHscript.print for your on-screen consoles and such.
 		set("trace", Reflect.makeVarArgs(function(x:Array<Dynamic>) {
-			var pos = this.interp != null ? this.interp.posInfos() : getDefaultPos(this.name);
-			var v = x.shift();
+			var pos:PosInfos = this.interp != null ? this.interp.posInfos() : getDefaultPos(this.name);
+			var v:Dynamic = x.shift();
 			if (x.length > 0) pos.customParams = x;
 			print(v, pos);
 		}));
@@ -312,7 +313,10 @@ class AlterHscript {
 		#if hscriptPos
 		catch (e:Expr.Error) {error(Printer.errorToString(e, false), this.interp.posInfos());}
 		#end
-		catch (e:haxe.Exception) {error(Std.string(e), isFunction ? this.interp.posInfos() : getDefaultPos(this.name));}
+		catch (e:haxe.Exception) {
+			var pos:PosInfos = isFunction ? this.interp.posInfos() : getDefaultPos(this.name);
+			error(Std.string(e) #if ALTER_DEBUG + "\n" + CallStack.toString(CallStack.exceptionStack(true)) #end, pos);
+		}
 		return null;
 	}
 
@@ -368,7 +372,7 @@ class AlterHscript {
 	}
 
 	public static function registerUsingGlobal(name: String, call:UsingCall):UsingEntry {
-		var entry = new UsingEntry(name, call);
+		var entry:UsingEntry = new UsingEntry(name, call);
 		registeredUsingEntries.push(entry);
 		return entry;
 	}

@@ -1,2 +1,3 @@
 bin/build-each.hxml
+-D hscriptPos
 -hl bin/Test.hl

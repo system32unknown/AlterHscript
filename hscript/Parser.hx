@@ -79,7 +79,7 @@ class Parser {
 	public var preprocessorValues:Map<String, Dynamic> = new Map();
 
 	/**
-		activate JSON compatiblity
+		activate JSON compatibility
 	**/
 	public var allowJSON:Bool;
 

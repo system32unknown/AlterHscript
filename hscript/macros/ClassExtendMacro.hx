@@ -27,6 +27,8 @@ class ClassExtendMacro {
 		"StdTypes", // Error: Cant extend basic class
 		"Date",     // Error: Cant extend basic class
 		"Xml",      // Error: Cant extend basic class
+		"hscript.CustomClassHandler.TemplateClass", // Error: Redefined
+		"hscript.CustomClassHandler.CustomTemplateClass", // Error: Redefined
 	];
 
 	public static function init():Void {
@@ -191,7 +193,7 @@ class ClassExtendMacro {
 			pack: cl.pack.copy(),
 			name: cl.name
 		}, [
-			{name: "IHScriptCustomBehaviour", pack: ["hscript"]},
+			{name: "IHScriptCustomAccessBehaviour", pack: ["hscript"]},
 			{name: "IHScriptCustomClassBehaviour", pack: ["hscript"]}
 		], false, true, false);
 		shadowClass.name = '${cl.name}$CLASS_SUFFIX';
