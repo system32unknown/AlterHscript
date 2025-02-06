@@ -139,8 +139,7 @@ class Tools {
 			var className = removeInnerClass(name);
 			if (className != name) {
 				c = Type.resolveClass(className);
-				if (c == null)
-					c = Type.resolveEnum(className);
+				if (c == null) c = Type.resolveEnum(className);
 			}
 		}
 		return c;

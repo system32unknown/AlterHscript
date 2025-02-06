@@ -460,6 +460,8 @@ class Bytes {
 			case EClass(n, f, e, i):
 				// TODO
 				doEncodeExprType(EClass);
+			case ERedirect(_, _):
+				// TODO
 		}
 	}
 

@@ -60,7 +60,7 @@ typedef ExprDef = Expr;
 enum Expr
 #end
 {
-	EIgnore(skipSemicolon:Bool);
+	EIgnore(skip:Bool);
 	EConst(c:Const);
 	EIdent(v:String);
 	EVar(n:String, ?t:CType, ?e:Expr, ?isPublic:Bool, ?isStatic:Bool);
@@ -94,6 +94,7 @@ enum Expr
 	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
 	EEnum(name:String, fields:Array<EnumType>);
 	EUsing(name:String);
+	ERedirect(name:String, className:String, ?cl:Class<Dynamic>);
 }
 
 @:structInit
@@ -131,6 +132,7 @@ enum CType {
 	CTParent(t:CType);
 	CTOpt(t:CType);
 	CTNamed(n:String, t:CType);
+	CTIntersection(types: Array<CType>);
 }
 
 #if hscriptPos

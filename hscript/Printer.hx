@@ -105,6 +105,12 @@ class Printer {
 				add("(");
 				type(t);
 				add(")");
+			case CTIntersection(types):
+				for (i => t in types) {
+					type(t);
+					if (i < types.length - 1)
+						add(" & ");
+				}
 		}
 	}
 
@@ -126,7 +132,8 @@ class Printer {
 			add("??NULL??");
 			return;
 		}
-		switch (#if hscriptPos e.e #else e #end) {
+		switch(Tools.expr(e)) {
+			case EIgnore(_):
 			case EImportStar(c):
 				add("import " + c + "*");
 			case EImport(c, n):
@@ -144,7 +151,8 @@ class Printer {
 
 				tabs = tabs.substr(1);
 				add("}");
-			case EIgnore(_):
+			case ERedirect(n, cl):
+				add('typedef $n = $cl');
 			case EConst(c):
 				switch (c) {
 					case CInt(i): add(i);

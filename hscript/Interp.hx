@@ -680,12 +680,28 @@ class Interp {
 		return null;
 	}
 
+	public static var importRedirects:Map<String, String> = new Map();
+	public static function getImportRedirect(className:String):String {
+		return importRedirects.exists(className) ? importRedirects.get(className) : className;
+	}
+
+	public var localImportRedirects:Map<String, String> = new Map();
+	public function getLocalImportRedirect(className:String):String {
+		var className = className;
+		if (importRedirects.exists(className))
+			className = importRedirects.get(className);
+		if (localImportRedirects.exists(className))
+			className = localImportRedirects.get(className);
+		return className;
+	}
+
 	public function expr(e:Expr):Dynamic {
 		#if hscriptPos
 		curExpr = e;
 		var e = e.e;
 		#end
 		switch (e) {
+			case EIgnore(_):
 			case EClass(name, fields, extend, interfaces):
 				if (customClasses.exists(name))
 					error(EAlreadyExistingClass(name));
@@ -742,7 +758,6 @@ class Interp {
 						splitClassName.splice(-2, 1); // Remove the last last item
 						realClassName = splitClassName.join(".");
 
-
 						if (importBlocklist.contains(realClassName)) {
 							error(ECustom("You cannot add a blacklisted import, for class " + realClassName + toSetName));
 							return null;
@@ -767,7 +782,11 @@ class Interp {
 				}
 				return null;
 
-			case EIgnore(_):
+			case ERedirect(n, cln, cl):
+				if(cl != null) {
+					setVar(n, cl);
+				}
+				localImportRedirects.set(n, cln);
 			case EConst(c):
 				return switch (c) {
 					case CInt(v):  v;
