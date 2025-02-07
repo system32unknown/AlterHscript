@@ -1154,7 +1154,7 @@ class Parser {
 				ensureToken(TOp("="));
 				var t = parseType();
 				switch(t) {
-					case CTAnon(_) | CTIntersection(_) | CTFun(_):
+					case CTAnon(_) | CTFun(_):
 						mk(EIgnore(true));
 					case CTPath(path, params):
 						if (params != null && params.length > 1)
@@ -1458,14 +1458,12 @@ class Parser {
 
 	function parseTypeNext(t:CType):CType {
 		var tk = token();
-		var isIntersection = false;
 		switch (tk) {
 			case TOp(op):
-				if (op != "->" && op != "&") {
+				if (op != "->") {
 					push(tk);
 					return t;
 				}
-				isIntersection = op == "&";
 			default:
 				push(tk);
 				return t;
@@ -1476,8 +1474,6 @@ class Parser {
 				args.unshift(t);
 				return t2;
 			default:
-				if (isIntersection)
-					return CTIntersection([t, t2]);
 				return CTFun([t], t2);
 		}
 	}

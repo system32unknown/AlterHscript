@@ -105,12 +105,6 @@ class Printer {
 				add("(");
 				type(t);
 				add(")");
-			case CTIntersection(types):
-				for (i => t in types) {
-					type(t);
-					if (i < types.length - 1)
-						add(" & ");
-				}
 		}
 	}
 

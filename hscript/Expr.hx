@@ -132,7 +132,6 @@ enum CType {
 	CTParent(t:CType);
 	CTOpt(t:CType);
 	CTNamed(n:String, t:CType);
-	CTIntersection(types: Array<CType>);
 }
 
 #if hscriptPos
