@@ -861,11 +861,12 @@ class Interp {
 						null;
 				}
 			case ECall(e, params):
+				var args:Array<Dynamic> = [for(p in params) expr(p)];
 				switch (Tools.expr(e)) {
 					case EField(e, f, s):
-						var obj: Dynamic = expr(e);
+						var obj:Dynamic = expr(e);
 						if (obj == null) {
-							if (s == true) return null;
+							if (s) return null;
 							error(EInvalidAccess(f));
 						}
 						if (f == "bind" && Reflect.isFunction(obj)) {
@@ -898,10 +899,9 @@ class Interp {
 								return Reflect.callMethod(null, obj, actualArgs);
 							});
 						}
-						return fcall(obj, f, [for (p in params) expr(p)]);
+						return fcall(obj, f, args);
 					default:
-						var field = expr(e);
-						return call(null, field, [for (p in params) expr(p)]);
+						return call(null, expr(e), args);
 				}
 			case EIf(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
@@ -1510,10 +1510,10 @@ class Interp {
 			var v = _using.call(o, f, args);
 			if (v != null) return v;
 		}
-		var f = get(o, f);
 		if (_hasScriptObject && o == CustomClassHandler.staticHandler) {
 			return UnsafeReflect.callMethodUnsafe(scriptObject, UnsafeReflect.field(scriptObject, "_HX_SUPER__" + f), args);
 		}
+		var f = get(o, f);
 		if (f == null) {
 			AlterHscript.error('Tried to call null function $f', posInfos());
 			return null;
