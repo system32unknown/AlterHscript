@@ -339,14 +339,8 @@ class Interp {
 							}
 						} else if (__instanceFields.contains('set_$id')) { // setter
 							return UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
-						} else {
-							if (l.depth == 0) setVar(id, v);
-							else warn(ECustom('Cannot reassign final, for constant expression -> $id'));
-						}
-					} else {
-						if (l.depth == 0) setVar(id, v);
-						else warn(ECustom('Cannot reassign final, for constant expression -> $id'));
-					}
+						} else setVar(id, v);
+					} else setVar(id, v);
 				} else {
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
@@ -424,14 +418,8 @@ class Interp {
 							}
 						} else if (__instanceFields.contains('set_$id')) { // setter
 							return UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
-						} else {
-							if (l.depth == 0) setVar(id, v);
-							else warn(ECustom('Cannot reassign final, for constant expression -> $id'));
-						}
-					} else {
-						if (l.depth == 0) setVar(id, v);
-						else warn(ECustom('Cannot reassign final, for constant expression -> $id'));
-					}
+						} else setVar(id, v);
+					} else setVar(id, v);
 				} else {
 					var l = locals.get(id);
 					l.r = v;
