@@ -440,7 +440,6 @@ class Interp {
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
 					var map = getMap(arr);
-
 					v = fop(map.get(index), expr(e2));
 					map.set(index, v);
 				} else {
@@ -852,11 +851,12 @@ class Interp {
 						null;
 				}
 			case ECall(e, params):
+				var args:Array<Dynamic> = [for(p in params) expr(p)];
 				switch (Tools.expr(e)) {
 					case EField(e, f, s):
 						var obj:Dynamic = expr(e);
 						if (obj == null) {
-							if (s == true) return null;
+							if (s) return null;
 							error(EInvalidAccess(f));
 						}
 						if (f == "bind" && Reflect.isFunction(obj)) {
@@ -868,14 +868,14 @@ class Interp {
 							}
 
 							var totalNeeded = 0;
-							var args = [];
+							var _args = [];
 							for (p in params) {
 								switch (Tools.expr(p)) {
 									case EIdent(_):
-										args.push(null);
+										_args.push(null);
 										totalNeeded++;
 									default:
-										args.push(p);
+										_args.push(p);
 								}
 							}
 							var me = this;
@@ -885,14 +885,13 @@ class Interp {
 									error(ECustom("Too few arguments")); // TODO: make it say like "Not enough arguments, expected a:Int"
 
 								var i = 0;
-								var actualArgs = [for (a in args) if (a != null) me.expr(a) else ar[i++]];
+								var actualArgs = [for (a in _args) if (a != null) me.expr(a) else ar[i++]];
 								return Reflect.callMethod(null, obj, actualArgs);
 							});
 						}
-						return fcall(obj, f, [for (p in params) expr(p)]);
+						return fcall(obj, f, args);
 					default:
-						var field = expr(e);
-						return call(null, field, [for (p in params) expr(p)]);
+						return call(null, expr(e), args);
 				}
 			case EIf(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
