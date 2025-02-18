@@ -340,7 +340,9 @@ class Interp {
 						} else if (__instanceFields.contains('set_$id')) { // setter
 							return UnsafeReflect.getProperty(scriptObject, 'set_$id')(v);
 						} else setVar(id, v);
-					} else setVar(id, v);
+					} else {
+						setVar(id, v);
+					}
 				} else {
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
@@ -438,6 +440,7 @@ class Interp {
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
 					var map = getMap(arr);
+
 					v = fop(map.get(index), expr(e2));
 					map.set(index, v);
 				} else {
