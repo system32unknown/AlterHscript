@@ -1501,16 +1501,16 @@ class Interp {
 			var v = _using.call(o, f, args);
 			if (v != null) return v;
 		}
+		var _f = get(o, f);
 		if (_hasScriptObject && o == CustomClassHandler.staticHandler) {
 			return UnsafeReflect.callMethodUnsafe(scriptObject, UnsafeReflect.field(scriptObject, "_HX_SUPER__" + f), args);
 		}
-		var f = get(o, f);
-		if (f == null) {
+		if (_f == null) {
 			AlterHscript.error('Tried to call null function $f', posInfos());
 			return null;
 		}
 
-		return call(o, f, args);
+		return call(o, _f, args);
 	}
 
 	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
