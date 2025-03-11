@@ -30,7 +30,7 @@ package hscript;
 
 import Type.ValueType;
 import alterhscript.AlterHscript;
-import alterhscript.utils.UsingEntry;
+import hscript.utils.UsingEntry;
 import hscript.UnsafeReflect;
 import hscript.Expr;
 import hscript.Tools;
@@ -1137,7 +1137,7 @@ class Interp {
 				for (index => field in fields) {
 					switch (field) {
 						case ESimple(name):
-							Reflect.setField(obj, name, new EnumValue(enumName, name, index, null));
+							Reflect.setField(obj, name, new Tools.EnumValue(enumName, name, index, null));
 						case EConstructor(name, params):
 							var hasOpt = false, minParams = 0;
 							for (p in params)
@@ -1145,7 +1145,7 @@ class Interp {
 									hasOpt = true;
 								else
 									minParams++;
-							var f = function(args:Array<Dynamic>) {
+							var f = function(args: Array<Dynamic>) {
 								if (((args == null) ? 0 : args.length) != params.length) {
 									if (args.length < minParams) {
 										var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
@@ -1168,7 +1168,7 @@ class Interp {
 											args2.push(args[pos++]);
 									args = args2;
 								}
-								return new EnumValue(enumName, name, index, args);
+								return new Tools.EnumValue(enumName, name, index, args);
 							};
 							var f = Reflect.makeVarArgs(f);
 							Reflect.setField(obj, name, f);

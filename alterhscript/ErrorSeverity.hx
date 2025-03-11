@@ -13,7 +13,7 @@ enum ErrorSeverity {
 	FATAL;
 }
 
-class ErrorSeverityTools implements AlterUsingClass {
+class ErrorSeverityTools implements hscript.utils.UsingClass {
 	public static function getPrefix(severity:ErrorSeverity):String {
 		return switch (severity) {
 			case NONE: "";

@@ -2,9 +2,9 @@ package alterhscript;
 
 import haxe.ds.StringMap;
 import hscript.*;
+import hscript.utils.UsingEntry;
 import alterhscript.ErrorSeverity;
 import alterhscript.AlterConfig;
-import alterhscript.utils.UsingEntry;
 import haxe.CallStack;
 import haxe.PosInfos;
 

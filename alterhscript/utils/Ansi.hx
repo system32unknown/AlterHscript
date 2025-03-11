@@ -67,7 +67,7 @@ abstract AnsiTextAttribute(Int) {
 	final STRIKTHROUGH_OFF:AnsiTextAttribute = 29;
 }
 
-class Ansi implements AlterUsingClass {
+class Ansi implements hscript.utils.UsingClass {
 	/**
 	 * ANSI escape sequence header
 	 */
