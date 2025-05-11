@@ -668,7 +668,7 @@ class Interp {
 				return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
 			}
 		}
-		var cl:Class<Dynamic> = Type.resolveClass(id); // now you can do this thing: var a:haxe.io.Path = new haxe.io.Path();  yee
+		var cl:Class<Dynamic> = Type.resolveClass(id); // now you can do this thing: var a:haxe.io.Path = new haxe.io.Path();
 		if (cl == null) cl = Type.resolveClass('${id}_HSC');
 		if (cl != null) {
 			variables.set(id, cl);

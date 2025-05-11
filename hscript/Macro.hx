@@ -52,7 +52,7 @@ class Macro {
 			var op = Type.createEnum(Binop, c);
 			var assign = false;
 			var str = switch (op) {
-				case OpAdd: assign = true;  "+";
+				case OpAdd: assign = true; "+";
 				case OpMult: assign = true; "*";
 				case OpDiv: assign = true; "/";
 				case OpSub: assign = true; "-";

@@ -5,8 +5,8 @@ import StringTools;
 import Lambda;
 
 class UsingHandler {
-    public static var usingEntries:Array<UsingEntry> = [
-        new UsingEntry("StringTools", function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+	public static var usingEntries:Array<UsingEntry> = [
+		new UsingEntry("StringTools", function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			if (f == "isEof") // has @:noUsing
 				return null;
 			switch (Type.typeof(o)) {
@@ -23,7 +23,7 @@ class UsingHandler {
 			}
 			return null;
 		}),
-		new UsingEntry("Lambda", function(o: Dynamic, f: String, args: Array<Dynamic>): Dynamic {
+		new UsingEntry("Lambda", function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			if (Tools.isIterable(o)) {
 				// TODO: Check if the values are Iterable<T>
 				if (Reflect.hasField(Lambda, f)) {
@@ -35,9 +35,9 @@ class UsingHandler {
 			}
 			return null;
 		}),
-    ];
+	];
 
-    public static function registerUsingGlobal(name: String, call:UsingCall):UsingEntry {
+	public static function registerUsingGlobal(name:String, call:UsingCall):UsingEntry {
 		var entry = new UsingEntry(name, call);
 		usingEntries.push(entry);
 		return entry;

@@ -296,9 +296,9 @@ class ClassExtendMacro {
 		var hgetField = if (hasHgetInSuper) {
 			macro {
 				if (__allowSetGet && __custom__variables.exists("get_" + name))
-				    return __callGetter(name);
+					return __callGetter(name);
 				if (__custom__variables.exists(name))
-				    return __custom__variables.get(name);
+					return __custom__variables.get(name);
 				return super.hget(name);
 			}
 		}

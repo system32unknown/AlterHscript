@@ -188,9 +188,9 @@ class AlterHscript {
 	 * ```
 	 *
 	 * will trace "Hello World!" to the standard output.
-	 * @param scriptCode      the script to be parsed, e.g:
+	 * @param scriptCode the script to be parsed, e.g:
 	 */
-    public function new(scriptCode:String, ?config:AutoAlterConfig):Void {
+	public function new(scriptCode:String, ?config:AutoAlterConfig):Void {
 		if (config == null) config = new AlterConfig("AlterHscript", true, true, []);
 		this.scriptCode = scriptCode;
 		this.config = AlterConfig.from(config);
@@ -205,7 +205,7 @@ class AlterHscript {
 	
 		if (this.config.autoPreset) preset(); // set variables to the interpreter.
 		if (this.config.autoRun) execute(); // run the script.
-    }
+	}
 
 	static function fixScriptName(toFix:String):String {
 		// make sure to never have an indentically named instance.

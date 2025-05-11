@@ -568,15 +568,21 @@ class Parser {
 			case TBkOpen:
 				var a = [];
 				tk = token();
+				var first:Bool = true;
 				while (tk != TBkClose && (!resumeErrors || tk != TEof)) {
+					if(!first) {
+						if(tk != TComma)
+							unexpected(tk);
+						else 
+							tk = token();
+					}
+					first = false;
 					push(tk);
 					var oldoo = disableOrOp;
 					disableOrOp = false;
 					a.push(parseExpr());
 					disableOrOp = oldoo;
 					tk = token();
-					if (tk == TComma)
-						tk = token();
 				}
 				if (a.length == 1 && a[0] != null) // What is this for???
 					switch (expr(a[0])) {
@@ -1866,6 +1872,8 @@ class Parser {
 								}
 								if (pow == null)
 									invalidChar(char);
+								if (exp == 0)
+									exp = 10;
 								return TConst(CFloat((Math.pow(10, pow) / exp) * n * 10));
 							case ".".code:
 								if (exp > 0) {
