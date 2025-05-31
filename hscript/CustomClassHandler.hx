@@ -4,6 +4,7 @@ import hscript.Interp.DeclaredVar;
 import hscript.utils.UnsafeReflect;
 using StringTools;
 
+// BIG TODO: revamp this
 class CustomClassHandler implements IHScriptCustomConstructor {
 	public static var staticHandler = new StaticHandler();
 
@@ -153,7 +154,7 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 	}
 }
 
-class CustomTemplateClass implements IHScriptCustomClassBehaviour implements IHScriptCustomAccessBehaviour {
+class CustomTemplateClass implements IHScriptCustomClassBehaviour {
 	public var __interp:Interp;
 	public var __allowSetGet:Bool = true;
 	public var __custom__variables:Map<String, Dynamic>;
