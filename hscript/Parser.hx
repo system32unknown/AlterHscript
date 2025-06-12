@@ -97,6 +97,8 @@ class Parser {
 
 	var disableOrOp : Bool = false;
 
+	var isVar : Bool = false;
+
 	#if hscriptPos
 	var origin : String;
 	var tokenMin : Int;
@@ -827,7 +829,40 @@ class Parser {
 				}
 			}
 			var ident = getIdent();
+			var get = ADefault, set = ADefault;
+			var hasGetSet:Bool = false;
+
 			var tk = token();
+			if( tk == TPOpen) {
+				if( id == "final" )
+					unexpected(tk);
+
+				var getId = getIdent();
+				switch (getId) {
+					case 'default': // Do nothing
+					case 'get': get = AGet;
+					case 'null': get = ANull;
+					case 'dynamic': get = ADynamic;
+					case 'never': get = ANever;
+					default: error(ECustom("Custom property accessor is not supported"), p1, tokenMax);
+				}
+				ensure(TComma);
+				var setId = getIdent();
+				switch (setId) {
+					case 'default': // Do nothing
+					case 'set': set = ASet;
+					case 'null': set = ANull;
+					case 'dynamic': set = ADynamic;
+					case 'never': set = ANever;
+					default: error(ECustom("Custom property accessor is not supported"), p1, tokenMax);
+				}
+				ensure(TPClose);
+
+				hasGetSet = true;
+
+				tk = token();
+			}
+
 			var t = null;
 			nextType = null;
 			if( tk == TDoubleDot && allowTypes ) {
@@ -841,8 +876,12 @@ class Parser {
 				e = parseExpr();
 			else
 				push(tk);
+
+			if(hasGetSet)
+				checkAccess(get, set, e, t);
+
 			nextType = null;
-			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline), p1, (e == null) ? tokenMax : pmax(e));
+			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline, get, set), p1, (e == null) ? tokenMax : pmax(e));
 		case "while":
 			var econd = parseExpr();
 			var e = parseExpr();
@@ -1446,6 +1485,24 @@ class Parser {
 			}
 		}
 		return args;
+	}
+
+	function checkAccess(get:FieldPropertyAccess, set:FieldPropertyAccess, ?expr:Expr, ?type:CType) {
+		#if hscriptPos
+		var p1 = tokenMin;
+		#end
+		switch([get, set]) {
+			case [AGet, ASet] | [AGet, ANever] | [ANever, ASet]:
+				if(expr != null && !isVar)
+					error(ECustom("Attempt to assign on field that is not a real variable"), p1, pmax(expr));
+				else if(type == null)
+					error(ECustom("Property requires type-hint"), p1, tokenMax);
+			case [ANever, ANever]:
+				error(ECustom("Unsupported property combination"), p1, (expr == null) ? tokenMax : pmax(expr));
+			default:
+				if(expr == null && type == null)
+					error(ECustom("Property requires type-hint or initialization"), p1, tokenMax);
+		}
 	}
 
 	// ------------------------ module -------------------------------

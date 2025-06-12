@@ -252,16 +252,7 @@ class Interp {
 						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
-						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
-							var obj:IHScriptCustomClassBehaviour = cast scriptObject;
-							if(isBypassAccessor) {
-								obj.__allowSetGet = false;
-								var res = obj.hset(id, v);
-								obj.__allowSetGet = true;
-								return res;
-							}
-							return obj.hset(id, v);
-						} else if(_scriptObjectType == SAccessBehaviourObject) {
+						} else if((_scriptObjectType == SCustomClass && instanceHasField) || _scriptObjectType == SAccessBehaviourObject) {
 							var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
 							if(isBypassAccessor) {
 								obj.__allowSetGet = false;
@@ -336,16 +327,7 @@ class Interp {
 						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
-						} else if (_scriptObjectType == SCustomClass && instanceHasField) {
-							var obj:IHScriptCustomClassBehaviour = cast scriptObject;
-							if(isBypassAccessor) {
-								obj.__allowSetGet = false;
-								var res = obj.hset(id, v);
-								obj.__allowSetGet = true;
-								return res;
-							}
-							return obj.hset(id, v);
-						} else if(_scriptObjectType == SAccessBehaviourObject) {
+						} else if((_scriptObjectType == SCustomClass && instanceHasField) || _scriptObjectType == SAccessBehaviourObject) {
 							var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
 							if(isBypassAccessor) {
 								obj.__allowSetGet = false;
@@ -580,16 +562,7 @@ class Interp {
 
 			if (_scriptObjectType == SObject && instanceHasField) {
 				return UnsafeReflect.field(scriptObject, id);
-			} else if(_scriptObjectType == SCustomClass && instanceHasField) {
-				var obj:IHScriptCustomClassBehaviour = cast scriptObject;
-				if(isBypassAccessor) {
-					obj.__allowSetGet = false;
-					var res = obj.hget(id);
-					obj.__allowSetGet = true;
-					return res;
-				}
-				return obj.hget(id);
-			} else if(_scriptObjectType == SAccessBehaviourObject) {
+			} else if((_scriptObjectType == SCustomClass && instanceHasField) || _scriptObjectType == SAccessBehaviourObject) {
 				var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
 				if(isBypassAccessor) {
 					obj.__allowSetGet = false;
@@ -730,9 +703,18 @@ class Interp {
 				}
 			case EIdent(id):
 				return resolve(id);
-			case EVar(n, _, e, isPublic, isStatic):
+			case EVar(n, _, e, isPublic, isStatic, _, isFinal, _, getter, setter):
+				var hasGetSet:Bool = (getter != null || setter != null);
+				if(depth > 0 && hasGetSet) {
+					error(ECustom("Property Accessor for local variables is not allowed"));
+					return null;
+				}
 				declared.push({n: n, old: locals.get(n), depth: depth});
-				locals.set(n, {r: (e == null) ? null : expr(e), depth: depth});
+				var declVar:DeclaredVar = {
+					r: (e == null) ? null : expr(e),
+					depth: depth
+				};
+				locals.set(n, declVar);
 				if (depth == 0) {
 					if(allowStaticVariables && isStatic == true) {
 						if(!staticVariables.exists(n)) // make it so it only sets it once
@@ -1202,18 +1184,7 @@ class Interp {
 		}) {
 			return _getRedirect(o, f);
 		}
-
-		if(o is IHScriptCustomClassBehaviour) {
-			var obj:IHScriptCustomClassBehaviour = cast o;
-			if(isBypassAccessor) {
-				obj.__allowSetGet = false;
-				var res = obj.hget(f);
-				obj.__allowSetGet = true;
-				return res;
-			}
-			return obj.hget(f);
-		}
-
+		
 		if (o is IHScriptCustomAccessBehaviour) {
 			var obj:IHScriptCustomAccessBehaviour = cast o;
 			if(isBypassAccessor) {
@@ -1251,18 +1222,7 @@ class Interp {
 			cl != null && setRedirects.exists(cl) && (_setRedirect = setRedirects[cl]) != null;
 		})
 			return _setRedirect(o, f, v);
-
-		if(o is IHScriptCustomClassBehaviour) {
-			var obj:IHScriptCustomClassBehaviour = cast o;
-			if(isBypassAccessor) {
-				obj.__allowSetGet = false;
-				var res = obj.hset(f, v);
-				obj.__allowSetGet = true;
-				return res;
-			}
-			return obj.hset(f, v);
-		}
-
+		
 		if (o is IHScriptCustomAccessBehaviour) {
 			var obj:IHScriptCustomAccessBehaviour = cast o;
 			if(isBypassAccessor) {

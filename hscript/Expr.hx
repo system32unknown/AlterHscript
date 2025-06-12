@@ -53,7 +53,7 @@ enum Expr {
 #end
 	EConst( c : Const );
 	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool );
+	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool, ?get : FieldPropertyAccess, ?set : FieldPropertyAccess );
 	EParent( e : Expr );
 	EBlock( e : Array<Expr> );
 	EField( e : Expr, f : String , ?safe : Bool );
@@ -196,6 +196,15 @@ enum abstract FieldAccess(UInt8) {
 	var AOverride;
 	var AStatic;
 	var AMacro;
+}
+
+enum abstract FieldPropertyAccess(UInt8) {
+	var ADefault;
+	var ANull;
+	var AGet;
+	var ASet;
+	var ADynamic;
+	var ANever;
 }
 
 enum FieldKind {
