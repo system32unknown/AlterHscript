@@ -1502,6 +1502,8 @@ class Parser {
 		}
 		switch([get, set]) {
 			case [AGet, ASet] | [AGet, ANever] | [ANever, ASet]:
+				if(isVar && (expr == null && type == null)) 
+					error(ECustom('Property requires type-hint or initialization'), p1, pmax(expr));
 				if(expr != null && !isVar)
 					error(ECustom("Attempt to assign on field that is not a real variable"), p1, pmax(expr));
 				else if(type == null && !isVar)
