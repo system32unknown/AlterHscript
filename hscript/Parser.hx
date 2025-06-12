@@ -1496,12 +1496,12 @@ class Parser {
 				if(expr != null && !isVar)
 					error(ECustom("Attempt to assign on field that is not a real variable"), p1, pmax(expr));
 				else if(type == null)
-					error(ECustom("Property requires type-hint"), p1, tokenMax);
+					error(ECustom('Property requires type-hint${(!allowTypes) ? '. "allowTypes" must be enabled' : ''}'), p1, tokenMax);
 			case [ANever, ANever]:
 				error(ECustom("Unsupported property combination"), p1, (expr == null) ? tokenMax : pmax(expr));
 			default:
 				if(expr == null && type == null)
-					error(ECustom("Property requires type-hint or initialization"), p1, tokenMax);
+					error(ECustom('Property requires ${(allowTypes) ? 'type-hint or' : ''} initialization'), p1, tokenMax);
 		}
 	}
 
