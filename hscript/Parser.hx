@@ -489,14 +489,10 @@ class Parser {
 				}
 			return parseExprNext(mk(EArrayDecl(a, nextType), p1));
 		case TMeta(id) if( allowMetadata ):
+			if(id == ':isVar') isVar = true;
 			var args = parseMetaArgs();
 			var e = parseExpr();
-			if(id == ':isVar') {
-				isVar = switch(Tools.expr(e)) {
-					case EVar(_): true;
-					default: false;
-				}
-			}
+			isVar = false;
 			return mk(EMeta(id, args, e),p1);
 		default:
 			return unexpected(tk);
@@ -1508,7 +1504,7 @@ class Parser {
 			case [AGet, ASet] | [AGet, ANever] | [ANever, ASet]:
 				if(expr != null && !isVar)
 					error(ECustom("Attempt to assign on field that is not a real variable"), p1, pmax(expr));
-				else if(type == null)
+				else if(type == null && !isVar)
 					error(ECustom('Property requires type-hint'), p1, tokenMax);
 			case [ANever, ANever]:
 				error(ECustom("Unsupported property combination"), p1, (expr == null) ? tokenMax : pmax(expr));
