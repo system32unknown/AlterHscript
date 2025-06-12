@@ -703,7 +703,7 @@ class Interp {
 				}
 			case EIdent(id):
 				return resolve(id);
-			case EVar(n, _, e, isPublic, isStatic, _, isFinal, _, getter, setter):
+			case EVar(n, _, e, isPublic, isStatic, _, isFinal, _, getter, setter, isVar):
 				var hasGetSet:Bool = (getter != null || setter != null);
 				if(depth > 0 && hasGetSet) {
 					error(ECustom("Property Accessor for local variables is not allowed"));

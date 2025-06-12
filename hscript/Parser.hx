@@ -490,7 +490,14 @@ class Parser {
 			return parseExprNext(mk(EArrayDecl(a, nextType), p1));
 		case TMeta(id) if( allowMetadata ):
 			var args = parseMetaArgs();
-			return mk(EMeta(id, args, parseExpr()),p1);
+			var e = parseExpr();
+			if(id == ':isVar') {
+				isVar = switch(e) {
+					case EVar(_): true;
+					default: false;
+				}
+			}
+			return mk(EMeta(id, args, e),p1);
 		default:
 			return unexpected(tk);
 		}
@@ -831,6 +838,7 @@ class Parser {
 			var ident = getIdent();
 			var get = ADefault, set = ADefault;
 			var hasGetSet:Bool = false;
+			var oldIsVar:Bool = isVar;
 
 			var tk = token();
 			if( tk == TPOpen) {
@@ -881,7 +889,8 @@ class Parser {
 				checkAccess(get, set, e, t);
 
 			nextType = null;
-			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline, get, set), p1, (e == null) ? tokenMax : pmax(e));
+			if(isVar) isVar = false;
+			mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline, get, set, oldIsVar), p1, (e == null) ? tokenMax : pmax(e));
 		case "while":
 			var econd = parseExpr();
 			var e = parseExpr();
@@ -1491,17 +1500,21 @@ class Parser {
 		#if hscriptPos
 		var p1 = tokenMin;
 		#end
+		if(!allowTypes) {
+			error(ECustom('"allowTypes" must be enabled for Property fields'), p1, pmax(expr));
+			return;
+		}
 		switch([get, set]) {
 			case [AGet, ASet] | [AGet, ANever] | [ANever, ASet]:
 				if(expr != null && !isVar)
 					error(ECustom("Attempt to assign on field that is not a real variable"), p1, pmax(expr));
 				else if(type == null)
-					error(ECustom('Property requires type-hint${(!allowTypes) ? '. "allowTypes" must be enabled' : ''}'), p1, tokenMax);
+					error(ECustom('Property requires type-hint'), p1, tokenMax);
 			case [ANever, ANever]:
 				error(ECustom("Unsupported property combination"), p1, (expr == null) ? tokenMax : pmax(expr));
 			default:
 				if(expr == null && type == null)
-					error(ECustom('Property requires ${(allowTypes) ? 'type-hint or' : ''} initialization'), p1, tokenMax);
+					error(ECustom('Property requires type-hint or initialization'), p1, tokenMax);
 		}
 	}
 

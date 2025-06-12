@@ -53,7 +53,7 @@ enum Expr {
 #end
 	EConst( c : Const );
 	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool, ?get : FieldPropertyAccess, ?set : FieldPropertyAccess );
+	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool, ?get : FieldPropertyAccess, ?set : FieldPropertyAccess, ?isVar:Bool );
 	EParent( e : Expr );
 	EBlock( e : Array<Expr> );
 	EField( e : Expr, f : String , ?safe : Bool );
