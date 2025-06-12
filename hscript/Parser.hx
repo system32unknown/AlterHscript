@@ -492,7 +492,7 @@ class Parser {
 			var args = parseMetaArgs();
 			var e = parseExpr();
 			if(id == ':isVar') {
-				isVar = switch(e) {
+				isVar = switch(Tools.expr(e)) {
 					case EVar(_): true;
 					default: false;
 				}
