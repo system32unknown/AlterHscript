@@ -592,6 +592,12 @@ class Interp {
 			return null;
 		id = StringTools.trim(id);
 
+		if(inCustomClass && id == 'super') {
+			var customClass:IHScriptCustomClassBehaviour = cast scriptObject;
+			var superClass = customClass.hget('superClass');
+			return superClass == null ? customClass.hget('superConstructor') : superClass;
+		}
+
 		if (locals.exists(id)) {
 			var l = locals.get(id);
 			if(l != null) {

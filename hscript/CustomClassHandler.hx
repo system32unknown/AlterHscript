@@ -8,18 +8,21 @@ using StringTools;
 /**
  * Provides handlers for static custom class fields and instantiation.
  */
-class CustomClassHandler implements IHScriptCustomConstructor {
+class CustomClassHandler implements IHScriptCustomConstructor implements IHScriptCustomBehaviour{
 	public static var staticHandler = new StaticHandler();
+
+	public var __allowSetGet:Bool = true;
 
 	public var ogInterp:Interp;
 	public var name:String;
 	public var fields:Array<Expr>;
-	public var extend:String;
+	public var extend:Null<String>;
 	public var interfaces:Array<String>;
 
-	public var cl:Class<Dynamic>;
+	public var cl:Dynamic;
 
 	private var staticInterp:Interp;
+	private var staticFields:Array<String>;
 
 	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>) {
 		this.ogInterp = ogInterp;
@@ -28,17 +31,55 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		this.extend = extend;
 		this.interfaces = interfaces;
 
-		this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
-		if(cl == null)
-			ogInterp.error(EInvalidClass(extend));
+		if(extend != null) {
+			if(ogInterp.customClasses.exists(extend))
+				this.cl = ogInterp.customClasses.get(extend);
+			else 
+				this.cl = Type.resolveClass('${extend}_HSX');
+		}
+		//this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
+		//if(cl == null)
+		//	ogInterp.error(EInvalidClass(extend));
 
+		initStatic();
+	}
+
+	@:access(hscript.Interp)
+	function initStatic() {
 		staticInterp = new Interp();
 		staticInterp.errorHandler = ogInterp.errorHandler;
+		staticInterp.importFailedCallback = ogInterp.importFailedCallback;
+
+		staticInterp.variables = ogInterp.variables;
+		staticInterp.allowPublicVariables = ogInterp.allowPublicVariables;
+		staticInterp.publicVariables = ogInterp.publicVariables;
+		staticInterp.allowStaticVariables = ogInterp.allowStaticVariables;
+		staticInterp.staticVariables = ogInterp.staticVariables;
+
+		// TODO: optimize this
+		for(ex in fields) {
+			switch (Tools.expr(ex)) {
+				case EVar(n, _, _, _, isStatic, _, _, _, _, _, _):
+					if(isStatic) {
+						staticInterp.exprReturn(ex);
+						staticFields.push(n);
+						fields.remove(ex);
+					}
+				case EFunction(_, _, n, _, _, isStatic, _, _, _, _):
+					if(isStatic) {
+						staticInterp.exprReturn(ex);
+						staticFields.push(n);
+						fields.remove(ex);
+					}
+				default:
+			}
+		}
 	}
 
 	public function hnew(args:Array<Dynamic>):Dynamic {
 		// TODO: clean this up, it sucks, i hate it
 		// TODO: make static vars work correctly
+		/*
 		var interp = new Interp();
 
 		interp.errorHandler = ogInterp.errorHandler;
@@ -152,9 +193,27 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 				}
 			}
 		}
-
+		*/
+		
+		var _class = new CustomClass(this, args);
 
 		return _class;
+	}
+
+	public function hget(name:String):Dynamic {
+		return null;
+	}
+
+	public function hset(name:String, val:Dynamic):Dynamic {
+		return null;
+	}
+
+	public function __callGetter(name:String):Dynamic {
+		return null;
+	}
+
+	public function __callSetter(name:String, val:Dynamic):Dynamic {
+		return null;
 	}
 
 	public function toString():String {
