@@ -5,6 +5,9 @@ import hscript.utils.UnsafeReflect;
 using StringTools;
 
 // BIG TODO: revamp this
+/**
+ * Provides handlers for static custom class fields and instantiation.
+ */
 class CustomClassHandler implements IHScriptCustomConstructor {
 	public static var staticHandler = new StaticHandler();
 
@@ -16,6 +19,8 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 
 	public var cl:Class<Dynamic>;
 
+	private var staticInterp:Interp;
+
 	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>) {
 		this.ogInterp = ogInterp;
 		this.name = name;
@@ -26,6 +31,9 @@ class CustomClassHandler implements IHScriptCustomConstructor {
 		this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
 		if(cl == null)
 			ogInterp.error(EInvalidClass(extend));
+
+		staticInterp = new Interp();
+		staticInterp.errorHandler = ogInterp.errorHandler;
 	}
 
 	public function hnew(args:Array<Dynamic>):Dynamic {

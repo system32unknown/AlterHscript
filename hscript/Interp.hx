@@ -67,9 +67,15 @@ class RedeclaredVar {
 
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
-	public var scriptObject(default, set):Dynamic;
-	private var _hasScriptObject(default, null):Bool = false;
+	private var hasScriptObject(get, never):Bool;
+	private function get_hasScriptObject():Bool 
+		return scriptObject != null;
+
 	private var _scriptObjectType(default, null):ScriptObjectType = SNull;
+
+	var __instanceFields:Array<String> = [];
+
+	public var scriptObject(default, set):Dynamic;
 	public function set_scriptObject(v:Dynamic) {
 		switch(Type.typeof(v)) {
 			case TClass(c): // Class Access
@@ -101,13 +107,17 @@ class Interp {
 				__instanceFields = [];
 				_scriptObjectType = SNull;
 		}
-		_hasScriptObject = v != null;
 		return scriptObject = v;
 	}
+
+	var inCustomClass(get, never):Bool;
+	private function get_inCustomClass():Bool
+		return hasScriptObject && _scriptObjectType == SCustomClass;
+
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
 
-	public var customClasses:Map<String, CustomClassHandler>;
+	public var customClasses:Map<String, CustomClassHandler>; // make this static ???
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
@@ -128,11 +138,11 @@ class Interp {
 	public var allowStaticVariables:Bool = false;
 	public var allowPublicVariables:Bool = false;
 
+	// TODO: move this to an external class
 	public var importBlocklist:Array<String> = [
 		// "flixel.FlxG"
 	];
 
-	var __instanceFields:Array<String> = [];
 	#if hscriptPos
 	var curExpr:Expr;
 	#end
@@ -149,6 +159,7 @@ class Interp {
 		variables = new Map<String, Dynamic>();
 		publicVariables = new Map<String, Dynamic>();
 		staticVariables = new Map<String, Dynamic>();
+		
 		variables.set("null", null);
 		variables.set("true", true);
 		variables.set("false", false);
@@ -246,7 +257,7 @@ class Interp {
 			case EIdent(id):
 				var l = locals.get(id);
 				if (l == null) {
-					if (_hasScriptObject && !varExists(id)) {
+					if (hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
 
 						if (_scriptObjectType == SObject && instanceHasField) {
@@ -329,7 +340,7 @@ class Interp {
 				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
 				if (l == null) {
-					if(_hasScriptObject && !varExists(id)) {
+					if(hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
 
 						if (_scriptObjectType == SObject && instanceHasField) {
@@ -610,7 +621,7 @@ class Interp {
 		if(customClasses.exists(id))
 			return customClasses.get(id);
 
-		if (_hasScriptObject) {
+		if (hasScriptObject) {
 			// search in object
 			if (id == "this") {
 				return scriptObject;
@@ -1316,7 +1327,7 @@ class Interp {
 	}
 
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-		if(_hasScriptObject && o == CustomClassHandler.staticHandler) {
+		if(hasScriptObject && o == CustomClassHandler.staticHandler) {
 			return UnsafeReflect.callMethodUnsafe(scriptObject, UnsafeReflect.field(scriptObject, "_HX_SUPER__" + f), args);
 		}
 		return call(o, get(o, f), args);
@@ -1333,11 +1344,10 @@ class Interp {
 		var c:Dynamic = resolve(cl);
 		if (c == null)
 			c = Type.resolveClass(cl);
-		if(c is IHScriptCustomConstructor) {
+		if (c is IHScriptCustomConstructor) {
 			var c:IHScriptCustomConstructor = cast c;
 			return c.hnew(args);
-		} else {
+		} else
 			return Type.createInstance(c, args);
-		}
 	}
 }
