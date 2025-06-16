@@ -107,7 +107,7 @@ class Interp {
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
 
-	public var customClasses:Map<String, Dynamic>;
+	public var customClasses:Map<String, CustomClassHandler>;
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
@@ -145,7 +145,7 @@ class Interp {
 	}
 
 	private function resetVariables():Void {
-		customClasses = new Map<String, Dynamic>();
+		customClasses = new Map<String, CustomClassHandler>();
 		variables = new Map<String, Dynamic>();
 		publicVariables = new Map<String, Dynamic>();
 		staticVariables = new Map<String, Dynamic>();
@@ -281,8 +281,16 @@ class Interp {
 							setVar(id, v);
 						}
 					} else {
+						var obj = resolve(id, false, false);
+						if (obj != null && obj is Property) {
+							var prop:Property = cast obj;
+							return prop.callSetter(id, v);
+						}
 						setVar(id, v);
 					}
+				} else if (l.r is Property) {
+					var prop:Property = cast l.r;
+					return prop.callSetter(id, v);
 				} else {
 					l.r = v;
 					if (l.depth == 0) {
@@ -356,11 +364,20 @@ class Interp {
 							setVar(id, v);
 						}
 					} else {
+						var obj = resolve(id, true, false);
+						if (obj != null && obj is Property) {
+							var prop:Property = cast obj;
+							return prop.callSetter(id, v);
+						}
 						setVar(id, v);
 					}
 				}
 				else {
 					var l = locals.get(id);
+					if (l.r is Property) {
+						var prop:Property = cast l.r;
+						return prop.callSetter(id, v);
+					}
 					l.r = v;
 					if (l.depth == 0) {
 						setVar(id, v);
@@ -399,19 +416,45 @@ class Interp {
 				var l = locals.get(id);
 				if(l != null) {
 					var v:Dynamic = l.r;
+					var prop:Property = null;
+					if (v is Property) {
+						prop = cast v;
+						v = prop.callGetter(id);
+					}
+
 					if (prefix) {
 						v += delta;
-						l.r = v;
-					} else
-						l.r = v + delta;
+						if (prop != null)
+							prop.callSetter(id, v);
+						else
+							l.r = v;
+					} else {
+						if (prop != null)
+							prop.callSetter(id, v + delta);
+						else
+							l.r = v + delta;
+					}
 					return v;
 				} else {
-					var v:Dynamic = resolve(id);
+					var v:Dynamic = resolve(id, true, false);
+					var prop:Property = null;
+					if (v is Property) {
+						prop = cast v;
+						v = prop.callGetter(id);
+					}
+
 					if (prefix) {
 						v += delta;
-						setVar(id, v);
-					} else
-						setVar(id, v + delta);
+						if (prop != null)
+							prop.callSetter(id, v);
+						else
+							setVar(id, v);
+					} else {
+						if (prop != null)
+							prop.callSetter(id, v + delta);
+						else
+							setVar(id, v + delta);
+					}
 					return v;
 				}
 			case EField(e, f, s):
@@ -533,23 +576,37 @@ class Interp {
 		#end
 	}
 
-	public function resolve(id:String, doException:Bool = true):Dynamic {
+	public function resolve(id:String, doException:Bool = true, getProperty:Bool = true):Dynamic {
 		if (id == null)
 			return null;
 		id = StringTools.trim(id);
 
 		if (locals.exists(id)) {
 			var l = locals.get(id);
-			if(l != null)
-				return l.r;
+			if(l != null) {
+				if(l.r != null && l.r is Property && getProperty)  
+					return cast(l.r, Property).callGetter(id);
+				else 
+					return l.r;
+			}
 		}
 
+		var r:Dynamic = null;
+
 		if(variables.exists(id))
-			return variables.get(id);
-		if(publicVariables.exists(id))
-			return publicVariables.get(id);
-		if(staticVariables.exists(id))
-			return staticVariables.get(id);
+			r = variables.get(id);
+		else if(publicVariables.exists(id))
+			r = publicVariables.get(id);
+		else if(staticVariables.exists(id))
+			r = staticVariables.get(id);
+		
+		if(r != null) {
+			if(r is Property && getProperty)
+				return cast(r, Property).callGetter(id);
+			else 
+				return r;
+		}
+
 		if(customClasses.exists(id))
 			return customClasses.get(id);
 
@@ -710,8 +767,19 @@ class Interp {
 					return null;
 				}
 				declared.push({n: n, old: locals.get(n), depth: depth});
+				var r:Dynamic = (e == null) ? null : expr(e);
+				var declProp:Property = null;
+				if (hasGetSet) {
+					declProp = {
+						r: r,
+						getter: getter,
+						setter: setter,
+						isVar: isVar,
+						interp: this,
+					}
+				}
 				var declVar:DeclaredVar = {
-					r: (e == null) ? null : expr(e),
+					r: (declProp == null) ? r : declProp,
 					depth: depth
 				};
 				locals.set(n, declVar);

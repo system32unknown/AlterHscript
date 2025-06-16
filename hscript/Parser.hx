@@ -832,7 +832,8 @@ class Parser {
 				}
 			}
 			var ident = getIdent();
-			var get = ADefault, set = ADefault;
+			var get:Null<FieldPropertyAccess> = null;
+			var set:Null<FieldPropertyAccess> = null;
 			var hasGetSet:Bool = false;
 			var oldIsVar:Bool = isVar;
 
@@ -843,7 +844,7 @@ class Parser {
 
 				var getId = getIdent();
 				switch (getId) {
-					case 'default': // Do nothing
+					case 'default': get = ADefault;
 					case 'get': get = AGet;
 					case 'null': get = ANull;
 					case 'dynamic': get = ADynamic;
@@ -853,7 +854,7 @@ class Parser {
 				ensure(TComma);
 				var setId = getIdent();
 				switch (setId) {
-					case 'default': // Do nothing
+					case 'default': set = ADefault;
 					case 'set': set = ASet;
 					case 'null': set = ANull;
 					case 'dynamic': set = ADynamic;
