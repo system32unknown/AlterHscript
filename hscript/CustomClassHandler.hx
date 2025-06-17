@@ -205,6 +205,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		return _class;
 	}
 
+	@:allow(hscript.Interp)
 	function hasField(name:String) {
         return staticFields.contains(name);
     }
