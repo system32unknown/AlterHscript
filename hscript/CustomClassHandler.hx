@@ -23,7 +23,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 	public var cl:Dynamic;
 
 	private var staticInterp:Interp;
-	private var staticFields:Array<String>;
+	private var staticFields:Array<String> = [];
 
 	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>) {
 		this.ogInterp = ogInterp;
@@ -200,9 +200,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		*/
 		
 		// I can't believe all these lines of code above got reduced to this sentence.
-		var _class = new CustomClass(this, args);
-
-		return _class;
+		return new CustomClass(this, args);
 	}
 
 	@:allow(hscript.Interp)

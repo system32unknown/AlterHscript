@@ -1280,13 +1280,6 @@ class Interp {
 		if (o == null)
 			error(EInvalidAccess(f));
 
-		if(o is CustomClass) {
-			if(cast(o, CustomClass).__class.hasField(f)) { 
-				var clsName = cast(o, CustomClass).className;
-				error(ECustom('The field ${clsName}.${f} should be accessed in a static way.'));
-			}
-		}
-
 		var cls = Type.getClass(o);
 		if (useRedirects && {
 			var cl:Null<String> = getClassType(o, cls);
@@ -1326,13 +1319,6 @@ class Interp {
 	function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
-
-		if(o is CustomClass) {
-			if(cast(o, CustomClass).__class.hasField(f)) { 
-				var clsName = cast(o, CustomClass).className;
-				error(ECustom('The field ${clsName}.${f} should be accessed in a static way.'));
-			}
-		}
 
 		if (useRedirects && {
 			var cl:Null<String> = getClassType(o);

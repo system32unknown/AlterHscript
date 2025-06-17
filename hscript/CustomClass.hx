@@ -33,14 +33,14 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	var __constructor:Function;
 	var fields:Array<Expr>;
 
-	public function new(__class:CustomClassHandler, args:Array<Dynamic>) {
+	public function new(__class:CustomClassHandler, ?args:Array<Dynamic>) {
 		this.__class = __class;
 
 		__interp = new Interp();
 		__interp.errorHandler = __class.staticInterp.errorHandler;
 		__interp.importFailedCallback = __class.staticInterp.importFailedCallback;
 
-		__interp.variables = __class.staticInterp.variables; // This will access to static fields
+		// __interp.variables = __class.staticInterp.variables;
 		__interp.publicVariables = __class.ogInterp.publicVariables;
 		__interp.staticVariables = __class.ogInterp.staticVariables;
 
@@ -54,6 +54,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 				default:
 			}
 			@:privateAccess __interp.exprReturn(f);
+		}
+
+		for (f => v in __class.staticInterp.variables) {
+			if (!__interp.variables.exists(f))
+				__interp.variables.set(f, v);
 		}
 
 		__interp.scriptObject = this;
@@ -105,8 +110,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	function hasField(name:String) {
-		// return __interp.variables.exists(name);
 		return __class__fields.contains(name);
+	}
+
+	function hasStaticField(name:String):Bool {
+		return __class.hasField(name);
 	}
 
 	function getField(name:String, allowProperty:Bool = true):Dynamic {
@@ -146,11 +154,18 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	public function hget(name:String):Dynamic {
 		switch (name) {
-			case 'superClass': return __superClass;
-			case 'superConstructor': return __constructor;
+			case 'superClass':
+				return __superClass;
+			case 'superConstructor':
+				return __constructor;
 			default:
-				if (hasField(name)) 
+				if (hasField(name))
 					return getField(name);
+
+				if (hasStaticField(name)) {
+					__interp.error(ECustom('The field ${name} should be accessed in a static way.'));
+					return null;
+				}
 
 				if (__superClass != null) {
 					if (superHasField(name)) {
@@ -172,6 +187,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	public function hset(name:String, val:Dynamic):Dynamic {
 		if (hasField(name)) {
 			return setField(name, val);
+		}
+
+		if (hasStaticField(name)) {
+			__interp.error(ECustom('The field ${name} should be accessed in a static way.'));
+			return null;
 		}
 
 		if (__superClass != null) {
