@@ -61,6 +61,7 @@ class ClassExtendMacro {
 			if(key == "away3d.tools.commands.Weld") return fields; // Error: Unknown identifier
 			if(fkey == "hscript.CustomClassHandler.TemplateClass") return fields; // Error: Redefined
 			if(fkey == "hscript.CustomClassHandler.CustomTemplateClass") return fields; // Error: Redefined
+			if(fkey == "hscript.CustomClass") return fields; // Error: Redefined
 			if(key == "sys.thread.EventLoop") return fields; // Error: cant override force inlined
 			if(Config.DISALLOW_CUSTOM_CLASSES.contains(cl.module) || Config.DISALLOW_CUSTOM_CLASSES.contains(fkey)) return fields;
 			if(cl.module.contains("_")) return fields; // Weird issue, sorry
@@ -210,7 +211,15 @@ class ClassExtendMacro {
 				if (f == null)
 					continue;
 				if (f.name == "new") {
-					hasNew = true;
+					switch (f.kind) {
+						case FFun(fn):
+							var constructor:Field = buildConstructor(fn.args);
+							
+							shadowClass.fields.push(constructor);
+							definedFields.push(f.name);
+						default:
+							continue;
+					}
 					continue;
 				}
 				if (f.name.startsWith(FUNC_PREFIX))
@@ -245,7 +254,7 @@ class ClassExtendMacro {
 						if (returns) {
 							overrideExpr = macro {
 								var name:String = $v{name};
-
+								/*
 								if (__custom__variables != null) {
 									if(__custom__variables.exists(name)) {
 										var v:Dynamic = null;
@@ -254,12 +263,20 @@ class ClassExtendMacro {
 										}
 									}
 								}
+								*/
+								if (__interp != null && __class__fields.contains(name)) {
+									var v:Dynamic = null;
+									if (Reflect.isFunction(v = __interp.variables.get(name))) {
+										return v($a{arguments});
+									}
+								}
+
 								return super.$name($a{arguments});
 							};
 						} else {
 							overrideExpr = macro {
 								var name:String = $v{name};
-
+								/*
 								if (__custom__variables != null) {
 									if(__custom__variables.exists(name)) {
 										var v:Dynamic = null;
@@ -267,6 +284,14 @@ class ClassExtendMacro {
 											v($a{arguments});
 											return;
 										}
+									}
+								}
+								*/
+								if (__interp != null && __class__fields.contains(name)) {
+									var v:Dynamic = null;
+									if (Reflect.isFunction(v = __interp.variables.get(name))) {
+										v($a{arguments});
+										return;
 									}
 								}
 								super.$name($a{arguments});
@@ -331,7 +356,6 @@ class ClassExtendMacro {
 				pack: cl.pack.copy(),
 				name: cl.name
 			}, [
-				{name: "IHScriptCustomAccessBehaviour", pack: ["hscript"]},
 				{name: "IHScriptCustomClassBehaviour", pack: ["hscript"]}
 			], false, true, false);
 			shadowClass.name = '${cl.name}$CLASS_SUFFIX';
@@ -347,14 +371,14 @@ class ClassExtendMacro {
 				kind: FVar(macro: hscript.Interp),
 				access: [APublic]
 			});
-
+			/*
 			shadowClass.fields.push({
 				name: "__custom__variables",
 				pos: Context.currentPos(),
 				kind: FVar(macro: Map<String, Dynamic>),
 				access: [APublic]
 			});
-
+			*/
 			shadowClass.fields.push({
 				name: "__allowSetGet",
 				pos: Context.currentPos(),
@@ -384,7 +408,7 @@ class ClassExtendMacro {
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
-						var v = __custom__variables.get("get_" + name)();
+						//var v = __custom__variables.get("get_" + name)();
 						__allowSetGet = true;
 						return v;
 					},
@@ -408,7 +432,7 @@ class ClassExtendMacro {
 					params: [],
 					expr: macro {
 						__allowSetGet = false;
-						var v = __custom__variables.get("set_" + name)(val);
+						//var v = __custom__variables.get("set_" + name)(val);
 						__allowSetGet = true;
 						return v;
 					},
@@ -472,30 +496,16 @@ class ClassExtendMacro {
 
 			var hgetField = if(hasHgetInSuper) {
 				macro {
-					if(__allowSetGet && __custom__variables.exists("get_" + name))
-						return __callGetter(name);
-					if (__custom__variables.exists(name))
-						return __custom__variables.get(name);
 					return super.hget(name);
 				}
 			} else {
 				macro {
-					if(__allowSetGet && __custom__variables.exists("get_" + name))
-						return __callGetter(name);
-					if (__custom__variables.exists(name))
-						return __custom__variables.get(name);
 					return UnsafeReflect.getProperty(this, name);
 				}
 			}
 
 			var hsetField = if(hasHsetInSuper) {
 				macro {
-					if(__allowSetGet && __custom__variables.exists("set_" + name))
-						return __callSetter(name, val);
-					if (__custom__variables.exists(name)) {
-						__custom__variables.set(name, val);
-						return val;
-					}
 					if(__real_fields.contains(name)) {
 						UnsafeReflect.setProperty(this, name, val);
 						return UnsafeReflect.field(this, name);
@@ -504,17 +514,11 @@ class ClassExtendMacro {
 				}
 			} else {
 				macro {
-					if(__allowSetGet && __custom__variables.exists("set_" + name))
-						return __callSetter(name, val);
-					if (__custom__variables.exists(name)) {
-						__custom__variables.set(name, val);
-						return val;
-					}
 					if(__real_fields.contains(name)) {
 						UnsafeReflect.setProperty(this, name, val);
 						return UnsafeReflect.field(this, name);
 					}
-					__custom__variables.set(name, val);
+					//__custom__variables.set(name, val);
 					return val;
 				}
 			}
@@ -578,6 +582,23 @@ class ClassExtendMacro {
 		}
 
 		return fields;
+	}
+
+	static function buildConstructor(constArgs:Array<FunctionArg>):Field {
+		var superCallArgs:Array<Expr> = [for (arg in constArgs) macro $i{arg.name}];
+
+		return {
+			name: 'new',
+			access: [APublic],
+			pos: Context.currentPos(),
+			kind: FFun({
+				args: constArgs,
+				expr: macro {
+					// Call the super constructor with appropriate args
+					super($a{superCallArgs});
+				}
+			}),
+		};
 	}
 }
 #else

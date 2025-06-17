@@ -16,12 +16,13 @@ class Property {
 
 	var __allowReadAccess:Bool = false;
 	var __allowWriteAccess:Bool = false;
+	var __allowSetGet:Null<Bool> = null;
 
 	public function callGetter(name:String) {
 		switch (getter) {
 			case AGet | ADynamic:
 				var fName:String = 'get_$name';
-				if (!__allowReadAccess && !interp.isBypassAccessor) {
+				if (!__allowReadAccess && (__allowSetGet != null && __allowSetGet || !interp.isBypassAccessor)) {
 					if (interp.varExists(fName)) {
 						return callAccessor(fName);
 					} else
@@ -44,7 +45,7 @@ class Property {
 		switch (setter) {
 			case ASet | ADynamic:
 				var fName:String = 'set_$name';
-				if (!__allowWriteAccess && !interp.isBypassAccessor) {
+				if (!__allowWriteAccess && (__allowSetGet != null && __allowSetGet || !interp.isBypassAccessor)) {
 					if (interp.varExists(fName))
 						return callAccessor(fName, [val], true);
 					else

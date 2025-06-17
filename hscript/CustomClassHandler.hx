@@ -8,7 +8,8 @@ using StringTools;
 /**
  * Provides handlers for static custom class fields and instantiation.
  */
-class CustomClassHandler implements IHScriptCustomConstructor implements IHScriptCustomBehaviour{
+@:access(hscript.Property)
+class CustomClassHandler implements IHScriptCustomConstructor implements IHScriptCustomAccessBehaviour{
 	public static var staticHandler = new StaticHandler();
 
 	public var __allowSetGet:Bool = true;
@@ -36,10 +37,11 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 				this.cl = ogInterp.customClasses.get(extend);
 			else 
 				this.cl = Type.resolveClass('${extend}_HSX');
+
+			if(cl == null)
+				ogInterp.error(EInvalidClass(extend));
 		}
 		//this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
-		//if(cl == null)
-		//	ogInterp.error(EInvalidClass(extend));
 
 		initStatic();
 	}
@@ -51,27 +53,29 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		staticInterp.importFailedCallback = ogInterp.importFailedCallback;
 
 		staticInterp.variables = ogInterp.variables;
-		staticInterp.allowPublicVariables = ogInterp.allowPublicVariables;
 		staticInterp.publicVariables = ogInterp.publicVariables;
-		staticInterp.allowStaticVariables = ogInterp.allowStaticVariables;
 		staticInterp.staticVariables = ogInterp.staticVariables;
 
-		// TODO: optimize this
 		for(ex in fields) {
+			var varOrFunction:Int = -1; // 0 - variable | 1 - function
+			var staticField:Bool = false;
+			var fieldName:String = "";
 			switch (Tools.expr(ex)) {
 				case EVar(n, _, _, _, isStatic, _, _, _, _, _, _):
-					if(isStatic) {
-						staticInterp.exprReturn(ex);
-						staticFields.push(n);
-						fields.remove(ex);
-					}
+					varOrFunction = 0;
+					staticField = isStatic;
+					fieldName = n;
 				case EFunction(_, _, n, _, _, isStatic, _, _, _, _):
-					if(isStatic) {
-						staticInterp.exprReturn(ex);
-						staticFields.push(n);
-						fields.remove(ex);
-					}
+					varOrFunction = 1;
+					staticField = isStatic;
+					fieldName = n;
 				default:
+			}
+
+			if(staticField && varOrFunction > -1) {
+				staticInterp.exprReturn(ex);
+				staticFields.push(fieldName);
+				fields.remove(ex);
 			}
 		}
 	}
@@ -195,19 +199,58 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		}
 		*/
 		
+		// I can't believe all these lines of code above got reduced to this sentence.
 		var _class = new CustomClass(this, args);
 
 		return _class;
 	}
 
+	function hasField(name:String) {
+        return staticFields.contains(name);
+    }
+
+    function getField(name:String, allowProperty:Bool = true):Dynamic {
+        var f = staticInterp.variables.get(name);
+        if(f is Property && allowProperty) {
+            var prop:Property = cast f;
+            prop.__allowSetGet = this.__allowSetGet;
+            var r = prop.callGetter(name);
+            prop.__allowSetGet = null;
+            return r;
+        }
+        return f;
+    }
+
+    function setField(name:String, val:Dynamic):Dynamic {
+        var f = getField(name, false);
+        if(f is Property) {
+            var prop:Property = cast f;
+            prop.__allowSetGet = this.__allowSetGet;
+            var r = prop.callSetter(name, val);
+            prop.__allowSetGet = null;
+            return r;
+        }
+        staticInterp.variables.set(name, val);
+        return val;
+    }
+
 	public function hget(name:String):Dynamic {
+		if(hasField(name)) {
+            return getField(name);
+        }
+		throw "field '"+ name+ "' does not exist in class '"+ this.name+ "'";
 		return null;
 	}
 
 	public function hset(name:String, val:Dynamic):Dynamic {
+		if(hasField(name))
+			return setField(name, val);
+
+		throw "field '"+ name+ "' does not exist in class '"+ this.name+ "'";
 		return null;
 	}
 
+	// UNUSED
 	public function __callGetter(name:String):Dynamic {
 		return null;
 	}
@@ -220,7 +263,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		return name;
 	}
 }
-
+/*
 class CustomTemplateClass implements IHScriptCustomClassBehaviour {
 	public var __interp:Interp;
 	public var __allowSetGet:Bool = true;
@@ -265,7 +308,7 @@ class CustomTemplateClass implements IHScriptCustomClassBehaviour {
 		return v;
 	}
 }
-
+*/
 
 /**
  * This is for backwards compatibility with old hscript-improved, since some scripts use it

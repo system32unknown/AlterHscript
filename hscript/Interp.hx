@@ -65,6 +65,7 @@ class RedeclaredVar {
 	public var depth:Int;
 }
 
+@:access(hscript.CustomClass)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
 	private var hasScriptObject(get, never):Bool;
@@ -117,7 +118,7 @@ class Interp {
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
 
-	public var customClasses:Map<String, CustomClassHandler>; // make this static ???
+	public var customClasses:Map<String, CustomClassHandler>;
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
 	public var staticVariables:Map<String, Dynamic>;
@@ -587,7 +588,7 @@ class Interp {
 		#end
 	}
 
-	public function resolve(id:String, doException:Bool = true, getProperty:Bool = true):Dynamic {
+	public function resolve(id:String, doException:Bool = true, allowProperty:Bool = true):Dynamic {
 		if (id == null)
 			return null;
 		id = StringTools.trim(id);
@@ -601,7 +602,7 @@ class Interp {
 		if (locals.exists(id)) {
 			var l = locals.get(id);
 			if(l != null) {
-				if(l.r != null && l.r is Property && getProperty)  
+				if(l.r != null && l.r is Property && allowProperty)  
 					return cast(l.r, Property).callGetter(id);
 				else 
 					return l.r;
@@ -618,7 +619,7 @@ class Interp {
 			r = staticVariables.get(id);
 		
 		if(r != null) {
-			if(r is Property && getProperty)
+			if(r is Property && allowProperty)
 				return cast(r, Property).callGetter(id);
 			else 
 				return r;
@@ -846,7 +847,7 @@ class Interp {
 						error(EInvalidOp(op));
 				}
 			case ECall(e, params):
-				var args:Array<Dynamic> = [for(p in params) expr(p)];
+				var args:Array<Dynamic> = makeArgs(params);
 
 				switch (Tools.expr(e)) {
 					case EField(e, f, s):
@@ -1063,10 +1064,7 @@ class Interp {
 					return arr[index];
 				}
 			case ENew(cl, params):
-				var a = [];
-				for (e in params)
-					a.push(expr(e));
-				return cnew(cl, a);
+				return cnew(cl, makeArgs(params));
 			case EThrow(e):
 				throw expr(e);
 			case ETry(e, n, _, ecatch):
@@ -1187,6 +1185,26 @@ class Interp {
 		if (v.hasNext == null || v.next == null)
 			error(EInvalidIterator(v));
 		return v;
+	}
+
+	function makeArgs(params:Array<Expr>):Array<Dynamic> {
+		var args:Array<Dynamic> = [];
+		for (p in params) {
+			switch (Tools.expr(p)) {
+				case EIdent(id):
+					var ident = resolve(id);
+					if (ident is CustomClass) {
+						var customClass:CustomClass = cast ident; // Pass the underlying superclass if exist
+						args.push(customClass.__superClass != null ? customClass.getSuperclass() : customClass);
+					} else {
+						args.push(ident);
+					}
+				default:
+					args.push(expr(p));
+			}
+		}
+
+		return args;
 	}
 
 	function forLoop(n:String, it:Expr, e:Expr, ?ithv:String):Void {
@@ -1333,16 +1351,29 @@ class Interp {
 	}
 
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-		if(hasScriptObject && o == CustomClassHandler.staticHandler) {
-			return UnsafeReflect.callMethodUnsafe(scriptObject, UnsafeReflect.field(scriptObject, "_HX_SUPER__" + f), args);
+		// Custom logic to handle super calls to prevent infinite recursion
+		if(inCustomClass) {
+			if (o == scriptObject.__superClass) {
+				if (scriptObject.__superClass is CustomClass)
+					return cast(scriptObject.__superClass, CustomClass).call(f, args);
+				else
+					return return UnsafeReflect.callMethodUnsafe(scriptObject.__superClass, UnsafeReflect.field(scriptObject.__superClass, '_HX_SUPER__$f'), args);
+			}
 		}
-		return call(o, get(o, f), args);
+
+		var func = get(o, f);
+		// Workaround for an HTML5-specific issue.
+		// https://github.com/HaxeFoundation/haxe/issues/11298
+		#if js
+		if (func == null && f == "contains") {
+			func = get(o, "includes");
+		}
+		#end
+
+		return call(o, func, args);
 	}
 
 	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
-		if(f == CustomClassHandler.staticHandler) {
-			return null;
-		}
 		return UnsafeReflect.callMethodSafe(o, f, args);
 	}
 
