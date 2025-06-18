@@ -32,6 +32,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	var __superClass:IHScriptCustomClassBehaviour;
 	var __constructor:Function;
 
+	var __overrideFields:Array<String> = [];
+
 	public function new(__class:CustomClassHandler, ?args:Array<Dynamic>) {
 		this.__class = __class;
 
@@ -46,7 +48,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		for (f in __class.fields) {
 			switch (Tools.expr(f)) {
 				case EVar(n): __class__fields.push(n);
-				case EFunction(_, _, n): __class__fields.push(n);
+				case EFunction(_, _, n, _, _, _, isOverride): 
+					if(isOverride) __overrideFields.push(n);
+					__class__fields.push(n);
 				default: continue;
 			}
 			@:privateAccess __interp.exprReturn(f);
@@ -84,7 +88,14 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		}
 
 		if (__class.cl is CustomClassHandler) {
-			__superClass = new CustomClass(__class.cl, args);
+			var customClass = new CustomClass(__class.cl, args);
+			if(__overrideFields.length > 0) {
+				for (field in __overrideFields) {
+					var func = __interp.variables.get(field);
+					customClass.overrideField(field, func);
+				}
+			}
+			__superClass = customClass;
 			@:privateAccess
 			__interp.__instanceFields.concat(__superClass.__class__fields);
 		} else {
@@ -96,8 +107,10 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		}
 	}
 
-	public function call(name:String, ?args:Array<Dynamic>):Dynamic {
+	public function call(name:String, ?args:Array<Dynamic>, ?toSuper:Bool = false):Dynamic {
 		var fn = __interp.variables.get(name);
+		if(toSuper && fn == null) fn = __interp.variables.get('_HX_SUPER__$name');
+
 		if (fn != null && Reflect.isFunction(fn))
 			return UnsafeReflect.callMethodUnsafe(null, fn, (args == null) ? [] : args);
 		else
@@ -136,6 +149,27 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		}
 		__interp.variables.set(name, val);
 		return val;
+	}
+
+	/**
+	 * Overrides (replaces) the declared function.
+	 * @param name 
+	 * @param func 
+	 */
+	function overrideField(name:String, func:Function) {
+		var f = getField(name, false);
+		if(f != null && Reflect.isFunction(f)) {
+			__interp.variables.set(name, func);
+			__interp.variables.set('_HX_SUPER__$name', f);
+		}
+		else if(__superClass != null && __superClass is CustomClass) {
+			cast(__superClass, CustomClass).overrideField(name, func);
+		}
+		/*
+		else {
+			__interp.error(ECustom('Field $name is declared \'override\' but doesn\'t override any field'));
+		}
+		*/
 	}
 
 	function superHasField(name:String) {
