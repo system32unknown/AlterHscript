@@ -1,19 +1,10 @@
 package hscript;
 
-import hscript.Interp.DeclaredVar;
-import hscript.utils.UnsafeReflect;
-using StringTools;
-
-// BIG TODO: revamp this
 /**
  * Provides handlers for static custom class fields and instantiation.
  */
 @:access(hscript.Property)
 class CustomClassHandler implements IHScriptCustomConstructor implements IHScriptCustomAccessBehaviour{
-	public static var staticHandler = new StaticHandler();
-
-	public var __allowSetGet:Bool = true;
-
 	public var ogInterp:Interp;
 	public var name:String;
 	public var fields:Array<Expr>;
@@ -24,6 +15,8 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 
 	private var staticInterp:Interp;
 	private var staticFields:Array<String> = [];
+
+	public var __allowSetGet:Bool = true;
 
 	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>) {
 		this.ogInterp = ogInterp;
@@ -345,8 +338,4 @@ class TemplateClass implements IHScriptCustomBehaviour implements IHScriptCustom
 		__allowSetGet = true;
 		return v;
 	}
-}
-
-final class StaticHandler {
-	public function new() {}
 }

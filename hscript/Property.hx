@@ -4,6 +4,27 @@ import hscript.utils.UnsafeReflect;
 import hscript.Interp;
 import hscript.Expr.FieldPropertyAccess;
 
+/**
+ * Special variable that handles 'getter/setter' function calls
+ * depending of the read/write access combination.
+ * 
+ * Example:
+ * ```haxe
+ * public var myvar(get, set):Int;
+ * var _myvar:Int = 10;
+ * 
+ * function get_myvar():Int {
+ *   return _myvar;
+ * }
+ * 
+ * function set_myvar(val:Int):Int {
+ *   if(val > 10) return _myvar = val;
+ *   return val;
+ * }
+ * ```
+ * 
+ * @see https://haxe.org/manual/class-field-property.html
+ */
 @:access(hscript.Interp)
 @:structInit
 class Property {

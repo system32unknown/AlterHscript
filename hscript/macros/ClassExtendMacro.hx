@@ -14,6 +14,7 @@ import Sys;
 
 using StringTools;
 
+// BIG TODO: make typed classes scriptable
 class ClassExtendMacro {
 	public static inline final FUNC_PREFIX = "_HX_SUPER__";
 	public static inline final CLASS_SUFFIX = "_HSX";
