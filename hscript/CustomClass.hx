@@ -87,7 +87,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			return;
 		}
 
-		if (__class.cl == CustomClassHandler) {
+		if (__class.cl is CustomClassHandler) {
 			__superClass = new CustomClass(__class.cl, args);
 			@:privateAccess
 			__interp.__instanceFields.concat(__superClass.__class__fields);
