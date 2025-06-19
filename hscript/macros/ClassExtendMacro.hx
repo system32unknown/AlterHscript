@@ -30,6 +30,7 @@ class ClassExtendMacro {
 		for(apply in Config.ALLOWED_CUSTOM_CLASSES) {
 			Compiler.addGlobalMetadata(apply, "@:build(hscript.macros.ClassExtendMacro.build())");
 		}
+		//Context.onAfterTyping(buildTyped);
 		#end
 		#end
 	}
@@ -389,10 +390,7 @@ class ClassExtendMacro {
 					ret: macro: Dynamic,
 					params: [],
 					expr: macro {
-						__allowSetGet = false;
-						//var v = __custom__variables.get("get_" + name)();
-						__allowSetGet = true;
-						return v;
+						return null;
 					},
 					args: [
 						{
@@ -413,10 +411,7 @@ class ClassExtendMacro {
 					ret: macro: Dynamic,
 					params: [],
 					expr: macro {
-						__allowSetGet = false;
-						//var v = __custom__variables.get("set_" + name)(val);
-						__allowSetGet = true;
-						return v;
+						return null;
 					},
 					args: [
 						{
@@ -582,6 +577,26 @@ class ClassExtendMacro {
 			}),
 		};
 	}
+
+	static function buildTyped(modules:Array<haxe.macro.Type.ModuleType>) {
+		for(m in modules) {
+			switch(m) {
+				case TClassDecl(c):
+					var cl = c.get();
+					if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface)
+						continue;
+					if (cl.params.length == 0)
+						continue;
+					if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("_HSC"))
+						buildTypedClass(cl);
+				default:
+			}
+		}
+	}
+
+	static function buildTypedClass(cl:ClassType) {}
+
+	static function buildShadowClass(cl:ClassType) {}
 }
 #else
 class ClassExtendMacro {
