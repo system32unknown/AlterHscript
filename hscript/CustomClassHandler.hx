@@ -13,8 +13,8 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 
 	public var cl:Dynamic;
 
-	private var staticInterp:Interp;
-	private var staticFields:Array<String> = [];
+	private var __interp:Interp;
+	private var __staticFields:Array<String> = [];
 
 	public var __allowSetGet:Bool = true;
 
@@ -41,168 +41,51 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 
 	@:access(hscript.Interp)
 	function initStatic() {
-		staticInterp = new Interp();
-		staticInterp.errorHandler = ogInterp.errorHandler;
-		staticInterp.importFailedCallback = ogInterp.importFailedCallback;
+		__interp = new Interp();
+		__interp.errorHandler = ogInterp.errorHandler;
+		__interp.importFailedCallback = ogInterp.importFailedCallback;
 
-		staticInterp.variables = ogInterp.variables;
-		staticInterp.publicVariables = ogInterp.publicVariables;
-		staticInterp.staticVariables = ogInterp.staticVariables;
+		__interp.variables = ogInterp.variables;
+		__interp.publicVariables = ogInterp.publicVariables;
+		__interp.staticVariables = ogInterp.staticVariables;
 
+		var validField:Bool = false;
+		var staticField:Bool = false;
+		var fieldName:String = "";
 		for(ex in fields) {
-			var varOrFunction:Int = -1; // 0 - variable | 1 - function
-			var staticField:Bool = false;
-			var fieldName:String = "";
 			switch (Tools.expr(ex)) {
 				case EVar(n, _, _, _, isStatic, _, _, _, _, _, _):
-					varOrFunction = 0;
+					validField = true;
 					staticField = isStatic;
 					fieldName = n;
 				case EFunction(_, _, n, _, _, isStatic, _, _, _, _):
-					varOrFunction = 1;
+					validField = true;
 					staticField = isStatic;
 					fieldName = n;
 				default:
+					validField = false;
+					staticField = false;
+					fieldName = "";
 			}
 
-			if(staticField && varOrFunction > -1) {
-				staticInterp.exprReturn(ex);
-				staticFields.push(fieldName);
+			if(staticField && validField) {
+				__interp.exprReturn(ex);
+				__staticFields.push(fieldName);
 				fields.remove(ex);
 			}
 		}
 	}
 
-	public function hnew(args:Array<Dynamic>):Dynamic {
-		// TODO: clean this up, it sucks, i hate it
-		// TODO: make static vars work correctly
-		/*
-		var interp = new Interp();
-
-		interp.errorHandler = ogInterp.errorHandler;
-
-		var _class:IHScriptCustomClassBehaviour = Type.createInstance(cl, args);
-
-		//var __capturedLocals = ogInterp.duplicate(ogInterp.locals);
-		//var capturedLocals:Map<String, DeclaredVar> = [];
-		//for(k=>e in __capturedLocals)
-		//	if (e != null && e.depth <= 0)
-		//		capturedLocals.set(k, e);
-
-		var disallowCopy = Type.getInstanceFields(cl);
-
-		_class.__real_fields = disallowCopy;
-
-		// todo: make it so you can use variables from the same scope as where the class was defined
-
-		//for (key => value in capturedLocals) {
-		//	if(!disallowCopy.contains(key)) {
-		//		interp.locals.set(key, {r: value, depth: -1});
-		//	}
-		//}
-		for (key => value in ogInterp.variables) {
-			if(!disallowCopy.contains(key)) {
-				interp.variables.set(key, value);
-			}
-		}
-		for(key => value in ogInterp.customClasses) {
-			if(!disallowCopy.contains(key)) {
-				interp.customClasses.set(key, value);
-			}
-		}
-		// todo: clone static vars, but make it so setting it only sets it on the class
-		// todo: clone public vars
-
-		//trace("Before: " + [for(key => value in interp.variables) key]);
-
-		interp.variables.set("super", staticHandler);
-
-		var comparisonMap:Map<String, Dynamic> = [];
-		for(key => value in interp.variables) {
-			comparisonMap.set(key, value);
-		}
-
-		_class.__custom__variables = interp.variables;
-
-		//trace(fields);
-		for(expr in fields) {
-			@:privateAccess
-			interp.exprReturn(expr);
-		}
-
-		//trace("After: " + [for(key => value in interp.variables) key]);
-
-		// get only variables that were not set before
-		var classVariables = [
-			for(key => value in interp.variables)
-				if(!comparisonMap.exists(key) || comparisonMap[key] != value)
-					key => value
-		];
-		//for(variable => value in classVariables) {
-		//	if(variable == "this" || variable == "super" || variable == "new") continue;
-		//	@:privateAccess
-		//	if(!interp.__instanceFields.contains(variable)) {
-		//		interp.__instanceFields.push(variable);
-		//	}
-		//}
-
-		_class.__class__fields = [for(key => value in classVariables) key];
-
-		//trace(_class.__class__fields);
-		//@:privateAccess
-		//trace(interp.__instanceFields);
-
-		_class.__interp = interp;
-		_class.__allowSetGet = false;
-		interp.scriptObject = _class;
-
-		for(variable => value in interp.variables) {
-			if(variable == "this" || variable == "super" || variable == "new") continue;
-
-			if(variable.startsWith("set_") || variable.startsWith("get_")) {
-				_class.__allowSetGet = true;
-			}
-		}
-
-		var newFunc = interp.variables.get("new");
-		if(newFunc != null) {
-			var comparisonMap:Map<String, Dynamic> = [];
-			for(key => value in interp.variables) {
-				comparisonMap.set(key, value);
-			}
-
-			UnsafeReflect.callMethodUnsafe(null, newFunc, args);
-
-			// get only variables that were not set before
-			var classVariables = [
-				for(key => value in interp.variables)
-					if(!comparisonMap.exists(key) || comparisonMap[key] != value)
-						key => value
-			];
-			for(variable => value in classVariables) {
-				if(variable == "this" || variable == "super" || variable == "new") continue;
-				@:privateAccess
-				if(!interp.__instanceFields.contains(variable)) {
-					interp.__instanceFields.push(variable);
-				}
-				if(!_class.__class__fields.contains(variable)) {
-					_class.__class__fields.push(variable);
-				}
-			}
-		}
-		*/
-		
-		// I can't believe all these lines of code above got reduced to this sentence.
+	public function hnew(args:Array<Dynamic>):Dynamic 
 		return new CustomClass(this, args);
-	}
 
 	@:allow(hscript.Interp)
 	function hasField(name:String) {
-        return staticFields.contains(name);
+        return __staticFields.contains(name);
     }
 
     function getField(name:String, allowProperty:Bool = true):Dynamic {
-        var f = staticInterp.variables.get(name);
+        var f = __interp.variables.get(name);
         if(f is Property && allowProperty) {
             var prop:Property = cast f;
             prop.__allowSetGet = this.__allowSetGet;
@@ -222,7 +105,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
             prop.__allowSetGet = null;
             return r;
         }
-        staticInterp.variables.set(name, val);
+        __interp.variables.set(name, val);
         return val;
     }
 

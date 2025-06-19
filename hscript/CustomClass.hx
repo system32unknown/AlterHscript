@@ -38,8 +38,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		this.__class = __class;
 
 		__interp = new Interp();
-		__interp.errorHandler = __class.staticInterp.errorHandler;
-		__interp.importFailedCallback = __class.staticInterp.importFailedCallback;
+		__interp.errorHandler = __class.__interp.errorHandler;
+		__interp.importFailedCallback = __class.__interp.importFailedCallback;
 
 		// __interp.variables = __class.staticInterp.variables;
 		__interp.publicVariables = __class.ogInterp.publicVariables;
@@ -56,7 +56,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			@:privateAccess __interp.exprReturn(f);
 		}
 
-		for (f => v in __class.staticInterp.variables) {
+		for (f => v in __class.__interp.variables) {
 			if (!__interp.variables.exists(f))
 				__interp.variables.set(f, v);
 		}
@@ -165,13 +165,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		else if(__superClass != null && __superClass is CustomClass) {
 			cast(__superClass, CustomClass).overrideField(name, func);
 		}
-		/*
-		else {
-			__interp.error(ECustom('Field $name is declared \'override\' but doesn\'t override any field'));
-		}
-		*/
 	}
-
+	// TODO: make this iterate over other extended Custom Classes
 	function superHasField(name:String) {
 		if (__superClass == null)
 			return false;
@@ -255,7 +250,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	 * @return Null<Dynamic>
 	 */
 	public function getSuperclass():IHScriptCustomClassBehaviour {
-		var cls:Null<IHScriptCustomClassBehaviour> = this.__superClass;
+		var cls:Null<IHScriptCustomClassBehaviour> = __superClass;
 
 		// Check if the superClass is another custom class,
 		// so it will find for a real class, otherwise
