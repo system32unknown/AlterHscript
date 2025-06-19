@@ -593,6 +593,9 @@ class Interp {
 			return null;
 		id = StringTools.trim(id);
 
+		if(id == 'null')
+			return null; // Weird issue, bruh
+
 		if(inCustomClass && id == 'super') {
 			var customClass:IHScriptCustomClassBehaviour = cast scriptObject;
 			var superClass = customClass.hget('superClass');
