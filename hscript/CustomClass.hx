@@ -33,8 +33,10 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	var __constructor:Function;
 
 	var __overrideFields:Array<String> = [];
+	var __cachedFieldSet:Map<String, Dynamic> = null;
+	var initializing:Bool = false;
 
-	public function new(__class:CustomClassHandler, ?args:Array<Dynamic>) {
+	public function new(__class:CustomClassHandler, ?args:Array<Dynamic>, ?cachedFieldSet:Map<String, Dynamic>) {
 		this.__class = __class;
 
 		__interp = new Interp();
@@ -64,15 +66,34 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 		__interp.scriptObject = this;
 
+		initializing = true;
+
+		if(cachedFieldSet != null)
+			for(f => v in cachedFieldSet)
+				this.hset(f, v);
+
 		if (hasField('new')) {
 			buildConstructor();
 			call('new', args);
+
+			if(__cachedFieldSet != null) {
+				__cachedFieldSet.clear();
+				__cachedFieldSet = null;
+			}
 
 			if (this.__superClass == null && __class.extend != null)
 				__interp.error(ECustom("super() not called"));
 		} else if (__class.extend != null) {
 			buildSuperClass(args);
 		}
+
+		initializing = false;
+	}
+
+	function cacheFieldSet(name:String, val:Dynamic) {
+		if(!initializing) return;
+		if(__cachedFieldSet == null) __cachedFieldSet = [];
+		__cachedFieldSet.set(name, val);
 	}
 
 	function buildConstructor() {
@@ -89,7 +110,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		}
 
 		if (__class.cl is CustomClassHandler) {
-			var customClass = new CustomClass(__class.cl, args);
+			var customClass = new CustomClass(__class.cl, args, __cachedFieldSet);
 			if(__overrideFields.length > 0) {
 				for (field in __overrideFields) {
 					var func = __interp.variables.get(field);
@@ -97,9 +118,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 				}
 			}
 			__superClass = customClass;
-			@:privateAccess
-			__interp.__instanceFields.concat(__superClass.__class__fields);
+			@:privateAccess __interp.__instanceFields = __interp.__instanceFields.concat(getSuperFields());
 		} else {
+			if(__cachedFieldSet != null)
+				UnsafeReflect.setField(__class.cl, "__cachedFieldSet", __cachedFieldSet);
+
 			var disallowCopy = Type.getInstanceFields(__class.cl);
 			__superClass = Type.createInstance(__class.cl, args);
 			__superClass.__real_fields = disallowCopy;
@@ -115,7 +138,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		if (fn != null && Reflect.isFunction(fn))
 			return UnsafeReflect.callMethodUnsafe(null, fn, (args == null) ? [] : args);
 		else
-			__interp.error(ECustom('$name is not a function'));
+			__interp.error(ECustom('$name doesn\'t exists or is not a function'));
 		return null;
 	}
 
@@ -167,7 +190,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			cast(__superClass, CustomClass).overrideField(name, func);
 		}
 	}
-	// TODO: make this iterate over other extended Custom Classes
+
 	function superHasField(name:String) {
 		if (__superClass == null)
 			return false;
@@ -175,7 +198,31 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var realFieldExists = __superClass.__real_fields != null && __superClass.__real_fields.contains(name);
 		var classFieldExists = __superClass.__class__fields != null && __superClass.__class__fields.contains(name);
 
+		if(!realFieldExists && !classFieldExists && __superClass is CustomClass)
+			return cast(__superClass, CustomClass).superHasField(name);
+
 		return realFieldExists || classFieldExists;
+	}
+
+	function getSuperFields():Array<String> {
+		if(__superClass == null) return [];
+
+		var classFields:Map<String, String> = []; // Prevents duplicated values
+		var cls:Null<IHScriptCustomClassBehaviour> = __superClass;
+
+		while (cls != null) {
+			for(fieldSet in [cls.__class__fields, cls.__real_fields])
+				for(f in fieldSet)
+					classFields.set(f, f);
+			var next:IHScriptCustomClassBehaviour = null;
+			if(cls is CustomClass)
+				next = cast(cls, CustomClass).__superClass;
+			if (next == null)
+				break;
+			cls = next;
+		}
+
+		return [for(f in classFields) f];
 	}
 
 	public function hget(name:String):Dynamic {
@@ -223,6 +270,10 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 				return __superClass.hset(name, val);
 			}
 		}
+		else if(__class.extend != null && initializing) {
+			cacheFieldSet(name, val);
+			return val;
+		}
 
 		throw "field '"
 			+ name
@@ -251,6 +302,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	 * @return Null<Dynamic>
 	 */
 	public function getSuperclass():IHScriptCustomClassBehaviour {
+		if(__superClass == null) return null;
+		
 		var cls:Null<IHScriptCustomClassBehaviour> = __superClass;
 
 		// Check if the superClass is another custom class,

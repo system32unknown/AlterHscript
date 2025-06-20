@@ -349,6 +349,13 @@ class ClassExtendMacro {
 			// Adding hscript getters and setters
 
 			shadowClass.fields.push({
+				name: "__cachedFieldSet",
+				pos: Context.currentPos(),
+				kind: FVar(macro: Map<String, Dynamic>),
+				access: [APublic, AStatic]
+			});
+
+			shadowClass.fields.push({
 				name: "__interp",
 				pos: Context.currentPos(),
 				kind: FVar(macro: hscript.Interp),
@@ -573,6 +580,15 @@ class ClassExtendMacro {
 				expr: macro {
 					// Call the super constructor with appropriate args
 					super($a{superCallArgs});
+
+					if(__cachedFieldSet != null) {
+						for(k => v in __cachedFieldSet) {
+							Reflect.setProperty(this, k, v);
+							trace(k);
+						}
+						__cachedFieldSet.clear();
+						__cachedFieldSet = null;
+					}
 				}
 			}),
 		};
