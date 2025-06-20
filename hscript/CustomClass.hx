@@ -44,6 +44,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		// __interp.variables = __class.staticInterp.variables;
 		__interp.publicVariables = __class.ogInterp.publicVariables;
 		__interp.staticVariables = __class.ogInterp.staticVariables;
+		__interp.customClasses = __class.ogInterp.customClasses;
 
 		for (f in __class.fields) {
 			switch (Tools.expr(f)) {

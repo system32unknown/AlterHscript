@@ -48,6 +48,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		__interp.variables = ogInterp.variables;
 		__interp.publicVariables = ogInterp.publicVariables;
 		__interp.staticVariables = ogInterp.staticVariables;
+		__interp.customClasses = ogInterp.customClasses;
 
 		var validField:Bool = false;
 		var staticField:Bool = false;
