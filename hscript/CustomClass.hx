@@ -5,8 +5,6 @@ import haxe.Constraints.Function;
 
 using Lambda;
 
-// TODO
-
 /**
  * The Custom Class core.
  * 
