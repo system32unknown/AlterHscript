@@ -141,8 +141,35 @@ class Printer {
 			}
 		case EIdent(v):
 			add(v);
-		case EVar(n, t, e): // TODO: static, public, override
-			add("var " + n);
+		case EVar(n, t, e, p, s, pr, isFinal, isInline, get, set, _): 
+			if(p) add("public ");
+			else if(pr) add("private ");
+			if(s) add("static ");
+			if(isInline) add("inline ");
+			if(isFinal) add("final " + n);
+			else add("var " + n);
+			
+			if(get != null || set != null) {
+				add("(");
+				switch(get) {
+					case ADefault: add("default, ");
+					case ANull: add("null, ");
+					case AGet: add("get, ");
+					case ADynamic: add("dynamic, ");
+					case ANever: add("never, ");
+					default:
+				}
+				switch(set) {
+					case ADefault: add("default");
+					case ANull: add("null");
+					case ASet: add("set");
+					case ADynamic: add("dynamic");
+					case ANever: add("never");
+					default:
+				}
+				add(")");
+			}
+
 			addType(t);
 			if( e != null ) {
 				add(" = ");

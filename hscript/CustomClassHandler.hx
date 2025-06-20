@@ -50,12 +50,12 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		__interp.staticVariables = ogInterp.staticVariables;
 		__interp.customClasses = ogInterp.customClasses;
 
-		var validField:Bool = false;
-		var staticField:Bool = false;
-		var fieldName:String = "";
-		for(ex in fields) {
-			switch (Tools.expr(ex)) {
-				case EVar(n, _, _, _, isStatic, _, _, _, _, _, _):
+		for(e in fields.copy()) {
+			var validField:Bool = false;
+			var staticField:Bool = false;
+			var fieldName:String = "";
+			switch (Tools.expr(e)) {
+				case EVar(n, _, _, _, isStatic):
 					validField = true;
 					staticField = isStatic;
 					fieldName = n;
@@ -64,15 +64,13 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 					staticField = isStatic;
 					fieldName = n;
 				default:
-					validField = false;
-					staticField = false;
-					fieldName = "";
 			}
 
 			if(staticField && validField) {
-				__interp.exprReturn(ex);
+				trace(fieldName);
+				__interp.expr(e);
 				__staticFields.push(fieldName);
-				fields.remove(ex);
+				fields.remove(e);
 			}
 		}
 	}
