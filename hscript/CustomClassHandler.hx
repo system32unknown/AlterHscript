@@ -34,7 +34,6 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 			if(cl == null)
 				ogInterp.error(EInvalidClass(extend));
 		}
-		//this.cl = extend == null ? CustomTemplateClass : Type.resolveClass('${extend}_HSX');
 
 		initStatic();
 	}
@@ -67,7 +66,6 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 			}
 
 			if(staticField && validField) {
-				trace(fieldName);
 				__interp.expr(e);
 				__staticFields.push(fieldName);
 				fields.remove(e);
