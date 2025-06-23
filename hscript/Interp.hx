@@ -1066,7 +1066,7 @@ class Interp {
 				} else {
 					return arr[index];
 				}
-			case ENew(cl, params):
+			case ENew(cl, params, _):
 				return cnew(cl, makeArgs(params));
 			case EThrow(e):
 				throw expr(e);

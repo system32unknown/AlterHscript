@@ -98,6 +98,8 @@ class Printer {
 			add("(");
 			type(t);
 			add(")");
+		case CTExpr(e):
+			expr(e);
 		}
 	}
 
@@ -291,8 +293,18 @@ class Printer {
 				expr(e);
 			}
 			add("]");
-		case ENew(cl, args):
-			add("new " + cl + "(");
+		case ENew(cl, args, params):
+			add("new " + cl);
+			if(params != null) {
+				add("<");
+				var first = true;
+				for( p in params ) {
+					if( first ) first = false else add(", ");
+					type(p);
+				}
+				add(">");
+			}
+			add("(");
 			var first = true;
 			for( e in args ) {
 				if( first ) first = false else add(", ");

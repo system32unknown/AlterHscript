@@ -69,7 +69,7 @@ enum Expr {
 	EReturn( ?e : Expr );
 	EArray( e : Expr, index : Expr );
 	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
-	ENew( cl : String, params : Array<Expr> );
+	ENew( cl : String, params : Array<Expr>, ?paramType:Array<CType> );
 	EThrow( e : Expr );
 	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
 	EObject( fl : Array<ObjectField> );
@@ -118,6 +118,7 @@ enum CType {
 	CTParent( t : CType );
 	CTOpt( t : CType );
 	CTNamed( n : String, t : CType );
+	CTExpr( e : Expr ); // for type parameters only
 }
 
 #if hscriptPos

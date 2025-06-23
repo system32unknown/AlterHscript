@@ -1096,12 +1096,47 @@ class Parser {
 			mk(EReturn(e),p1,if( e == null ) tokenMax else pmax(e));
 		case "new":
 			var a = [];
+			var params:Null<Array<CType>> = null;
 			a.push(getIdent());
 			while( true ) {
 				var tk = token();
 				switch( tk ) {
 					case TDot:
 						a.push(getIdent());
+					case TOp(op) :
+						if( op == '<' ) {
+							params = [];
+							while(true) {
+								switch(token()) {
+									case TConst(c):
+										params.push(CTExpr(mk(EConst(c))));
+									case tk:
+										push(tk);
+										params.push(parseType());
+								}
+								tk = token();
+								switch(tk) {
+									case TComma: continue;
+									case TOp(op):
+										if( op == ">") break;
+										if( op.charCodeAt(0) == ">".code ) {
+										#if hscriptPos
+										tokens.add({ t : TOp(op.substr(1)), min : tokenMax - op.length - 1, max : tokenMax });
+										#else
+										tokens.add(TOp(op.substr(1)));
+										#end
+										break;
+									}
+									default:
+								}
+								unexpected(tk);
+								break;
+							}
+						}
+						else {
+							unexpected(tk);
+							break;
+						}
 					case TPOpen:
 						break;
 					default:
@@ -1110,7 +1145,7 @@ class Parser {
 				}
 			}
 			var args = parseExprList(TPClose);
-			mk(ENew(a.join("."), args), p1);
+			mk(ENew(a.join("."), args, params), p1);
 		case "throw":
 			var e = parseExpr();
 			mk(EThrow(e),p1,pmax(e));
@@ -1344,7 +1379,13 @@ class Parser {
 					if( op == "<" ) {
 						params = [];
 						while( true ) {
-							params.push(parseType());
+							switch( token() ) {
+							case TConst(c):
+								params.push(CTExpr(mk(EConst(c))));
+							case tk:
+								push(tk);
+								params.push(parseType());
+							}
 							t = token();
 							switch( t ) {
 							case TComma: continue;
