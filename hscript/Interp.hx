@@ -1360,7 +1360,7 @@ class Interp {
 				if (scriptObject.__superClass is CustomClass)
 					return cast(scriptObject.__superClass, CustomClass).call(f, args, true);
 				else
-					return return UnsafeReflect.callMethodUnsafe(scriptObject.__superClass, UnsafeReflect.field(scriptObject.__superClass, '_HX_SUPER__$f'), args);
+					return UnsafeReflect.callMethodUnsafe(scriptObject.__superClass, UnsafeReflect.field(scriptObject.__superClass, '_HX_SUPER__$f'), args);
 			}
 		}
 

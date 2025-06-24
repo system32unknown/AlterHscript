@@ -127,6 +127,8 @@ class Macro {
 				tf.push( { name : f.name, meta : meta, doc : null, access : [], kind : FVar(convertType(f.t), null), pos : p } );
 			}
 			TAnonymous(tf);
+		case CTExpr(_):
+			throw "assert";
 		};
 	}
 
