@@ -1067,7 +1067,8 @@ class Interp {
 					return arr[index];
 				}
 			case ENew(cl, params, _):
-				return cnew(cl, makeArgs(params));
+				var a:Array<Dynamic> = makeArgs(params);
+				return cnew(cl, a);
 			case EThrow(e):
 				throw expr(e);
 			case ETry(e, n, _, ecatch):
@@ -1169,24 +1170,24 @@ class Interp {
 	}
 
 	function makeIterator(v:Dynamic, ?allowKeyValue = false):Iterator<Dynamic> {
-		#if ((flash && !flash9) || (php && !php7 && haxe_ver < '4.0.0'))
-		if (v.iterator != null)
+		#if js
+		// don't use try/catch (very slow)
+		if(v is Array) {
+			return allowKeyValue ? (v:Array<Dynamic>).keyValueIterator() : (v:Array<Dynamic>).iterator();
+		}
+		if(allowKeyValue && v.keyValueIterator != null)
+			v = v.keyValueIterator();
+		else if (v.iterator != null)
 			v = v.iterator();
 		#else
-		if(allowKeyValue) {
-			try
-				v = v.keyValueIterator()
-			catch (e:Dynamic) {};
-		}
+		if(allowKeyValue) 
+			try v = v.keyValueIterator() catch (e:Dynamic) {};
 
-		if(v.hasNext == null || v.next == null) {
-			try
-				v = v.iterator()
-			catch (e:Dynamic) {};
-		}
+		if(v.hasNext == null || v.next == null) 
+			try v = v.iterator() catch (e:Dynamic) {};
+		
 		#end
-		if (v.hasNext == null || v.next == null)
-			error(EInvalidIterator(v));
+		if (v.hasNext == null || v.next == null) error(EInvalidIterator(v));
 		return v;
 	}
 
