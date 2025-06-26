@@ -134,13 +134,21 @@ class Parser {
 		];
 		opPriority = new Map();
 		opRightAssoc = new Map();
+		#if (haxe >= "4.0.0")
+		for(i => p in priorities) 
+			for(x in p) {
+				opPriority.set(x, i);
+				if( i == 9 ) opRightAssoc.set(x, true);
+			}
+		#else
 		for( i in 0...priorities.length )
 			for( x in priorities[i] ) {
 				opPriority.set(x, i);
 				if( i == 9 ) opRightAssoc.set(x, true);
 			}
+		#end
 		for( x in ["!", "++", "--", "~"] ) // unary "-" handled in parser directly!
-			opPriority.set(x, x == "++" || x == "--" ? -1 : -2);
+			opPriority.set(x, (x == "++" || x == "--") ? -1 : -2);
 	}
 
 	public inline function error( err:#if hscriptPos ErrorDef #else Error #end, pmin:Int, pmax:Int ) {
