@@ -589,7 +589,8 @@ class Parser {
 			return mk(EBinop(op,e1,e),pmin(e1),pmax(e1));
 		return switch( expr(e) ) {
 		case EBinop(op2,e2,e3):
-			if( opPriority.get(op) <= opPriority.get(op2) && !opRightAssoc.exists(op) )
+			var delta = opPriority.get(op) - opPriority.get(op2);
+			if( delta < 0 || (delta == 0 && !opRightAssoc.exists(op)) )
 				mk(EBinop(op2,makeBinop(op,e1,e2),e3),pmin(e1),pmax(e3));
 			else
 				mk(EBinop(op, e1, e), pmin(e1), pmax(e));
@@ -1275,6 +1276,8 @@ class Parser {
 					return parseExprNext(mk(EUnop(op,false,e1),pmin(e1)));
 				}
 				return makeBinop(op,e1,parseExpr());
+			case TId(op) if( opPriority.exists(op) ):
+				return parseExprNext(makeBinop(op,e1,parseExpr()));
 			case TDot | TQuestionDot:
 				var field = getIdent();
 				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
@@ -2086,7 +2089,7 @@ class Parser {
 						if( StringTools.isEof(char) ) char = 0;
 						if( !idents[char] ) {
 							this.char = char;
-							if(id == "is") return TOp("is");
+							//if(id == "is") return TOp("is");
 							return TId(id);
 						}
 						id += String.fromCharCode(char);
