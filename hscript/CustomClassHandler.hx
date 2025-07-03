@@ -44,7 +44,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 		__interp.errorHandler = ogInterp.errorHandler;
 		__interp.importFailedCallback = ogInterp.importFailedCallback;
 
-		__interp.variables = ogInterp.variables;
+		//__interp.variables = ogInterp.variables;
 		__interp.publicVariables = ogInterp.publicVariables;
 		__interp.staticVariables = ogInterp.staticVariables;
 		__interp.customClasses = ogInterp.customClasses;
@@ -66,11 +66,15 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 			}
 
 			if(staticField && validField) {
-				__interp.expr(e);
+				__interp.exprReturn(e);
 				__staticFields.push(fieldName);
 				fields.remove(e);
 			}
 		}
+
+		for(f => v in ogInterp.variables) 
+			if(!__interp.variables.exists(f))
+				__interp.variables.set(f, v);
 	}
 
 	public function hnew(args:Array<Dynamic>):Dynamic 
