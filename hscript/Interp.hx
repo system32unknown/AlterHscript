@@ -593,9 +593,6 @@ class Interp {
 			return null;
 		id = StringTools.trim(id);
 
-		if(id == 'null')
-			return null; // Weird issue, bruh
-
 		if(inCustomClass && id == 'super') {
 			var customClass:IHScriptCustomClassBehaviour = cast scriptObject;
 			var superClass = customClass.hget('superClass');
@@ -612,20 +609,14 @@ class Interp {
 			}
 		}
 
-		var r:Dynamic = null;
-
-		if(variables.exists(id))
-			r = variables.get(id);
-		else if(publicVariables.exists(id))
-			r = publicVariables.get(id);
-		else if(staticVariables.exists(id))
-			r = staticVariables.get(id);
-		
-		if(r != null) {
-			if(r is Property && allowProperty)
-				return cast(r, Property).callGetter(id);
-			else 
-				return r;
+		for(map in [variables, publicVariables, staticVariables]) {
+			if(map.exists(id)) {
+				var r:Null<Dynamic> = map.get(id);
+				if(r != null && r is Property && allowProperty) 
+					return cast(r, Property).callGetter(id);
+				else 
+					return r;
+			}
 		}
 
 		if(customClasses.exists(id))
