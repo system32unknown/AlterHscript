@@ -235,7 +235,17 @@ class Interp {
 				Std.isOfType(expr1, IMap);
 			default:
 				var expr2:Dynamic = expr(e2);
-				expr2 != null ? Std.isOfType(expr1, expr2) : false;
+				if(expr2 != null) {
+					if(expr1 is CustomClass && expr2 is CustomClassHandler) {
+						var objName = cast(expr1, CustomClass).className;
+						var clsName = cast(expr2, CustomClassHandler).name;
+						objName == clsName;
+					}
+					else 
+						Std.isOfType(expr1, expr2);
+				}
+				else 
+					false;
 		}
 	}
 

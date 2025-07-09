@@ -480,16 +480,38 @@ class ClassExtendMacro {
 
 			var hgetField = if(hasHgetInSuper) {
 				macro {
+					if (__interp != null && __class__fields.contains(name)) {
+						var v:Dynamic = __interp.variables.get(name);
+						if(v != null && v is hscript.Property) 
+							return cast(v, hscript.Property).callGetter(name);
+						return v;
+					}
+
 					return super.hget(name);
 				}
 			} else {
 				macro {
+					if (__interp != null && __class__fields.contains(name)) {
+						var v:Dynamic = __interp.variables.get(name);
+						if(v != null && v is hscript.Property) 
+							return cast(v, hscript.Property).callGetter(name);
+						return v;
+					}
+
 					return UnsafeReflect.getProperty(this, name);
 				}
 			}
 
 			var hsetField = if(hasHsetInSuper) {
 				macro {
+					if (__interp != null && __class__fields.contains(name)) {
+						var v:Dynamic = __interp.variables.get(name);
+						if(v != null && v is hscript.Property) 
+							return cast(v, hscript.Property).callSetter(name, val);
+						__interp.variables.set(name, val);
+						return val;
+					}
+					
 					if(__real_fields.contains(name)) {
 						UnsafeReflect.setProperty(this, name, val);
 						return UnsafeReflect.field(this, name);
@@ -498,6 +520,14 @@ class ClassExtendMacro {
 				}
 			} else {
 				macro {
+					if (__interp != null && __class__fields.contains(name)) {
+						var v:Dynamic = __interp.variables.get(name);
+						if(v != null && v is hscript.Property) 
+							return cast(v, hscript.Property).callSetter(name, val);
+						__interp.variables.set(name, val);
+						return val;
+					}
+
 					if(__real_fields.contains(name)) {
 						UnsafeReflect.setProperty(this, name, val);
 						return UnsafeReflect.field(this, name);
