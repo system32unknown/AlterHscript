@@ -1473,7 +1473,7 @@ class Interp {
 			if (totalArgs == 0)
 				return null;
 			 */
-			return UnsafeReflect.callMethodUnsafe(null, field, args);
+			return UnsafeReflect.callMethodUnsafe(null, field, [o].concat(args));
 		}
 
 		usingHandler.registerEntry(name, fn, fields);
