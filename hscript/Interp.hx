@@ -1406,13 +1406,10 @@ class Interp {
 						case TInt if (f == 'hex'):
 							StringTools.hex(o, args[0]);
 						case TClass(String):
-							if (UnsafeReflect.hasField(StringTools, f)) {
-								var field = UnsafeReflect.field(StringTools, f);
-								if (UnsafeReflect.isFunction(field))
-									UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args));
-								else
-									null;
-							} else null;
+							var field = UnsafeReflect.field(StringTools, f);
+							if (UnsafeReflect.isFunction(field)) 
+								UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args)); 
+							else null;
 						default:
 							null;
 					}
@@ -1421,11 +1418,9 @@ class Interp {
 				fields = Type.getClassFields(Lambda);
 				fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 					if (o != null && o.iterator != null) {
-						if (UnsafeReflect.hasField(Lambda, f)) {
-							var field = UnsafeReflect.field(Lambda, f);
-							if (UnsafeReflect.isFunction(field)) {
-								return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
-							}
+						var field = UnsafeReflect.field(Lambda, f);
+						if (UnsafeReflect.isFunction(field)) {
+							return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
 						}
 					}
 					return null;
@@ -1444,9 +1439,6 @@ class Interp {
 						error(ECustom('$name is not a class'));
 				}
 				fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
-					if (!Reflect.hasField(cls, f))
-						return null;
-
 					var field = Reflect.field(cls, f);
 					if (!Reflect.isFunction(field))
 						return null;
@@ -1473,9 +1465,6 @@ class Interp {
 		var fields:Array<String> = customClass.__staticFields.copy();
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-			if (!customClass.hasField(f))
-				return null;
-
 			var field:Dynamic = customClass.getField(f);
 			if (!Reflect.isFunction(field))
 				return null;
