@@ -111,4 +111,23 @@ class Tools {
 		#end
 	}
 
+	/**
+	 * DO NOT USE INLINE ON THIS FUNCTION
+	**/
+	public static function argCount(func: haxe.Constraints.Function): Int {
+		// https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/hscript/Tools.hx#L206
+		#if cpp
+		return untyped __cpp__("{0}->__ArgCount()", func);
+		#elseif js
+		return untyped js.Syntax.code("{0}.length", func);
+		#elseif hl
+		var ft = hl.Type.getDynamic(func);
+		if (ft.kind != HFun)
+			return -1;
+		return ft.getArgsCount();
+		#else
+		return -1;
+		#end
+	}
+
 }

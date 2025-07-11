@@ -115,9 +115,9 @@ class Printer {
 			add("??NULL??");
 			return;
 		}
-		switch( #if hscriptPos e.e #else e #end ) {
-		case EImport(c, n):
-			add("import " + c);
+		switch(Tools.expr(e)) {
+		case EImport(c, n, u):
+			add('${u ? 'using' : 'import'} $c');
 			if(n != null)
 				add(' as $n');
 		case EClass(name, fields, extend, interfaces):
@@ -127,8 +127,13 @@ class Printer {
 			for(_interface in interfaces) {
 				add(' implements $_interface');
 			}
-			add(' {\n');
 			tabs += "\t";
+			add(" {\n");
+			for( e in fields ) {
+				add(tabs);
+				expr(e);
+				//add(";\n");
+			}
 			//for(field in fields) {
 			//	expr(field);
 			//}
@@ -211,7 +216,7 @@ class Printer {
 		case ECall(e, args):
 			if( e == null )
 				expr(e);
-			else switch( #if hscriptPos e.e #else e #end ) {
+			else switch( Tools.expr(e)) {
 			case EField(_), EIdent(_), EConst(_):
 				expr(e);
 			default:

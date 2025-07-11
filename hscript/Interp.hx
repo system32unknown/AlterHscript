@@ -29,6 +29,7 @@
 package hscript;
 
 import haxe.CallStack;
+import hscript.utils.UsingHandler;
 import hscript.utils.UnsafeReflect;
 import haxe.PosInfos;
 import hscript.Expr;
@@ -144,6 +145,8 @@ class Interp {
 		// "flixel.FlxG"
 	];
 
+	var usingHandler:UsingHandler;
+
 	#if hscriptPos
 	var curExpr:Expr;
 	#end
@@ -160,6 +163,8 @@ class Interp {
 		variables = new Map<String, Dynamic>();
 		publicVariables = new Map<String, Dynamic>();
 		staticVariables = new Map<String, Dynamic>();
+
+		usingHandler = new UsingHandler();
 		
 		variables.set("null", null);
 		variables.set("true", true);
@@ -582,11 +587,11 @@ class Interp {
 	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
-		if (rethrow) {
+		if (rethrow)
 			this.rethrow(e);
-		} else {
+		else
 			throw e;
-		}
+		
 		return null;
 	}
 
@@ -702,7 +707,7 @@ class Interp {
 					return variable == null ? thing : Type.getClassName(variable);
 				}
 				customClasses.set(name, new CustomClassHandler(this, name, fields, importVar(extend), [for (i in interfaces) importVar(i)]));
-			case EImport(c, n):
+			case EImport(c, n, isUsing):
 				if (!importEnabled)
 					return null;
 				var splitClassName = [for (e in c.split(".")) e.trim()];
@@ -712,8 +717,20 @@ class Interp {
 				var oldClassName = realClassName;
 				var oldSplitName = splitClassName.copy();
 
-				if (variables.exists(toSetName)) // class is already imported
+				if (variables.exists(toSetName)) { // class is already imported 
+					if(isUsing && !usingHandler.entryExists(toSetName))
+						setUsing(toSetName, variables.get(toSetName)); 
+					
 					return null;
+				}
+
+				if(isUsing && customClasses.exists(toSetName)) {
+					// NOTE: you will need to create the class first before
+					// setting the extension
+					if(!usingHandler.entryExists(toSetName))
+						setCustomClassUsing(toSetName, customClasses.get(toSetName));
+					return null;
+				}
 
 				var realClassName = getLocalImportRedirect(realClassName);
 
@@ -753,6 +770,7 @@ class Interp {
 						error(EInvalidClass(oldClassName));
 				} else {
 					if (en != null) {
+						if(isUsing) error(EInvalidClass(oldClassName));
 						// ENUM!!!!
 						var enumThingy = {};
 						for (c in en.getConstructors()) {
@@ -768,6 +786,7 @@ class Interp {
 						}
 						variables.set(toSetName, enumThingy);
 					} else {
+						if(isUsing) setUsing(toSetName, cl);
 						variables.set(toSetName, cl);
 					}
 				}
@@ -1315,8 +1334,20 @@ class Interp {
 		}
 
 		if(v == null) {
+			#if php
+			// https://github.com/HaxeFoundation/haxe/issues/4915
+			try {
+				if ((v = UnsafeReflect.getProperty(o, f)) == null)
+					v = Reflect.getProperty(cls, f);
+			}
+			catch(e:Dynamic) {
+				if ((v = UnsafeReflect.field(o, f)) == null)
+					v = Reflect.field(cls, f);
+			}
+			#else
 			if ((v = UnsafeReflect.getProperty(o, f)) == null)
 				v = Reflect.getProperty(cls, f);
+			#end
 		}
 		return v;
 	}
@@ -1355,6 +1386,110 @@ class Interp {
 		return v;
 	}
 
+	// STATIC EXTENSION ("USING")
+
+	// Real class static extension
+	function setUsing(name:String, obj:Dynamic) {
+		if (usingHandler.entryExists(name)) return;
+		
+		var fn:Dynamic->String->Array<Dynamic> -> Dynamic = null;
+		var fields:Array<String> = [];
+
+		// Predefined static extension classes
+		switch (name) {
+			case "StringTools": // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L45
+				fields = Type.getClassFields(StringTools);
+				fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+					if (f == "isEof") // has @:noUsing
+						return null;
+					return switch (Type.typeof(o)) {
+						case TInt if (f == 'hex'):
+							StringTools.hex(o, args[0]);
+						case TClass(String):
+							if (UnsafeReflect.hasField(StringTools, f)) {
+								var field = UnsafeReflect.field(StringTools, f);
+								if (UnsafeReflect.isFunction(field))
+									UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args));
+								else
+									null;
+							} else null;
+						default:
+							null;
+					}
+				}
+			case "Lambda": // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L62
+				fields = Type.getClassFields(Lambda);
+				fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+					if (o != null && o.iterator != null) {
+						if (UnsafeReflect.hasField(Lambda, f)) {
+							var field = UnsafeReflect.field(Lambda, f);
+							if (UnsafeReflect.isFunction(field)) {
+								return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
+							}
+						}
+					}
+					return null;
+				}
+			default:
+				if(obj == null)
+					error(ECustom("Unknown using class " + name));
+				
+				var cls = obj;
+				switch (Type.typeof(cls)) {
+					case TClass(c):
+						fields = Type.getClassFields(c);
+					case TObject:
+						fields = Reflect.fields(cls);
+					default:
+						error(ECustom('$name is not a class'));
+				}
+				fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
+					if (!Reflect.hasField(cls, f))
+						return null;
+
+					var field = Reflect.field(cls, f);
+					if (!Reflect.isFunction(field))
+						return null;
+
+					// invalid if the function has no arguments
+					var totalArgs = Tools.argCount(field);
+					if (totalArgs == 0)
+						return null;
+
+					return UnsafeReflect.callMethodUnsafe(cls, field, [o].concat(args));
+				}
+		}
+
+		if(fn != null) usingHandler.registerEntry(name, fn, fields);
+	}
+
+	// Custom Class Static Extension
+	@:access(hscript.CustomClassHandler)
+	function setCustomClassUsing(name:String, cls:CustomClassHandler) {
+		if (usingHandler.entryExists(name)) return;
+
+		var fn:Dynamic->String->Array<Dynamic> -> Dynamic;
+		var customClass:CustomClassHandler = cls;
+		var fields:Array<String> = customClass.__staticFields.copy();
+
+		fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+			if (!customClass.hasField(f))
+				return null;
+
+			var field:Dynamic = customClass.getField(f);
+			if (!Reflect.isFunction(field))
+				return null;
+			/*
+			var totalArgs:Int = Tools.argCount(field);
+			if (totalArgs == 0)
+				return null;
+			 */
+			return UnsafeReflect.callMethodUnsafe(null, field, args);
+		}
+
+		usingHandler.registerEntry(name, fn, fields);
+	}
+
 	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 		// Custom logic to handle super calls to prevent infinite recursion
 		if(inCustomClass) {
@@ -1363,6 +1498,17 @@ class Interp {
 					return cast(scriptObject.__superClass, CustomClass).call(f, args, true);
 				else
 					return UnsafeReflect.callMethodUnsafe(scriptObject.__superClass, UnsafeReflect.field(scriptObject.__superClass, '_HX_SUPER__$f'), args);
+			}
+		}
+
+		if (usingHandler.usingEntries.iterator().hasNext()) { // If is not empty
+			var v:Dynamic = null;
+			for (n => us in usingHandler.usingEntries) {
+				if(us.hasField(f)) {
+					v = us.call(o, f, args);
+					if (v != null)
+						return v;
+				}
 			}
 		}
 

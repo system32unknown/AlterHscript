@@ -956,11 +956,13 @@ class Parser {
 			var tk = token();
 			push(tk);
 			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline),p1,pmax(inf.body));
-		case "import":
+		case "import" | "using":
+			var isUsing = id == "using";
 			var oldReadPos = readPos;
 			var tk = token();
 			switch( tk ) {
 				case TPOpen:
+					if(isUsing) error(ECustom('Expected identifier'),tokenMin,tokenMax);
 					var tok = token();
 					switch(tok) {
 						case TConst(c):
@@ -986,6 +988,7 @@ class Parser {
 						t = token();
 						if( t != TDot ) {
 							if(t.match(TId("as"))) {
+								if(isUsing) error(ECustom('Expected . or ;'),tokenMin,tokenMax);
 								t = token();
 								switch( t ) {
 									case TId(id):
@@ -1010,7 +1013,7 @@ class Parser {
 					ensure(TSemicolon);
 					push(TSemicolon);
 					var p = path.join(".");
-					mk(EImport(p, asname),p1);
+					mk(EImport(p, asname, isUsing),p1);
 				default:
 					unexpected(tk);
 					null;
