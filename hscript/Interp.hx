@@ -1391,65 +1391,37 @@ class Interp {
 	// Real class static extension
 	function setUsing(name:String, obj:Dynamic) {
 		if (usingHandler.entryExists(name)) return;
-		
-		var fn:Dynamic->String->Array<Dynamic> -> Dynamic = null;
+		if (UsingHandler.defaultExtension.exists(name)) {
+			var us:UsingEntry = UsingHandler.defaultExtension.get(name);
+			usingHandler.usingEntries.set(name, us);
+			return;
+		}
+		if (obj == null) error(ECustom("Unknown using class " + name));
+
+		var fn:Dynamic->String->Array<Dynamic>->Dynamic = null;
 		var fields:Array<String> = [];
+		var cls = obj;
 
-		// Predefined static extension classes
-		switch (name) {
-			case "StringTools": // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L45
-				fields = Type.getClassFields(StringTools);
-				fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-					if (f == "isEof") // has @:noUsing
-						return null;
-					return switch (Type.typeof(o)) {
-						case TInt if (f == 'hex'):
-							StringTools.hex(o, args[0]);
-						case TClass(String):
-							var field = UnsafeReflect.field(StringTools, f);
-							if (UnsafeReflect.isFunction(field)) 
-								UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args)); 
-							else null;
-						default:
-							null;
-					}
-				}
-			case "Lambda": // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L62
-				fields = Type.getClassFields(Lambda);
-				fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-					if (o != null && o.iterator != null) {
-						var field = UnsafeReflect.field(Lambda, f);
-						if (UnsafeReflect.isFunction(field)) {
-							return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
-						}
-					}
-					return null;
-				}
+		switch (Type.typeof(cls)) {
+			case TClass(c):
+				fields = Type.getClassFields(c);
+			case TObject:
+				fields = Reflect.fields(cls);
 			default:
-				if(obj == null)
-					error(ECustom("Unknown using class " + name));
-				
-				var cls = obj;
-				switch (Type.typeof(cls)) {
-					case TClass(c):
-						fields = Type.getClassFields(c);
-					case TObject:
-						fields = Reflect.fields(cls);
-					default:
-						error(ECustom('$name is not a class'));
-				}
-				fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
-					var field = Reflect.field(cls, f);
-					if (!Reflect.isFunction(field))
-						return null;
+				error(ECustom('$name is not a class'));
+		}
 
-					// invalid if the function has no arguments
-					var totalArgs = Tools.argCount(field);
-					if (totalArgs == 0)
-						return null;
+		fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
+			var field = Reflect.field(cls, f);
+			if (!Reflect.isFunction(field))
+				return null;
 
-					return UnsafeReflect.callMethodUnsafe(cls, field, [o].concat(args));
-				}
+			// invalid if the function has no arguments
+			var totalArgs = Tools.argCount(field);
+			if (totalArgs == 0)
+				return null;
+
+			return UnsafeReflect.callMethodUnsafe(cls, field, [o].concat(args));
 		}
 
 		if(fn != null) usingHandler.registerEntry(name, fn, fields);

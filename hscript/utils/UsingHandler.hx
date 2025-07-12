@@ -34,6 +34,38 @@ class UsingEntry  {
  * @see https://haxe.org/manual/lf-static-extension.html
  */
 class UsingHandler { // The ACTUAL UsingHandler.hx >:3
+	// Predefined static extension classes
+	public static final defaultExtension:Map<String, UsingEntry> = [
+		"StringTools" => { // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L45
+			fields: Type.getClassFields(StringTools),
+			call: function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+				if (f == "isEof") // has @:noUsing
+					return null;
+				return switch (Type.typeof(o)) {
+					case TInt if (f == 'hex'):
+						StringTools.hex(o, args[0]);
+					case TClass(String):
+						var field = UnsafeReflect.field(StringTools, f);
+						if (UnsafeReflect.isFunction(field)) UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args)); else null;
+					default:
+						null;
+				}
+			}
+		},
+		"Lambda" => { // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L62
+			fields: Type.getClassFields(Lambda),
+			call: function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+				if (o != null && o.iterator != null) {
+					var field = UnsafeReflect.field(Lambda, f);
+					if (UnsafeReflect.isFunction(field)) {
+						return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
+					}
+				}
+				return null;
+			}
+		}
+	];
+
 	@:allow(hscript.CustomClass)
 	@:allow(hscript.CustomClassHandler)
 	public var usingEntries(default, null):Map<String, UsingEntry> = [];
