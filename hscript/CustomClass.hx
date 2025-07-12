@@ -28,6 +28,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	var __class:CustomClassHandler;
 	var __superClass:IHScriptCustomClassBehaviour;
+	var __upperClass:IHScriptCustomClassBehaviour;
 	var __constructor:Function;
 
 	var __overrideFields:Array<String> = [];
@@ -116,6 +117,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 					customClass.overrideField(field, func);
 				}
 			}
+			customClass.__upperClass = this;
 			__superClass = customClass;
 			@:privateAccess __interp.__instanceFields = __interp.__instanceFields.concat(getSuperFields());
 		} else {
@@ -154,7 +156,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	function getField(name:String, allowProperty:Bool = true):Dynamic {
 		var f = __interp.variables.get(name);
-		if (allowProperty && f is Property) {
+		if (f != null && allowProperty && f is Property) {
 			var prop:Property = cast f;
 			prop.__allowSetGet = this.__allowSetGet;
 			var r = prop.callGetter(name);
@@ -166,7 +168,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	function setField(name:String, val:Dynamic):Dynamic {
 		var f = getField(name, false);
-		if (f is Property) {
+		if (f != null && f is Property) {
 			var prop:Property = cast f;
 			prop.__allowSetGet = this.__allowSetGet;
 			var r = prop.callSetter(name, val);
@@ -316,6 +318,21 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			if (next == null)
 				break; // Return the Custom Class itself
 			cls = next;
+		}
+		return cls is CustomClass ? this : cls;
+	}
+
+	// TODO: scripted safe cast for custom classes
+	public function getUpperclass():IHScriptCustomClassBehaviour {
+		if(__upperClass == null) return this;
+
+		var cls:CustomClass = cast __upperClass;
+
+		while (cls != null) {
+			var prev:CustomClass = cast cls.__upperClass;
+			if(prev == null)
+				break;
+			cls = prev;
 		}
 
 		return cls;

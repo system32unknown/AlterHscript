@@ -116,6 +116,10 @@ class Interp {
 	private function get_inCustomClass():Bool
 		return hasScriptObject && _scriptObjectType == SCustomClass;
 
+	var __customClass(get, never):CustomClass;
+	private function get___customClass():CustomClass
+		return inCustomClass ? cast scriptObject : null;
+
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
 

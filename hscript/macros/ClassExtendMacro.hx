@@ -480,22 +480,50 @@ class ClassExtendMacro {
 
 			var hgetField = if(hasHgetInSuper) {
 				macro {
-					if (__interp != null && __class__fields.contains(name)) {
-						var v:Dynamic = __interp.variables.get(name);
-						if(v != null && v is hscript.Property) 
-							return cast(v, hscript.Property).callGetter(name);
-						return v;
+					if (__interp != null) {
+						if(__class__fields.contains(name)) {
+							var v:Dynamic = __interp.variables.get(name);
+							if(v != null && v is hscript.Property) 
+								return cast(v, hscript.Property).callGetter(name);
+							return v;
+						}
+						else @:privateAccess {
+							var cls:hscript.CustomClass = cast __interp.__customClass.__upperClass;
+							while(cls != null) {
+								if(cls.hasField(name)) 
+									return cls.getField(name);
+								
+								var prev:hscript.CustomClass = cast cls.__upperClass;
+								if(prev == null)
+									break;
+								cls = prev;
+							}
+						}
 					}
 
 					return super.hget(name);
 				}
 			} else {
 				macro {
-					if (__interp != null && __class__fields.contains(name)) {
-						var v:Dynamic = __interp.variables.get(name);
-						if(v != null && v is hscript.Property) 
-							return cast(v, hscript.Property).callGetter(name);
-						return v;
+					if (__interp != null) {
+						if(__class__fields.contains(name)) {
+							var v:Dynamic = __interp.variables.get(name);
+							if(v != null && v is hscript.Property) 
+								return cast(v, hscript.Property).callGetter(name);
+							return v;
+						}
+						else @:privateAccess {
+							var cls:hscript.CustomClass = cast __interp.__customClass.__upperClass;
+							while(cls != null) {
+								if(cls.hasField(name)) 
+									return cls.getField(name);
+								
+								var prev:hscript.CustomClass = cast cls.__upperClass;
+								if(prev == null)
+									break;
+								cls = prev;
+							}
+						}
 					}
 
 					return UnsafeReflect.getProperty(this, name);
@@ -504,12 +532,26 @@ class ClassExtendMacro {
 
 			var hsetField = if(hasHsetInSuper) {
 				macro {
-					if (__interp != null && __class__fields.contains(name)) {
-						var v:Dynamic = __interp.variables.get(name);
-						if(v != null && v is hscript.Property) 
-							return cast(v, hscript.Property).callSetter(name, val);
-						__interp.variables.set(name, val);
-						return val;
+					if (__interp != null) {
+						if(__class__fields.contains(name)) {
+							var v:Dynamic = __interp.variables.get(name);
+							if(v != null && v is hscript.Property) 
+								return cast(v, hscript.Property).callSetter(name, val);
+							__interp.variables.set(name, val);
+							return val;
+						}
+						else @:privateAccess {
+							var cls:hscript.CustomClass = cast __interp.__customClass.__upperClass;
+							while(cls != null) {
+								if(cls.hasField(name)) 
+									return cls.setField(name, val);
+								
+								var prev:hscript.CustomClass = cast cls.__upperClass;
+								if(prev == null)
+									break;
+								cls = prev;
+							}
+						}
 					}
 					
 					if(__real_fields.contains(name)) {
@@ -520,12 +562,26 @@ class ClassExtendMacro {
 				}
 			} else {
 				macro {
-					if (__interp != null && __class__fields.contains(name)) {
-						var v:Dynamic = __interp.variables.get(name);
-						if(v != null && v is hscript.Property) 
-							return cast(v, hscript.Property).callSetter(name, val);
-						__interp.variables.set(name, val);
-						return val;
+					if (__interp != null) {
+						if(__class__fields.contains(name)) {
+							var v:Dynamic = __interp.variables.get(name);
+							if(v != null && v is hscript.Property) 
+								return cast(v, hscript.Property).callSetter(name, val);
+							__interp.variables.set(name, val);
+							return val;
+						}
+						else @:privateAccess {
+							var cls:hscript.CustomClass = cast __interp.__customClass.__upperClass;
+							while(cls != null) {
+								if(cls.hasField(name)) 
+									return cls.setField(name, val);
+								
+								var prev:hscript.CustomClass = cast cls.__upperClass;
+								if(prev == null)
+									break;
+								cls = prev;
+							}
+						}
 					}
 
 					if(__real_fields.contains(name)) {
