@@ -1,5 +1,8 @@
 package hscript;
 
+/**
+ * Same Interface as IHScriptCustomBehaviour but for Property.
+ */
 interface IHScriptCustomAccessBehaviour extends IHScriptCustomBehaviour {
 	var __allowSetGet:Bool;
 

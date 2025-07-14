@@ -1,7 +1,7 @@
 package hscript;
 
 // Soon...
-interface IHScriptAbstractBehaviour {
+interface IHScriptAbstractBehaviour extends IHScriptCustomBehaviour {
     public var hasOp:Bool;
     public var hasArr:Bool;
     // @:op(A * B), @:op(A++), etc...
