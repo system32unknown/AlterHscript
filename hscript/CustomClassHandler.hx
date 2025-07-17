@@ -10,6 +10,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 	public var fields:Array<Expr>;
 	public var extend:Null<String>;
 	public var interfaces:Array<String>;
+	public final isFinal:Bool;
 
 	public var cl:Dynamic;
 
@@ -18,16 +19,21 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 
 	public var __allowSetGet:Bool = true;
 
-	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>) {
+	public function new(ogInterp:Interp, name:String, fields:Array<Expr>, ?extend:String, ?interfaces:Array<String>, ?isFinal:Bool) {
 		this.ogInterp = ogInterp;
 		this.name = name;
 		this.fields = fields;
 		this.extend = extend;
 		this.interfaces = interfaces;
+		this.isFinal = isFinal != null ? isFinal : false;
 
 		if(extend != null) {
-			if(ogInterp.customClasses.exists(extend))
-				this.cl = ogInterp.customClasses.get(extend);
+			if(ogInterp.customClasses.exists(extend)) {
+				var customCls:CustomClassHandler = ogInterp.customClasses.get(extend);
+				if(customCls.isFinal)
+					ogInterp.error(ECustom('Cannot extend a final class'));
+				this.cl = customCls;
+			}
 			else 
 				this.cl = Type.resolveClass('${extend}_HSX');
 

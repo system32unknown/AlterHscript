@@ -120,7 +120,10 @@ class Printer {
 			add('${u ? 'using' : 'import'} $c');
 			if(n != null)
 				add(' as $n');
-		case EClass(name, fields, extend, interfaces):
+		case EClass(name, fields, extend, interfaces, fnal):
+			var isFinal = fnal != null && fnal;
+			if(isFinal)
+				add('final ');
 			add('class $name');
 			if (extend != null)
 				add(' extends $extend');

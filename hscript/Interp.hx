@@ -702,9 +702,10 @@ class Interp {
 		var e = e.e;
 		#end
 		switch (e) {
-			case EClass(name, fields, extend, interfaces):
-				var hasAlias:Bool = (setAlias != null && beforeAlias == name);
-				var toSetName:String = hasAlias ? setAlias : name;
+			case EClass(name, fields, extend, interfaces, isFinal):
+				var oldName:String = name;
+				var hasAlias:Bool = (setAlias != null && beforeAlias == oldName);
+				var toSetName:String = hasAlias ? setAlias : oldName;
 
 				if (customClasses.exists(toSetName))
 					error(EAlreadyExistingClass(toSetName));
@@ -715,8 +716,13 @@ class Interp {
 					final variable:Class<Any> = variables.exists(thing) ? cast variables.get(thing) : null;
 					return variable == null ? thing : Type.getClassName(variable);
 				}
-				customClasses.set(toSetName, new CustomClassHandler(this, name, fields, importVar(extend), [for (i in interfaces) importVar(i)]));
-				if(hasAlias) setAlias = null;
+				var cls:CustomClassHandler = new CustomClassHandler(this, oldName, fields, importVar(extend), [for (i in interfaces) importVar(i)], isFinal);
+				customClasses.set(toSetName, cls);
+				if(hasAlias) {
+					customClasses.set(oldName, cls); // Allow usage in the same module
+					beforeAlias = null;
+					setAlias = null;
+				}
 			case EImport(c, n, isUsing):
 				if (!importEnabled)
 					return null;
