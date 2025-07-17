@@ -139,6 +139,7 @@ class Interp {
 
 	var isBypassAccessor:Bool = false;
 	var setAlias:Null<String> = null; // Custom Class import alias
+	var beforeAlias:Null<String> = null;
 
 	public var importEnabled:Bool = true;
 
@@ -702,7 +703,8 @@ class Interp {
 		#end
 		switch (e) {
 			case EClass(name, fields, extend, interfaces):
-				var toSetName:String = setAlias != null ? setAlias : name;
+				var hasAlias:Bool = (setAlias != null && beforeAlias == name);
+				var toSetName:String = hasAlias ? setAlias : name;
 
 				if (customClasses.exists(toSetName))
 					error(EAlreadyExistingClass(toSetName));
@@ -714,7 +716,7 @@ class Interp {
 					return variable == null ? thing : Type.getClassName(variable);
 				}
 				customClasses.set(toSetName, new CustomClassHandler(this, name, fields, importVar(extend), [for (i in interfaces) importVar(i)]));
-				setAlias = null;
+				if(hasAlias) setAlias = null;
 			case EImport(c, n, isUsing):
 				if (!importEnabled)
 					return null;
@@ -774,8 +776,10 @@ class Interp {
 				}
 
 				if (cl == null && en == null) {
+					beforeAlias = claVarName;
 					setAlias = n;
 					if (importFailedCallback == null || !importFailedCallback(oldSplitName)){
+						beforeAlias = null;
 						setAlias = null;
 						error(EInvalidClass(oldClassName));
 					}	
