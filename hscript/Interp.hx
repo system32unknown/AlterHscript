@@ -740,10 +740,11 @@ class Interp {
 					return null;
 				}
 
-				if(isUsing && customClasses.exists(toSetName)) {
-					// NOTE: you will need to create the class first before
+				if(customClasses.exists(toSetName)) { // custom class is already parsed and imported 
+					// NOTE: you will need to create/import 
+					// the custom class first before
 					// setting the extension
-					if(!usingHandler.entryExists(toSetName))
+					if(isUsing && !usingHandler.entryExists(toSetName))
 						setCustomClassUsing(toSetName, customClasses.get(toSetName));
 					return null;
 				}
@@ -793,13 +794,15 @@ class Interp {
 					if (en != null) {
 						if(isUsing) error(EInvalidClass(oldClassName));
 						// ENUM!!!!
-						var enumThingy = {};
+						var enumThingy:HEnum = {};
 						for (c in en.getConstructors()) {
 							try {
-								UnsafeReflect.setField(enumThingy, c, en.createByName(c));
+								//UnsafeReflect.setField(enumThingy, c, en.createByName(c));
+								enumThingy.setEnum(c, en.createByName(c));
 							} catch(e) {
 								try {
-									UnsafeReflect.setField(enumThingy, c, UnsafeReflect.field(en, c));
+									//UnsafeReflect.setField(enumThingy, c, UnsafeReflect.field(en, c));
+									enumThingy.setEnum(c, UnsafeReflect.field(en, c));
 								} catch(ex) {
 									throw e;
 								}
