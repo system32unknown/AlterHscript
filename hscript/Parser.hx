@@ -23,6 +23,8 @@ package hscript;
 import haxe.rtti.Meta;
 import hscript.Expr;
 
+using StringTools;
+
 enum Token {
 	TEof;
 	TConst( c : Const );
@@ -362,7 +364,7 @@ class Parser {
 		var p1 = tokenMin;
 		#end
 		switch( tk ) {
-		case TId(id):
+		case TId(id): // TODO: direct access to classes by typing their path
 			var e = parseStructure(id, oldPos);
 			if( e == null )
 				e = mk(EIdent(id));
@@ -643,7 +645,7 @@ class Parser {
 				if( semic ) push(TSemicolon);
 			}
 			mk(EIf(cond,e1,e2),p1,(e2 == null) ? tokenMax : pmax(e2));
-		case "override":
+		case "override": // BIG TODO: OPTIMIZE ALL THIS BELOW UNTIL "inline"
 			nextIsOverride = true;
 			var nextToken = token();
 			switch(nextToken) {
@@ -1101,6 +1103,50 @@ class Parser {
 			push(tk);
 			mk(EClass(name, fields, extend, interfaces, nextIsFinal, nextIsPrivate), p1);
 
+		case "enum": // TODO: enum abstract 
+			var name = getIdent();
+
+			ensure(TBrOpen);
+
+			// TODO: optimize this
+			var fields:Array<EnumField> = [];
+			var fieldName:String = '';
+			var enumArgs:Array<Argument> = null;
+			var tk = token();
+
+			while(!maybe(TBrClose)) {
+				tk = token();
+
+				switch(tk) {
+					//case TBrClose:
+					//	break;
+					case TSemicolon | TComma:
+						if(fieldName.trim().length == 0) continue;
+						
+						fields.push({
+							name: fieldName,
+							args: enumArgs == null ? [] : enumArgs
+						});
+						fieldName = '';
+						enumArgs = null;
+					case TPOpen:
+						if(enumArgs != null) {
+							error(ECustom("Cannot have multiple argument lists in one enum constructor"), tokenMin, tokenMax);
+							break;
+						}
+						enumArgs = parseFunctionArgs(true);
+					default:
+						if(fieldName.trim().length != 0) {
+							error(ECustom("Expected comma or semicolon"), tokenMin, tokenMax);
+							break;
+						}
+						push(tk);
+						fieldName = getIdent();
+				}
+			}
+			
+			mk(EEnum({ name: name, fields: fields }, false), p1);
+
 		case "return":
 			var tk = token();
 			push(tk);
@@ -1309,7 +1355,7 @@ class Parser {
 		}
 	}
 
-	function parseFunctionArgs():Array<Argument> {
+	function parseFunctionArgs(?enumArgs:Bool = false):Array<Argument> {
 		var args:Array<Argument> = [];
 		var tk = token();
 		if( tk != TPClose ) {
@@ -1335,6 +1381,7 @@ class Parser {
 					if( maybe(TDoubleDot) )
 						arg.t = parseType();
 					if( maybe(TOp("="))) {
+						if(enumArgs) unexpected(TOp("="));
 						arg.value = parseExpr();
 						arg.opt = true;
 					}

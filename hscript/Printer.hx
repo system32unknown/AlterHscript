@@ -143,6 +143,34 @@ class Printer {
 
 			tabs = tabs.substr(1);
 			add("}");
+		case EEnum(en, _): // TODO: enum abstracts
+			add('enum ${en.name}');
+			if(en.fields.length == 0) {
+				add(' {}');
+				return;
+			}
+			tabs += "\t";
+			add(" {\n");
+
+			for(e in en.fields) {
+				add(tabs);
+				add(e.name);
+				if(e.args.length > 0) {
+					add("(");
+					var first = true;
+					for( a in e.args ) {
+						if( first ) first = false else add(", ");
+						if( a.opt ) add("?");
+						add(a.name);
+						addType(a.t);
+					}
+					add(')');
+				}
+				add(";\n");
+			}
+
+			tabs = tabs.substr(1);
+			add("}");
 		case EConst(c):
 			switch( c ) {
 			case CInt(i): add(i);

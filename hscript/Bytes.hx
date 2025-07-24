@@ -128,6 +128,8 @@ class Bytes {
 			// TODO
 		case EClass(_, _, _, _):
 			// TODO
+		case EEnum(en):
+			// TODO
 		case EConst(c):
 			doEncodeConst(c);
 		case EIdent(v):

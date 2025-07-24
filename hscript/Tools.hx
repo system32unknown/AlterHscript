@@ -59,7 +59,7 @@ class Tools {
 			if( def != null ) f(def);
 		case EMeta(name, args, e): if( args != null ) for( a in args ) f(a); f(e);
 		case ECheckType(e,_): f(e);
-
+		default:
 		}
 	}
 
@@ -91,6 +91,7 @@ class Tools {
 		case ECheckType(e,t): ECheckType(f(e), t);
 		case EImport(c): EImport(c);
 		case EClass(name, el, extend, interfaces): EClass(name, [for( e in el ) f(e)], extend, interfaces);
+		default: expr(e);
 		}
 		return mk(edef, e);
 	}

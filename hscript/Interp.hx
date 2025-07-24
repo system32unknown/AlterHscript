@@ -28,6 +28,7 @@
  */
 package hscript;
 
+import hscript.HEnum.HEnumValue;
 import haxe.CallStack;
 import hscript.utils.UsingHandler;
 import hscript.utils.UnsafeReflect;
@@ -817,6 +818,70 @@ class Interp {
 
 				return null;
 
+			case EEnum(en, _): // TODO: enum abstracts
+				var enumThingy:HEnum = {};
+				var enumName = en.name;
+				var enumFields = en.fields;
+				for (i => ef in enumFields) {
+					var fieldName = ef.name;
+					
+					if(ef.args.length < 1) {
+						var enumValue:HEnumValue = {
+							enumName: enumName,
+							fieldName: fieldName,
+							index: i,
+							args: []
+						}
+
+						enumThingy.setEnum(fieldName, enumValue);
+					}
+					else {
+						var params = ef.args;
+						var hasOpt = false, minParams = 0;
+						for (p in params) {
+							if (p.opt)
+								hasOpt = true;
+							else
+								minParams++;
+						}
+							
+						var f = function(args:Array<Dynamic>):HEnumValue {
+							if (((args == null) ? 0 : args.length) != params.length) {
+								if (args.length < minParams) {
+									var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
+									if (enumName != null)
+										str += " for enum '" + enumName + "'";
+									error(ECustom(str));
+								}
+								// make sure mandatory args are forced
+								var args2 = [];
+								var extraParams = args.length - minParams;
+								var pos = 0;
+								for (p in params)
+									if (p.opt) {
+										if (extraParams > 0) {
+											args2.push(args[pos++]);
+											extraParams--;
+										} else
+											args2.push(null);
+									} else
+										args2.push(args[pos++]);
+								args = args2;
+							}
+							return {
+								enumName: enumName,
+								fieldName: fieldName,
+								index: i,
+								args: args
+							};
+						};
+						var f = Reflect.makeVarArgs(f);
+
+						enumThingy.setEnum(fieldName, f);
+					}
+				}
+
+				variables.set(en.name, enumThingy);
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -1146,14 +1211,55 @@ class Interp {
 			case ETernary(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else expr(e2);
 			case ESwitch(e, cases, def):
+				var old = declared.length;
 				var val:Dynamic = expr(e);
 				var match = false;
 				for (c in cases) {
-					for (v in c.values)
-						if (expr(v) == val) {
-							match = true;
-							break;
+					for (v in c.values) {
+						// https://github.com/FunkinCrew/hscript/blob/funkin-dev/hscript/Interp.hx#L531
+						switch (Tools.expr(v)) {
+							case ECall(e, params):
+								switch (Tools.expr(e)) {
+									case EField(_, f):
+										var isScripted:Bool = val is HEnumValue;
+										var valStr:String = '';
+										var valEnum:HEnumValue = null;
+										if(isScripted)  {
+											valEnum = cast val;
+											valStr = valEnum.fieldName;
+										}
+										else {
+											valStr = cast val;
+											valStr = valStr.substring(0, valStr.indexOf("("));
+										}
+
+										if(valStr == f) {
+											var valParams = isScripted ? valEnum.getConstructorArgs() : Type.enumParameters(val);
+											for (i => p in params) {
+												switch (Tools.expr(p)) {
+													case EIdent(n):
+														declared.push({
+															n: n,
+															old: {r: locals.get(n), depth: depth},
+															depth: depth
+														});
+														locals.set(n, {r: valParams[i], depth: depth});
+													default:
+												}
+											}
+											match = true;
+											break;
+										}
+									default:
+								}
+							default:
+								if (expr(v) == val) {
+									match = true;
+									break;
+								}
 						}
+					}
+					
 					if (match) {
 						val = expr(c.expr);
 						break;
@@ -1161,6 +1267,7 @@ class Interp {
 				}
 				if (!match)
 					val = def == null ? null : expr(def);
+				restore(old);
 				return val;
 			case EMeta(a, b, e):
 				var oldAccessor = isBypassAccessor;

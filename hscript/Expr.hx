@@ -81,6 +81,7 @@ enum Expr {
 
 	EImport( c : String, ?asname:String, ?isUsing:Bool );
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
+	EEnum( en:EnumDecl, ?isAbstract:Bool );
 }
 
 @:structInit
@@ -110,6 +111,18 @@ final class MetadataEntry {
 }
 
 typedef Metadata = Array<MetadataEntry>;
+
+@:structInit
+final class EnumDecl {
+	public var name : String;
+	public var fields : Array<EnumField>;
+}
+
+@:structInit
+final class EnumField {
+	public var name : String;
+	public var args : Array<Argument>;
+}
 
 enum CType {
 	CTPath( path : Array<String>, ?params : Array<CType> );
