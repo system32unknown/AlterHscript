@@ -284,7 +284,7 @@ class Parser {
 	function isBlock(e:Expr):Bool {
 		if( e == null ) return false;
 		return switch( expr(e) ) {
-			case EBlock(_), EObject(_), ESwitch(_): true;
+			case EBlock(_), EObject(_), ESwitch(_), EEnum(_, _): true;
 			case EFunction(_,e,_,_,_,_): isBlock(e);
 			case EClass(_,e,_,_): true;
 			case EVar(_, t, e, _,_): e != null ? isBlock(e) : t != null ? t.match(CTAnon(_)) : false;
@@ -1112,10 +1112,10 @@ class Parser {
 			var fields:Array<EnumField> = [];
 			var fieldName:String = '';
 			var enumArgs:Array<Argument> = null;
-			var tk = token();
+			//var tk = token();
 
 			while(!maybe(TBrClose)) {
-				tk = token();
+				var tk = token();
 
 				switch(tk) {
 					//case TBrClose:
