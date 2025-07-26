@@ -213,6 +213,7 @@ class ClassExtendMacro {
 				if (f == null)
 					continue;
 				if (f.name == "new") {
+					hasNew = true;
 					switch (f.kind) {
 						case FFun(fn):
 							var constructor:Field = buildConstructor(fn.args);
@@ -670,7 +671,6 @@ class ClassExtendMacro {
 					if(__cachedFieldSet != null) {
 						for(k => v in __cachedFieldSet) {
 							Reflect.setProperty(this, k, v);
-							trace(k);
 						}
 						__cachedFieldSet.clear();
 						__cachedFieldSet = null;
