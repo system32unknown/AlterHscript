@@ -1289,17 +1289,8 @@ class Interp {
 	function doWhileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		do {
-			try {
-				expr(e);
-			} catch (err:Stop) {
-				switch (err) {
-					case SContinue:
-					case SBreak:
-						break;
-					case SReturn:
-						throw err;
-				}
-			}
+			if (!loopRun(() -> expr(e)))
+				break;
 		} while (expr(econd) == true);
 		restore(old);
 	}
@@ -1307,17 +1298,8 @@ class Interp {
 	function whileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		while (expr(econd) == true) {
-			try {
-				expr(e);
-			} catch (err:Stop) {
-				switch (err) {
-					case SContinue:
-					case SBreak:
-						break;
-					case SReturn:
-						throw err;
-				}
-			}
+			if (!loopRun(() -> expr(e)))
+				break;
 		}
 		restore(old);
 	}
@@ -1378,19 +1360,26 @@ class Interp {
 			if(isKeyValue)
 				locals.set(ithv, {r: next.key, depth: depth});
 			locals.set(n, {r: isKeyValue ? next.value : next, depth: depth});
-			try {
-				expr(e);
-			} catch (err:Stop) {
-				switch (err) {
-					case SContinue:
-					case SBreak:
-						break;
-					case SReturn:
-						throw err;
-				}
-			}
+			if (!loopRun(() -> expr(e)))
+				break;
 		}
 		restore(old);
+	}
+
+	inline function loopRun(f:Void -> Void) {
+		var cont = true;
+		try {
+			f();
+		} catch (err:Stop) {
+			switch (err) {
+				case SContinue:
+				case SBreak:
+					cont = false;
+				case SReturn:
+					throw err;
+			}
+		}
+		return cont;
 	}
 
 	inline function isMap(o:Dynamic):Bool {

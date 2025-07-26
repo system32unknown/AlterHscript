@@ -35,6 +35,14 @@ class Property {
 	var isVar:Bool;
 	var interp:Interp;
 
+	public function new(r:Dynamic, getter:FieldPropertyAccess, setter:FieldPropertyAccess, isVar:Bool, interp:Interp) {
+		this.r = r;
+		this.getter = getter;
+		this.setter = setter;
+		this.isVar = isVar;
+		this.interp = interp;
+	}
+
 	var __allowReadAccess:Bool = false;
 	var __allowWriteAccess:Bool = false;
 	var __allowSetGet:Null<Bool> = null;
