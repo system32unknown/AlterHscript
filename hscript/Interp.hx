@@ -882,6 +882,8 @@ class Interp {
 				}
 
 				variables.set(en.name, enumThingy);
+			case ECast(e, _): // TODO
+				return expr(e);
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;

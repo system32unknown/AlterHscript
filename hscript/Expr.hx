@@ -82,6 +82,7 @@ enum Expr {
 	EImport( c : String, ?asname:String, ?isUsing:Bool );
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
 	EEnum( en:EnumDecl, ?isAbstract:Bool );
+	ECast(e:Expr, ?t:CType);
 }
 
 @:structInit

@@ -1146,7 +1146,22 @@ class Parser {
 			}
 			
 			mk(EEnum({ name: name, fields: fields }, false), p1);
-
+		case "cast":
+			var tk = token();
+			var e:Expr = null;
+			var t:CType = null; // null if is unsafe cast
+			switch(tk) {
+				case TPOpen:
+					e = parseExpr();
+					ensure(TComma);
+					t = parseType();
+					ensure(TPClose);
+				default:
+					push(tk);
+					e = parseExpr();
+			}
+			
+			mk(ECast(e, t));
 		case "return":
 			var tk = token();
 			push(tk);

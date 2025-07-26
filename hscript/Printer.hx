@@ -171,6 +171,16 @@ class Printer {
 
 			tabs = tabs.substr(1);
 			add("}");
+		case ECast(e, t):
+			var safe = t != null;
+			add("cast ");
+			if(safe) add("(");
+			expr(e);
+			if(safe) {
+				add(", ");
+				addType(t);
+				add(")");
+			}
 		case EConst(c):
 			switch( c ) {
 			case CInt(i): add(i);
