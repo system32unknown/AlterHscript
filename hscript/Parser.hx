@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package hscript;
-import haxe.rtti.Meta;
 import hscript.Expr;
 
 using StringTools;

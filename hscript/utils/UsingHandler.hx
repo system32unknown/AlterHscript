@@ -33,7 +33,7 @@ class UsingEntry  {
  * 
  * @see https://haxe.org/manual/lf-static-extension.html
  */
-class UsingHandler { // The ACTUAL UsingHandler.hx >:3
+class UsingHandler { 
 	// Predefined static extension classes
 	public static final defaultExtension:Map<String, UsingEntry> = [
 		"StringTools" => { // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L45

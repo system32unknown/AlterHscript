@@ -10,7 +10,6 @@ import haxe.macro.Type.FieldKind;
 import haxe.macro.Type.ClassField;
 import haxe.macro.Type.VarAccess;
 import haxe.macro.*;
-import Sys;
 
 using StringTools;
 
