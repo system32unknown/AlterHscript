@@ -126,7 +126,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 			var disallowCopy = Type.getInstanceFields(__class.cl);
 			__superClass = Type.createInstance(__class.cl, args);
-			__superClass.__real_fields = disallowCopy;
+			this.__real_fields = disallowCopy;
+			@:privateAccess __interp.__instanceFields = __interp.__instanceFields.concat(disallowCopy);
+			__superClass.__real_fields = this.__real_fields;
 			__superClass.__class__fields = this.__class__fields;
 			__superClass.__interp = this.__interp;
 		}
