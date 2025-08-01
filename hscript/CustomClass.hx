@@ -124,8 +124,14 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			if(__cachedFieldSet != null)
 				UnsafeReflect.setField(__class.cl, "__cachedFieldSet", __cachedFieldSet);
 
-			var disallowCopy = Type.getInstanceFields(__class.cl);
 			__superClass = Type.createInstance(__class.cl, args);
+			var disallowCopy:Array<String> = {
+				var fieldMap:Map<String, String> = []; // Prevent duplicate values
+				for(f in Reflect.fields(__superClass).concat(Type.getInstanceFields(Type.getClass(__superClass))))
+					fieldMap.set(f, f);
+
+				fieldMap.array();
+			}
 			this.__real_fields = disallowCopy;
 			@:privateAccess __interp.__instanceFields = __interp.__instanceFields.concat(disallowCopy);
 			__superClass.__real_fields = this.__real_fields;
