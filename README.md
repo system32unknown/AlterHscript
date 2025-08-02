@@ -18,7 +18,9 @@ or set this in build.hxml
 -D CUSTOM_CLASSES
 ```
 
-Warning: custom class system is still in development, would like help to test it. For now, you can only override functions from the current class, not from the extended part, like you cant override update in FlxText because FlxText doesnt have a update function overriden. Also you cannot create custom classes that extends a typed class (those ones that has `<T>`), this will be implemented in the future.
+Current Custom Class Limitations :
+- For now, you can only override functions from the current class, not from the extended part, like you cant override update in FlxText because FlxText doesnt have a update function overriden.
+- You cannot create custom classes that extends a typed class (those ones that has `<T>`), this will be implemented in the future.
 
 -----------
 
