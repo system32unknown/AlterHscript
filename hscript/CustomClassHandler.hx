@@ -118,6 +118,13 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
     }
 
 	public function hget(name:String):Dynamic {
+		if(name == 'new') {
+			var __constructor = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+				return this.hnew(args);
+			});
+			return __constructor;
+		}
+		
 		if(hasField(name)) {
             return getField(name);
         }

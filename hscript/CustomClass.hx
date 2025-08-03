@@ -141,11 +141,14 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	public function call(name:String, ?args:Array<Dynamic>, ?toSuper:Bool = false):Dynamic {
-		// TODO: optimize this
-		var fnName = toSuper ? '_HX_SUPER__$name' : name;
-		var fn:Dynamic = __interp.variables.get(fnName);
-		if(toSuper && fn == null)
-			fn = __interp.variables.get(name);
+		var superFnName:Null<String> = toSuper ? '_HX_SUPER__$name' : null;
+		var fn:Dynamic = {
+			if(toSuper && __interp.variables.exists(superFnName)) {
+				__interp.variables.get(superFnName);
+			}
+			else 
+				__interp.variables.get(name);
+		};
 
 		if (fn != null && Reflect.isFunction(fn))
 			return UnsafeReflect.callMethodUnsafe(null, fn, (args == null) ? [] : args);
