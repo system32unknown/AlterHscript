@@ -48,6 +48,12 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		__interp.staticVariables = __class.ogInterp.staticVariables;
 		__interp.customClasses = __class.ogInterp.customClasses;
 
+		for(f => v in __class.__interp.variables) {
+			if(f == 'new') continue;
+			if (!__interp.variables.exists(f))
+				__interp.variables.set(f, v);
+		}
+
 		for (f in __class.fields) {
 			switch (Tools.expr(f)) {
 				case EVar(n): __class__fields.push(n);
@@ -57,11 +63,6 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 				default: continue;
 			}
 			@:privateAccess __interp.exprReturn(f);
-		}
-
-		for (f => v in __class.__interp.variables) {
-			if (!__interp.variables.exists(f))
-				__interp.variables.set(f, v);
 		}
 
 		__interp.scriptObject = this;
