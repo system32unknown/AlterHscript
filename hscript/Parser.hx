@@ -959,12 +959,13 @@ class Parser {
 			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline),p1,pmax(inf.body));
 		case "package":
 			var tk = token();
-			if(tk == TSemicolon) 
-				mk(EPackage(null), p1);
-
 			push(tk);
+			if(tk == TSemicolon) 
+				return mk(EPackage(null), p1);
+
 			var pkg:String = parsePath().join('.');
 			ensure(TSemicolon);
+			push(TSemicolon);
 			mk(EPackage(pkg), p1);
 		case "import" | "using":
 			var isUsing = id == "using";
