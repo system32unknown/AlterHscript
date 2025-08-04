@@ -116,6 +116,11 @@ class Printer {
 			return;
 		}
 		switch(Tools.expr(e)) {
+		case EPackage(n):
+			add('package');
+			if(n != null)
+				add(' $n');
+			add(';\n');
 		case EImport(c, n, u):
 			add('${u ? 'using' : 'import'} $c');
 			if(n != null)

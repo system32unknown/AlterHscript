@@ -124,6 +124,8 @@ class Bytes {
 		#end
 		bout.addByte(Type.enumIndex(e));
 		switch( e ) {
+		case EPackage(n):
+			// TODO
 		case EImport(c):
 			// TODO
 		case EClass(_, _, _, _):

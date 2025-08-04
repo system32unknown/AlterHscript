@@ -79,6 +79,7 @@ enum Expr {
 	EMeta( name : String, args : Array<Expr>, e : Expr );
 	ECheckType( e : Expr, t : CType );
 
+	EPackage( ?n:String );
 	EImport( c : String, ?asname:String, ?isUsing:Bool );
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
 	EEnum( en:EnumDecl, ?isAbstract:Bool );

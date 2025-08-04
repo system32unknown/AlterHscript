@@ -957,6 +957,15 @@ class Parser {
 			var tk = token();
 			push(tk);
 			mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline),p1,pmax(inf.body));
+		case "package":
+			var tk = token();
+			if(tk == TSemicolon) 
+				mk(EPackage(null), p1);
+
+			push(tk);
+			var pkg:String = parsePath().join('.');
+			ensure(TSemicolon);
+			mk(EPackage(pkg), p1);
 		case "import" | "using":
 			var isUsing = id == "using";
 			var oldReadPos = readPos;
@@ -1160,7 +1169,7 @@ class Parser {
 					e = parseExpr();
 			}
 			
-			mk(ECast(e, t));
+			mk(ECast(e, t), p1);
 		case "return":
 			var tk = token();
 			push(tk);

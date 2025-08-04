@@ -703,6 +703,7 @@ class Interp {
 		var e = e.e;
 		#end
 		switch (e) {
+			case EPackage(_):
 			case EClass(name, fields, extend, interfaces, isFinal):
 				var oldName:String = name;
 				var hasAlias:Bool = (setAlias != null && beforeAlias == oldName);
