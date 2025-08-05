@@ -1,40 +1,32 @@
 package hscript.macros;
 
 #if macro
+import haxe.macro.Type.ClassType;
+import Type.ValueType;
+import haxe.macro.Expr.Function;
+import haxe.macro.Expr;
 import haxe.macro.Type.MetaAccess;
 import haxe.macro.Type.FieldKind;
 import haxe.macro.Type.ClassField;
 import haxe.macro.Type.VarAccess;
-import haxe.macro.Type;
-import haxe.macro.Expr;
 import haxe.macro.*;
 
 using StringTools;
 
 // BIG TODO: make typed classes scriptable
 class ClassExtendMacro {
-	static inline final FUNC_PREFIX:String = "_HX_SUPER__";
-	static inline final CLASS_SUFFIX:String = "_HSX";
+	public static inline final FUNC_PREFIX = "_HX_SUPER__";
+	public static inline final CLASS_SUFFIX = "_HSX";
 
-	static final unallowedMetas:Array<String> = [":bitmap", ":noCustomClass", ":generic"];
+	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass", ":generic"];
 
-	/**
-	 * List of classes which are known not to be invalid.
-	 */
-	static final unallowedClasses:Array<String> = [
-		"sys.thread.FixedThreadPool", // Error: Type name sys.thread.Worker_HSX is redefined from module sys.thread.FixedThreadPool
-		"sys.thread.EventLoop", // Error: cant override force inlined
-		"StdTypes", // Error: Cant extend basic class
-		"Date",     // Error: Cant extend basic class
-		"Xml",      // Error: Cant extend basic class
-		"hscript.CustomClassHandler.TemplateClass", // Error: Redefined
-		"hscript.CustomClassHandler.CustomTemplateClass", // Error: Redefined
-	];
+	public static var modifiedClasses:Array<String> = [];
 
-	public static function init():Void {
+	public static function init() {
 		#if !display
 		#if CUSTOM_CLASSES
-		for (apply in Config.ALLOWED_CUSTOM_CLASSES) {
+		if(Context.defined("display")) return;
+		for(apply in Config.ALLOWED_CUSTOM_CLASSES) {
 			Compiler.addGlobalMetadata(apply, "@:build(hscript.macros.ClassExtendMacro.build())");
 		}
 		//Context.onAfterTyping(buildTyped);
@@ -43,26 +35,20 @@ class ClassExtendMacro {
 	}
 
 	public static function build():Array<Field> {
-		var fields:Array<Field> = Context.getBuildFields();
+		var fields = Context.getBuildFields();
 		var clRef = Context.getLocalClass();
 		if (clRef == null) return fields;
+		var cl = clRef.get();
 
-		var cl:ClassType = clRef.get();
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
-		if (cl.name.endsWith("_Impl_") || cl.name.endsWith(CLASS_SUFFIX) || cl.name.endsWith("_HSC")) return fields;
-		if (cl.module.contains("_")) return fields; // Weird issue, sorry
-		if (cl.params.length > 0) return fields;
+		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("_HSC")) {
+			var metas = cl.meta.get();
 
-		var key = cl.module;
-		var fkey = cl.module + "." + cl.name;
+			for(m in metas)
+				if (unallowedMetas.contains(m.name))
+					return fields;
 
-		if (unallowedClasses.contains(key) || unallowedClasses.contains(fkey)) return fields;
-		if (Config.DISALLOW_CUSTOM_CLASSES.contains(cl.module) || Config.DISALLOW_CUSTOM_CLASSES.contains(fkey)) return fields;
-
-		var metas = cl.meta.get();
-
-		for (m in metas)
-			if (unallowedMetas.contains(m.name))
+			if(cl.params.length > 0)
 				return fields;
 
 			var key = cl.module;
@@ -243,25 +229,33 @@ class ClassExtendMacro {
 				if (f.access.contains(ADynamic) || f.access.contains(AStatic) || f.access.contains(AExtern) || f.access.contains(AInline) || f.access.contains(AFinal))
 					continue;
 
-			for (m in f.meta)
-				if (unallowedMetas.contains(m.name))
-					continue;
+				if(f.name == "hget" || f.name == "hset") continue; // sorry, no overwriting the hget and hset in custom classes, yet
+				if(definedFields.contains(f.name)) continue; // no duplicate fields
 
-			switch (f.kind) {
-				case FFun(fun):
-					if (fun == null) continue;
-					// TODO: Support for this maybe?
-					if (fun.params != null && fun.params.length > 0) continue;
+				for(m in f.meta)
+					if (unallowedMetas.contains(m.name))
+						continue;
 
-					var overrideExpr:Expr;
-					var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
+				switch(f.kind) {
+					case FFun(fun):
+						if (fun == null)
+							continue;
+						if (fun.params != null && fun.params.length > 0) // TODO: Support for this maybe?
+							continue;
 
-					var name:String = f.name;
-					var arguments = fun.args == null ? [] : [for(a in fun.args) macro $i{a.name}];
+						if(fun.params == null)
+							fun.params = [];
 
-					if (returns) {
-						overrideExpr = macro {
-							var name:String = $v{name};
+						var overrideExpr:Expr;
+						var returns:Bool = !fun.ret.match(TPath({name: "Void"}));
+
+						var name = f.name;
+
+						var arguments = fun.args == null ? [] : [for(a in fun.args) macro $i{a.name}];
+
+						if (returns) {
+							overrideExpr = macro {
+								var name:String = $v{name};
 
 								if (__interp != null && __class__fields.contains(name)) {
 									var v:Dynamic = null;
@@ -287,55 +281,59 @@ class ClassExtendMacro {
 							};
 						}
 
-					var superFuncExpr:Expr = returns ? {
-						macro return super.$name($a{arguments});
-					} : {
-						macro super.$name($a{arguments});
-					};
+						var superFuncExpr:Expr = returns ? {
+							macro return super.$name($a{arguments});
+						} : {
+							macro super.$name($a{arguments});
+						};
 
-					var func:Function = {
-						ret: fun.ret,
-						params: fun.params.copy(),
-						expr: overrideExpr,
-						args: fun.args.copy()
-					};
-
-					var overrideField:Field = {
-						name: f.name,
-						access: f.access.copy(),
-						kind: FFun(func),
-						pos: Context.currentPos(),
-						doc: f.doc,
-						meta: f.meta.copy()
-					};
-
-					if (!overrideField.access.contains(AOverride))
-						overrideField.access.push(AOverride);
-
-					var superField:Field = {
-						name: '$FUNC_PREFIX${f.name}',
-						pos: Context.currentPos(),
-						kind: FFun({
+						var func:Function = {
 							ret: fun.ret,
 							params: fun.params.copy(),
-							expr: superFuncExpr,
+							expr: overrideExpr,
 							args: fun.args.copy()
-						}),
-						access: f.access.copy()
-					};
+						};
 
-					if (superField.access.contains(AOverride))
-						superField.access.remove(AOverride);
+						var overrideField:Field = {
+							name: f.name,
+							access: f.access.copy(),
+							kind: FFun(func),
+							pos: Context.currentPos(),
+							doc: f.doc,
+							meta: f.meta.copy()
+						};
 
-					shadowClass.fields.push(overrideField);
-					shadowClass.fields.push(superField);
-					definedFields.push(f.name);
+						if (!overrideField.access.contains(AOverride))
+							overrideField.access.push(AOverride);
 
-				default:
+						var superField:Field = {
+							name: '$FUNC_PREFIX${f.name}',
+							pos: Context.currentPos(),
+							kind: FFun({
+								ret: fun.ret,
+								params: fun.params.copy(),
+								expr: superFuncExpr,
+								args: fun.args.copy()
+							}),
+							access: f.access.copy()
+						};
+						if (superField.access.contains(AOverride))
+							superField.access.remove(AOverride);
+						shadowClass.fields.push(overrideField);
+						shadowClass.fields.push(superField);
+						definedFields.push(f.name);
+					default:
+						// fuck off >:(
+
+				}
 			}
-		}
 
-		if (definedFields.length == 0 && !hasConstructor) return fields;
+			var totalFields = definedFields.length;
+
+			if(totalFields == 0 && !hasNew) {
+				//Sys.println(cl.pack.join(".") + "." + cl.name + ", " + totalFields);
+				return fields;
+			}
 
 			shadowClass.kind = TDClass({
 				pack: cl.pack.copy(),
@@ -378,19 +376,19 @@ class ClassExtendMacro {
 				access: [APublic]
 			});
 
-		shadowClass.fields.push({
-			name: "__real_fields",
-			pos: Context.currentPos(),
-			kind: FVar(macro: Array<String>),
-			access: [APublic]
-		});
+			shadowClass.fields.push({
+				name: "__real_fields",
+				pos: Context.currentPos(),
+				kind: FVar(macro: Array<String>),
+				access: [APublic]
+			});
 
-		shadowClass.fields.push({
-			name: "__class__fields",
-			pos: Context.currentPos(),
-			kind: FVar(macro: Array<String>),
-			access: [APublic]
-		});
+			shadowClass.fields.push({
+				name: "__class__fields",
+				pos: Context.currentPos(),
+				kind: FVar(macro: Array<String>),
+				access: [APublic]
+			});
 
 			shadowClass.fields.push({
 				name: "__callGetter",
@@ -599,51 +597,60 @@ class ClassExtendMacro {
 
 			//trace(cl.name);
 
-		shadowClass.fields.push({
-			name: "hset",
-			pos: Context.currentPos(),
-			access: hasHsetInSuper ? [AOverride, APublic] : [APublic],
-			kind: FFun({
-				ret: macro: Dynamic,
-				params: [],
-				expr: hsetField,
-				args: [
-					{
-						name: "name",
-						opt: false,
-						meta: [],
-						type: macro: String
-					},
-					{
-						name: "val",
-						opt: false,
-						meta: [],
-						type: macro: Dynamic
-					}
-				]
-			})
-		});
+			shadowClass.fields.push({
+				name: "hset",
+				pos: Context.currentPos(),
+				access: hasHsetInSuper ? [AOverride, APublic] : [APublic],
+				kind: FFun({
+					ret: macro: Dynamic,
+					params: [],
+					expr: hsetField,
+					args: [
+						{
+							name: "name",
+							opt: false,
+							meta: [],
+							type: macro: String
+						},
+						{
+							name: "val",
+							opt: false,
+							meta: [],
+							type: macro: Dynamic
+						}
+					]
+				})
+			});
 
-		shadowClass.fields.push({
-			name: "hget",
-			pos: Context.currentPos(),
-			access: hasHgetInSuper ? [AOverride, APublic] : [APublic],
-			kind: FFun({
-				ret: macro: Dynamic,
-				params: [],
-				expr: hgetField,
-				args: [
-					{
-						name: "name",
-						opt: false,
-						meta: [],
-						type: macro: String
-					}
-				]
-			})
-		});
+			shadowClass.fields.push({
+				name: "hget",
+				pos: Context.currentPos(),
+				access: hasHgetInSuper ? [AOverride, APublic] : [APublic],
+				kind: FFun({
+					ret: macro: Dynamic,
+					params: [],
+					expr: hgetField,
+					args: [
+						{
+							name: "name",
+							opt: false,
+							meta: [],
+							type: macro: String
+						}
+					]
+				})
+			});
 
-		Context.defineModule(cl.module, [shadowClass], imports);
+			/*var p = new Printer();
+			var aa = p.printTypeDefinition(shadowClass);
+			if(aa.length < 5024)
+			trace(aa);
+			if(aa.indexOf("pack") >= 0)
+			if(cl.name == "FunkinShader")*/
+
+			Context.defineModule(cl.module, [shadowClass], imports);
+		}
+
 		return fields;
 	}
 
@@ -693,5 +700,8 @@ class ClassExtendMacro {
 	static function buildShadowClass(cl:ClassType) {}
 }
 #else
-class ClassExtendMacro {}
+class ClassExtendMacro {
+	public var usedClass:Class<Dynamic>;
+	public var className:String;
+}
 #end

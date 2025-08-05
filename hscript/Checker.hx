@@ -155,7 +155,14 @@ class CheckerTypes {
 								complete = false;
 						}
 						if (skip) continue;
-						var fl:CField = {isPublic: f.isPublic, canWrite: f.set.match(RNormal | RCall(_) | RDynamic), complete: complete, params: [], name: f.name, t: null};
+						var fl:CField = {
+							isPublic: f.isPublic,
+							canWrite: f.set.match(RNormal | RCall(_) | RDynamic),
+							complete: complete,
+							params: [],
+							name: f.name,
+							t: null
+						};
 						for (p in f.params) {
 							var pt = TParam(p);
 							var key = f.name + "." + p;
@@ -284,8 +291,8 @@ class CheckerTypes {
 			return TNull(args[0]);
 		}
 		var t = types.get(name);
-		if(t == null) return null;
-		if(args == null) args = [];
+		if (t == null) return null;
+		if (args == null) args = [];
 		return switch (t) {
 			case CTClass(c): TInst(c, args);
 			case CTEnum(e): TEnum(e, args);
@@ -419,27 +426,27 @@ class Checker {
 
 	function makeType(t:CType, e:Expr):TType {
 		return switch (t) {
-		case CTPath(path, params):
-			var ct = types.resolve(path.join("."),params == null ? [] : [for( p in params ) makeType(p,e)]);
-			if( ct == null ) {
-				error("Unknown type "+path, e);
-				ct = TDynamic;
-			}
-			return ct;
-		case CTFun(args, ret):
-			var i = 0;
-			return TFun([for( a in args ) { name : "p"+(i++), opt : false, t : makeType(a,e) }], makeType(ret,e));
-		case CTAnon(fields):
-			return TAnon([for( f in fields ) { name : f.name, opt : false, t : makeType(f.t,e) }]);
-		case CTParent(t):
-			return makeType(t,e);
-		case CTNamed(n, t):
-			return makeType(t,e);
-		case CTOpt(t):
-			return makeType(t,e);
-		case CTExpr(_):
-			error("Unsupported expr type parameter", e);
-			return null;
+			case CTPath(path, params):
+				var ct = types.resolve(path.join("."), params == null ? [] : [for (p in params) makeType(p, e)]);
+				if (ct == null) {
+					error("Unknown type " + path, e);
+					ct = TDynamic;
+				}
+				return ct;
+			case CTFun(args, ret):
+				var i = 0;
+				return TFun([for (a in args) {name: "p" + (i++), opt: false, t: makeType(a, e)}], makeType(ret, e));
+			case CTAnon(fields):
+				return TAnon([for (f in fields) {name: f.name, opt: false, t: makeType(f.t, e)}]);
+			case CTParent(t):
+				return makeType(t, e);
+			case CTNamed(n, t):
+				return makeType(t, e);
+			case CTOpt(t):
+				return makeType(t, e);
+			case CTExpr(_):
+				error("Unsupported expr type parameter", e);
+				return null;
 		}
 	}
 

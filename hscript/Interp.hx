@@ -28,19 +28,25 @@
  */
 package hscript;
 
-import hscript.HEnum.HEnumValue;
+import alterhscript.AlterHscript;
+
 import haxe.CallStack;
-import hscript.utils.UsingHandler;
-import hscript.utils.UnsafeReflect;
 import haxe.PosInfos;
-import hscript.Expr;
-import hscript.Tools;
 import haxe.Constraints.Function;
 import haxe.Constraints.IMap;
-import haxe.PosInfos;
-import haxe.CallStack;
+
+import hscript.HEnum.HEnumValue;
+import hscript.utils.UsingHandler;
+import hscript.utils.UnsafeReflect;
+import hscript.Expr;
 
 using StringTools;
+
+private enum Stop {
+	SBreak;
+	SContinue;
+	SReturn;
+}
 
 enum abstract ScriptObjectType(UInt8) {
 	var SClass;
@@ -50,28 +56,12 @@ enum abstract ScriptObjectType(UInt8) {
 	var SBehaviourClass; // hget and hset
 	var SAccessBehaviourObject; // hget and hset with __allowSetGet
 	var SNull;
-
-	@:to
-	function toString():String {
-		return switch (cast this) {
-			case SClass: "SClass";
-			case SObject: "SObject";
-			case SStaticClass: "SStaticClass";
-			case SCustomClass: "SCustomClass";
-			case SBehaviourClass: "SBehaviourClass";
-			case SAccessBehaviourObject: "SAccessBehaviourObject";
-			default: "SNull";
-		}
-	}
 }
 
 @:structInit
 class DeclaredVar {
 	public var r:Dynamic;
 	public var depth:Int;
-
-	function toString():String
-		return '{r:$r, depth:$depth}';
 }
 
 @:structInit
@@ -94,13 +84,13 @@ class Interp {
 
 	public var scriptObject(default, set):Dynamic;
 	public function set_scriptObject(v:Dynamic) {
-		switch (Type.typeof(v)) {
+		switch(Type.typeof(v)) {
 			case TClass(c): // Class Access
 				__instanceFields = Type.getInstanceFields(c);
-				if (c is IHScriptCustomClassBehaviour) {
+				if(v is IHScriptCustomClassBehaviour) {
 					var v:IHScriptCustomClassBehaviour = cast v;
 					var classFields = v.__class__fields;
-					if (classFields != null)
+					if(classFields != null)
 						__instanceFields = __instanceFields.concat(classFields);
 					_scriptObjectType = SCustomClass;
 				} else if(v is IHScriptCustomAccessBehaviour) {
@@ -112,12 +102,12 @@ class Interp {
 				}
 			case TObject: // Object Access or Static Class Access
 				var cls = Type.getClass(v);
-				switch (Type.typeof(cls)) {
+				switch(Type.typeof(cls)) {
 					case TClass(c): // Static Class Access
 						__instanceFields = Type.getInstanceFields(c);
 						_scriptObjectType = SStaticClass;
 					default: // Object Access
-						__instanceFields = UnsafeReflect.fields(v);
+						__instanceFields = Reflect.fields(v);
 						_scriptObjectType = SObject;
 				}
 			default: // Null or other
@@ -137,7 +127,6 @@ class Interp {
 
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
-	public var onMetadata:String->Array<Expr>->Expr->Dynamic;
 
 	public var customClasses:Map<String, CustomClassHandler>;
 	public var variables:Map<String, Dynamic>;
@@ -193,7 +182,7 @@ class Interp {
 		variables.set("null", null);
 		variables.set("true", true);
 		variables.set("false", false);
-		variables.set("trace", UnsafeReflect.makeVarArgs(function(el) {
+		variables.set("trace", Reflect.makeVarArgs(function(el) {
 			var inf:PosInfos = posInfos();
 			var v:Null<Dynamic> = el.shift();
 			if (el.length > 0)
@@ -212,11 +201,7 @@ class Interp {
 
 	function initOps():Void {
 		var me = this;
-		#if haxe3
 		binops = new Map();
-		#else
-		binops = new Hash();
-		#end
 		binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
 		binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
 		binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
@@ -242,7 +227,7 @@ class Interp {
 			var expr1:Dynamic = me.expr(e1);
 			return expr1 == null ? me.expr(e2) : expr1;
 		});
-		binops.set("...", function(e1, e2) return new #if (haxe_211 || haxe3) IntIterator #else IntIter #end(me.expr(e1), me.expr(e2)));
+		binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
 		assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
 		assignOp("-=", function(v1:Float, v2:Float) return v1 - v2);
 		assignOp("*=", function(v1:Float, v2:Float) return v1 * v2);
@@ -260,7 +245,8 @@ class Interp {
 	function checkIsType(e1:Expr, e2:Expr):Bool {
 		var expr1:Dynamic = expr(e1);
 
-		return switch (Tools.expr(e2)) {
+		return switch(Tools.expr(e2))
+		{
 			case EIdent("Class"):
 				Std.isOfType(expr1, Class);
 			case EIdent("Map") | EIdent("IMap"):
@@ -285,39 +271,13 @@ class Interp {
 		return allowStaticVariables && staticVariables.exists(name) || allowPublicVariables && publicVariables.exists(name) || variables.exists(name);
 	}
 
-	public function setVar(name:String, v:Dynamic):Dynamic {
+	public function setVar(name:String, v:Dynamic):Void {
 		if (allowStaticVariables && staticVariables.exists(name))
 			staticVariables.set(name, v);
 		else if (allowPublicVariables && publicVariables.exists(name))
 			publicVariables.set(name, v);
 		else
 			variables.set(name, v);
-		return v;
-	}
-
-	// ENUM!!!!
-	public function importEnum(enm:Enum<Dynamic>, ?asName:String) {
-		if (enm == null) return;
-		var enumThingy = {};
-		for (c in enm.getConstructors()) {
-			try {
-				UnsafeReflect.setField(enumThingy, c, enm.createByName(c));
-			} catch (e) {
-				try {
-					UnsafeReflect.setField(enumThingy, c, UnsafeReflect.field(enm, c));
-				} catch (ex) throw e;
-			}
-		}
-		if (asName == null) {
-			var splitName = Type.getEnumName(enm).split(".");
-			variables.set(splitName[splitName.length - 1], enumThingy);
-		} else {
-			variables.set(asName, enumThingy);
-		}
-
-		for (i in UnsafeReflect.fields(enumThingy)) {
-			variables.set(i, UnsafeReflect.field(enumThingy, i));
-		}
 	}
 
 	function assign(e1:Expr, e2:Expr):Dynamic {
@@ -348,7 +308,7 @@ class Interp {
 						}
 
 						if (instanceHasField) {
-							if (isBypassAccessor) {
+							if(isBypassAccessor) {
 								UnsafeReflect.setField(scriptObject, id, v);
 								return v;
 							} else {
@@ -373,9 +333,11 @@ class Interp {
 					return prop.callSetter(id, v);
 				} else {
 					l.r = v;
-					if (l.depth == 0) setVar(id, v);
+					if (l.depth == 0) {
+						setVar(id, v);
+					}
 				}
-			// TODO
+				// TODO
 			case EField(e, f, s):
 				var obj = expr(e);
 				if (obj == null) {
@@ -412,6 +374,7 @@ class Interp {
 				if (l == null) {
 					if(hasScriptObject && !varExists(id)) {
 						var instanceHasField = __instanceFields.contains(id);
+
 						if (_scriptObjectType == SObject && instanceHasField) {
 							UnsafeReflect.setField(scriptObject, id, v);
 							return v;
@@ -431,7 +394,7 @@ class Interp {
 						}
 
 						if (instanceHasField) {
-							if (isBypassAccessor) {
+							if(isBypassAccessor) {
 								UnsafeReflect.setField(scriptObject, id, v);
 								return v;
 							} else {
@@ -459,7 +422,9 @@ class Interp {
 						return prop.callSetter(id, v);
 					}
 					l.r = v;
-					if (l.depth == 0) setVar(id, v);
+					if (l.depth == 0) {
+						setVar(id, v);
+					}
 				}
 			case EField(e, f, s):
 				var obj = expr(e);
@@ -474,6 +439,7 @@ class Interp {
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
 					var map = getMap(arr);
+
 					v = fop(map.get(index), expr(e2));
 					map.set(index, v);
 				} else {
@@ -580,18 +546,13 @@ class Interp {
 
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
-		#if haxe3
 		locals = new Map();
-		#else
-		locals = new Hash();
-		#end
 		declared = [];
 		return exprReturn(expr);
 	}
 
 	public var printCallStack:Bool = false;
 
-	public var printCallStack:Bool = false;
 	function exprReturn(e):Dynamic {
 		try {
 			try {
@@ -614,17 +575,19 @@ class Interp {
 					error(ECustom(e.toString()));
 				return null;
 			}
-		} catch (e:Error) {
+		} catch(e:Error) {
 			if (errorHandler != null)
 				errorHandler(e);
-			else throw e;
+			else
+				throw e;
 			return null;
-		} catch (e) trace(e);
+		} catch(e) {
+			trace(e);
+		}
 		return null;
 	}
 
-	public function duplicate<T>(h:#if haxe3 Map<String, T> #else Hash<T> #end) {
-		#if haxe3
+	public function duplicate<T>(h:Map<String, T>) {
 		var h2 = new Map();
 		var keys = h.keys();
 		var _hasNext = keys.hasNext;
@@ -634,12 +597,6 @@ class Interp {
 			h2.set(k, h.get(k));
 		}
 		return h2;
-		#else
-		var h2 = new Hash();
-		for (k in h.keys())
-			h2.set(k, h.get(k));
-		return h2;
-		#end
 	}
 
 	function restore(old:Int):Void {
@@ -654,9 +611,14 @@ class Interp {
 
 		if (rethrow)
 			this.rethrow(e);
-		else
-			throw e;
+		else throw e;
 		
+		return null;
+	}
+
+	inline function warn(e:#if hscriptPos ErrorDef #else Error #end):Dynamic {
+		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
+		AlterHscript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
 		return null;
 	}
 
@@ -720,15 +682,6 @@ class Interp {
 					return res;
 				}
 				return obj.hget(id);
-			} else if (_scriptObjectType == SAccessBehaviourObject) {
-				var obj:IHScriptCustomAccessBehaviour = cast scriptObject;
-				if (isBypassAccessor) {
-					obj.__allowSetGet = false;
-					var res = obj.hget(id);
-					obj.__allowSetGet = true;
-					return res;
-				}
-				return obj.hget(id);
 			} else if (_scriptObjectType == SBehaviourClass) {
 				var obj:IHScriptCustomBehaviour = cast scriptObject;
 				return obj.hget(id);
@@ -744,13 +697,6 @@ class Interp {
 				return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
 			}
 		}
-		var cl:Class<Dynamic> = Type.resolveClass(id); // now you can do this thing: var a:haxe.io.Path = new haxe.io.Path();
-		if (cl == null) cl = Type.resolveClass('${id}_HSC');
-		if (cl != null) {
-			variables.set(id, cl);
-			return cl;
-		}
-
 		if (doException)
 			error(EUnknownVariable(id));
 		return null;
@@ -828,26 +774,18 @@ class Interp {
 
 				if (importBlocklist.contains(realClassName))
 					return null;
-				}
-
-				var oldClassName:String = null;
-				var oldSplitName:Array<String> = null;
 				var cl = Type.resolveClass(realClassName);
 				if (cl == null) cl = Type.resolveClass('${realClassName}_HSC');
 
 				var en = Type.resolveEnum(realClassName);
 				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
 				if (cl == null && en == null) {
-					oldClassName = realClassName;
-					oldSplitName = splitClassName.copy();
-					if (splitClassName.length > 1) {
+					if(splitClassName.length > 1) {
 						splitClassName.splice(-2, 1); // Remove the last last item
 						realClassName = splitClassName.join(".");
 
-						if (importBlocklist.contains(realClassName)) {
-							error(ECustom("You cannot add a blacklisted import, for class " + realClassName + toSetName));
-							return null;
-						}
+						var realClassName = getLocalImportRedirect(realClassName);
+						if (importBlocklist.contains(realClassName)) return null;
 
 						cl = Type.resolveClass(realClassName);
 						if (cl == null) cl = Type.resolveClass('${realClassName}_HSC');
@@ -956,13 +894,10 @@ class Interp {
 			case ECast(e, _): // TODO
 				return expr(e);
 			case EConst(c):
-				return switch (c) {
-					case CInt(v): v;
-					case CFloat(f): f;
-					case CString(s): s;
-					#if !haxe3
-					case CInt32(v): v;
-					#end
+				switch (c) {
+					case CInt(v): return v;
+					case CFloat(f): return f;
+					case CString(s): return s;
 				}
 			case EIdent(id):
 				return resolve(id);
@@ -990,10 +925,10 @@ class Interp {
 				};
 				locals.set(n, declVar);
 				if (depth == 0) {
-					if (allowStaticVariables && isStatic == true) {
-						if (!staticVariables.exists(n)) // make it so it only sets it once
+					if(allowStaticVariables && isStatic == true) {
+						if(!staticVariables.exists(n)) // make it so it only sets it once
 							staticVariables.set(n, locals[n].r);
-					} else if (allowPublicVariables && isPublic == true) {
+					} else if(allowPublicVariables && isPublic == true) {
 						publicVariables.set(n, locals[n].r);
 					} else {
 						variables.set(n, locals[n].r);
@@ -1011,7 +946,7 @@ class Interp {
 				return v;
 			case EField(e, f, s):
 				var field = expr(e);
-				if (s && field == null)
+				if(s && field == null)
 					return null;
 				return get(field, f);
 			case EBinop(op, e1, e2):
@@ -1020,33 +955,28 @@ class Interp {
 					error(EInvalidOp(op));
 				return fop(e1, e2);
 			case EUnop(op, prefix, e):
-				return switch (op) {
+				switch (op) {
 					case "!":
-						expr(e) != true;
+						return expr(e) != true;
 					case "-":
-						-expr(e);
+						return -expr(e);
 					case "++":
-						increment(e, prefix, 1);
+						return increment(e, prefix, 1);
 					case "--":
-						increment(e, prefix, -1);
+						return increment(e, prefix, -1);
 					case "~":
-						#if (neko && !haxe3)
-						haxe.Int32.complement(expr(e));
-						#else
-						~expr(e);
-						#end
+						return ~expr(e);
 					default:
 						error(EInvalidOp(op));
-						null;
 				}
 			case ECall(e, params):
 				var args:Array<Dynamic> = makeArgs(params);
 
 				switch (Tools.expr(e)) {
 					case EField(e, f, s):
-						var obj:Dynamic = expr(e);
+						var obj = expr(e);
 						if (obj == null) {
-							if (s) return null;
+							if(s) return null;
 							error(EInvalidAccess(f));
 						}
 						if (f == "bind" && UnsafeReflect.isFunction(obj)) {
@@ -1101,17 +1031,27 @@ class Interp {
 			case EReturn(e):
 				returnValue = e == null ? null : expr(e);
 				throw SReturn;
-			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride):
+			case EFunction(params, fexpr, name, _, isPublic, isStatic, isOverride, isPrivate, isFinal, isInline):
 				var __capturedLocals = duplicate(locals);
 				var capturedLocals:Map<String, DeclaredVar> = [];
-				for (k => e in __capturedLocals)
+
+				var keys = __capturedLocals.keys();
+				var _hasNext = keys.hasNext;
+				var _next = keys.next;
+				while (_hasNext()) {
+					var k = _next();
+					var e = __capturedLocals.get(k);
 					if (e != null && e.depth > 0)
 						capturedLocals.set(k, e);
+				}
 
 				var me = this;
-				var minParams = 0;
+				var hasOpt = false, minParams = 0;
 				for (p in params)
-					if (!p.opt) minParams++;
+					if (p.opt)
+						hasOpt = true;
+					else
+						minParams++;
 				var f = function(args:Array<Dynamic>) {
 					if (me.locals == null || me.variables == null) return null;
 
@@ -1148,7 +1088,6 @@ class Interp {
 						try {
 							r = me.exprReturn(fexpr);
 						} catch (e:Dynamic) {
-							restore(oldDecl);
 							me.locals = old;
 							me.depth = depth;
 							#if neko
@@ -1164,13 +1103,13 @@ class Interp {
 					me.depth = depth;
 					return r;
 				};
-				var f = UnsafeReflect.makeVarArgs(f);
+				var f = Reflect.makeVarArgs(f);
 				if (name != null) {
 					if (depth == 0) {
 						// global function
-						if (isStatic && allowStaticVariables) {
+						if(isStatic && allowStaticVariables) {
 							staticVariables.set(name, f);
-						} else if (isPublic && allowPublicVariables) {
+						} else if(isPublic && allowPublicVariables) {
 							publicVariables.set(name, f);
 						} else {
 							variables.set(name, f);
@@ -1186,6 +1125,7 @@ class Interp {
 				return f;
 			case EArrayDecl(arr, wantedType):
 				var isMap = false;
+
 				if (wantedType != null) {
 					isMap = switch (wantedType) {
 						case CTPath(["Map"], [_, _]): true;
@@ -1197,7 +1137,9 @@ class Interp {
 					};
 				}
 
-				if (!isMap && arr.length > 0) isMap = Tools.expr(arr[0]).match(EBinop("=>", _));
+				if (!isMap && arr.length > 0) {
+					isMap = Tools.expr(arr[0]).match(EBinop("=>", _));
+				}
 
 				if (isMap) {
 					var isAllString:Bool = true;
@@ -1214,37 +1156,57 @@ class Interp {
 								var value:Dynamic = expr(eValue);
 								isAllString = isAllString && (key is String);
 								isAllInt = isAllInt && (key is Int);
-								isAllObject = isAllObject && UnsafeReflect.isObject(key);
-								isAllEnum = isAllEnum && UnsafeReflect.isEnumValue(key);
+								isAllObject = isAllObject && Reflect.isObject(key);
+								isAllEnum = isAllEnum && Reflect.isEnumValue(key);
 								keys.push(key);
 								values.push(value);
 							default:
-								#if hscriptPos curExpr = e; #end
-								error(ECustom("Invalid map key => value expression"));
+								throw "=> expected";
 						}
 					}
 
 					if (wantedType != null) {
-						isAllString = isAllString && (wantedType.match(CTPath(["Map"], [CTPath(["String"], _), _])) || wantedType.match(CTPath(["StringMap"], [_])));
-						isAllInt = isAllInt && (wantedType.match(CTPath(["Map"], [CTPath(["Int"], _), _])) || wantedType.match(CTPath(["IntMap"], [_])));
-						isAllObject = isAllObject && (wantedType.match(CTPath(["Map"], [CTPath(["Dynamic"], _), _])) || wantedType.match(CTPath(["ObjectMap"], [_, _])));
-						isAllEnum = isAllEnum && (wantedType.match(CTPath(["Map"], [CTPath(["Enum"], _), _])) || wantedType.match(CTPath(["EnumMap"], [_, _])));
-						if (!isAllString && !isAllInt && !isAllObject && !isAllEnum) isAllObject = true; // Assume dynamic
+						isAllString = isAllString && (
+							wantedType.match(CTPath(["Map"], [CTPath(["String"], _), _])) || wantedType.match(CTPath(["StringMap"], [_]))
+						);
+						isAllInt = isAllInt && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Int"], _), _])) || wantedType.match(CTPath(["IntMap"], [_]))
+						);
+						isAllObject = isAllObject && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Dynamic"], _), _])) || wantedType.match(CTPath(["ObjectMap"], [_, _]))
+						);
+						isAllEnum = isAllEnum && (
+							wantedType.match(CTPath(["Map"], [CTPath(["Enum"], _), _])) || wantedType.match(CTPath(["EnumMap"], [_, _]))
+						);
+
+						if (!isAllString && !isAllInt && !isAllObject && !isAllEnum) {
+							isAllObject = true; // Assume dynamic
+							//throw "Unknown Type Key";
+						}
 					}
 
 					var map:Dynamic = {
-						if (isAllInt) new haxe.ds.IntMap<Dynamic>();
-						else if (isAllString) new haxe.ds.StringMap<Dynamic>();
-						else if (isAllEnum) new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
-						else if (isAllObject) new haxe.ds.ObjectMap<Dynamic, Dynamic>();
-						else throw 'Unknown Type Key';
+						if (isAllInt)
+							new haxe.ds.IntMap<Dynamic>();
+						else if (isAllString)
+							new haxe.ds.StringMap<Dynamic>();
+						else if (isAllEnum)
+							new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
+						else if (isAllObject)
+							new haxe.ds.ObjectMap<Dynamic, Dynamic>();
+						else
+							throw 'Unknown Type Key';
 					}
 					for (n in 0...keys.length) {
 						setMapValue(map, keys[n], values[n]);
 					}
 					return map;
 				} else {
-					return [for (e in arr) expr(e)];
+					var a = [];
+					for (e in arr) {
+						a.push(expr(e));
+					}
+					return a;
 				}
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
@@ -1348,10 +1310,9 @@ class Interp {
 					val = def == null ? null : expr(def);
 				restore(old);
 				return val;
-			case EMeta(name, args, e):
-				if (onMetadata != null) return onMetadata(name, args, e);
+			case EMeta(a, b, e):
 				var oldAccessor = isBypassAccessor;
-				if (name == ":bypassAccessor") {
+				if(a == ":bypassAccessor") {
 					isBypassAccessor = true;
 				}
 				var val = expr(e);
@@ -1360,51 +1321,6 @@ class Interp {
 				return val;
 			case ECheckType(e, _):
 				return expr(e);
-			case EEnum(enumName, fields):
-				var obj = {};
-				for (index => field in fields) {
-					switch (field) {
-						case ESimple(name):
-							Reflect.setField(obj, name, new Tools.EnumValue(enumName, name, index, null));
-						case EConstructor(name, params):
-							var hasOpt = false, minParams = 0;
-							for (p in params)
-								if (p.opt)
-									hasOpt = true;
-								else
-									minParams++;
-							var f = function(args: Array<Dynamic>) {
-								if (((args == null) ? 0 : args.length) != params.length) {
-									if (args.length < minParams) {
-										var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
-										if (enumName != null)
-											str += " for enum '" + enumName + "'";
-										error(ECustom(str));
-									}
-									// make sure mandatory args are forced
-									var args2 = [];
-									var extraParams = args.length - minParams;
-									var pos = 0;
-									for (p in params)
-										if (p.opt) {
-											if (extraParams > 0) {
-												args2.push(args[pos++]);
-												extraParams--;
-											} else
-												args2.push(null);
-										} else
-											args2.push(args[pos++]);
-									args = args2;
-								}
-								return new Tools.EnumValue(enumName, name, index, args);
-							};
-							var f = Reflect.makeVarArgs(f);
-							Reflect.setField(obj, name, f);
-					}
-				}
-				variables.set(enumName, obj);
-			case EUsing(name):
-				useUsing(name);
 		}
 		return null;
 	}
@@ -1524,8 +1440,8 @@ class Interp {
 		map.set(key, value);
 	}
 
-	public static var getRedirects:Map<String, (Dynamic, String) -> Dynamic> = [];
-	public static var setRedirects:Map<String, (Dynamic, String, Dynamic) -> Dynamic> = [];
+	public static var getRedirects:Map<String, Dynamic->String->Dynamic> = [];
+	public static var setRedirects:Map<String, Dynamic->String->Dynamic->Dynamic> = [];
 
 	private static var _getRedirect:Dynamic->String->Dynamic;
 	private static var _setRedirect:Dynamic->String->Dynamic->Dynamic;
@@ -1574,7 +1490,7 @@ class Interp {
 		}
 		var v = null;
 		if (isBypassAccessor) {
-			if ((v = Reflect.field(o, f)) == null)
+			if ((v = UnsafeReflect.field(o, f)) == null)
 				v = Reflect.field(cls, f);
 		}
 
@@ -1641,7 +1557,7 @@ class Interp {
 			usingHandler.usingEntries.set(name, us);
 			return;
 		}
-		if (obj == null) error(ECustom("Unknown using class " + name));
+		if (obj == null) warn(ECustom("Unknown using class " + name));
 
 		var fn:Dynamic->String->Array<Dynamic>->Dynamic = null;
 		var fields:Array<String> = [];
@@ -1685,13 +1601,12 @@ class Interp {
 			var field:Dynamic = customClass.getField(f);
 			if (!Reflect.isFunction(field))
 				return null;
-			/*
-			var totalArgs:Int = Tools.argCount(field);
-			if (totalArgs == 0)
-				return null;
-			 */
 			return UnsafeReflect.callMethodUnsafe(null, field, [o].concat(args));
 		}
+
+		#if ALTER_DEBUG
+		trace("Registered reflection based using entry for " + name);
+		#end
 
 		usingHandler.registerEntry(name, fn, fields);
 	}
@@ -1726,6 +1641,10 @@ class Interp {
 			func = get(o, "includes");
 		}
 		#end
+		if (func == null) {
+			AlterHscript.error('Tried to call null function $f', posInfos());
+			return null;
+		}
 
 		return call(o, func, args);
 	}

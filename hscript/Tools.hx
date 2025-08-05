@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package hscript;
-
 import hscript.Expr;
 
 class Tools {
@@ -98,7 +96,7 @@ class Tools {
 		return mk(edef, e);
 	}
 
-	public static inline function expr(e:Expr):ExprDef {
+	public static inline function expr( e : Expr ) : ExprDef {
 		#if hscriptPos
 		return e.e;
 		#else
@@ -106,9 +104,9 @@ class Tools {
 		#end
 	}
 
-	public static inline function mk(e:ExprDef, p:Expr):Expr {
+	public static inline function mk( e : ExprDef, p : Expr ):Expr {
 		#if hscriptPos
-		return {e: e, pmin: p.pmin, pmax: p.pmax, origin: p.origin, line: p.line};
+		return { e : e, pmin : p.pmin, pmax : p.pmax, origin : p.origin, line : p.line };
 		#else
 		return e;
 		#end

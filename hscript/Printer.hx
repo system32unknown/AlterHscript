@@ -19,16 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package hscript;
-
 import hscript.Expr;
 
 class Printer {
 	var buf:StringBuf;
 	var tabs:String;
-
-	var indent:String = "  ";
 
 	public function new() {}
 
@@ -111,12 +107,6 @@ class Printer {
 			add(" : ");
 			type(t);
 		}
-	}
-
-	function addArgument(a:Argument) {
-		if (a.opt) add("?");
-		add(a.name);
-		addType(a.t);
 	}
 
 	function expr(e:Expr):Void {

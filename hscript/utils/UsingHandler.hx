@@ -1,7 +1,7 @@
 package hscript.utils;
 
 @:structInit
-class UsingEntry  {
+class UsingEntry {
 	public var call:Dynamic->String->Array<Dynamic>->Dynamic;
 	public var fields:Array<String>;
 

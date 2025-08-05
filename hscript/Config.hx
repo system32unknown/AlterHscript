@@ -12,12 +12,8 @@ class Config {
 		"openfl.display.BlendMode",
 	];
 
-	// Runs support for using in specific classes. 
-	public static final ALLOWED_USING = [];
-
 	// Incase any of your files fail
 	// These are the module names
 	public static final DISALLOW_CUSTOM_CLASSES = [];
 	public static final DISALLOW_ABSTRACT_AND_ENUM = [];
-	public static final DISALLOW_USING = [];
 }

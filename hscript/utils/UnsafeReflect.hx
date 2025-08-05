@@ -1,7 +1,8 @@
-package hscript;
+package hscript.utils;
 
-#if cpp import cpp.ObjectType; #end
-import haxe.Constraints.Function;
+#if cpp
+import cpp.ObjectType;
+#end
 
 @:analyzer(ignore)
 class UnsafeReflect {
@@ -67,11 +68,11 @@ class UnsafeReflect {
 		#end
 	}
 
-	public inline static function callMethod(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
+	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		return Reflect.callMethod(o, func, args);
 	}
 
-	public #if !cpp inline #end static function callMethodSafe(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
+	public #if !cpp inline #end static function callMethodSafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		#if cpp
 		untyped {
 			if (func == null)
@@ -84,7 +85,7 @@ class UnsafeReflect {
 		#end
 	}
 
-	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
+	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		#if cpp
 		untyped {
 			untyped func.__SetThis(o);
@@ -97,6 +98,13 @@ class UnsafeReflect {
 
 	public inline static function fields(o:Dynamic):Array<String>
 		return Reflect.fields(o);
+		/*untyped {
+			if (o == null)
+				return new Array();
+			var a:Array<String> = [];
+			o.__GetFields(a);
+			return a;
+		}*/
 
 	public #if !cpp inline #end static function isFunction(f:Dynamic):Bool
 		#if cpp
@@ -109,6 +117,7 @@ class UnsafeReflect {
 
 	public inline static function compare<T>(a:T, b:T):Int {
 		return Reflect.compare(a, b);
+		//return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
 	}
 
 	public inline static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
