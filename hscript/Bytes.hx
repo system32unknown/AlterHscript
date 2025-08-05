@@ -298,44 +298,48 @@ class Bytes {
 		var e = e.e;
 		#end
 		bout.addByte(Type.enumIndex(e));
-		switch (e) {
-			case EIgnore(_):
-			case EConst(c):
-				doEncodeExprType(EConst);
-				doEncodeConst(c);
-			case EIdent(v):
-				doEncodeExprType(EIdent);
-				doEncodeString(v);
-			case EVar(n, _, e):
-				doEncodeExprType(EVar);
-				doEncodeString(n);
-				if (e == null)
-					bout.addByte(255);
-				else
-					doEncode(e);
-			case EParent(e):
-				doEncodeExprType(EParent);
+		switch( e ) {
+		case EPackage(n):
+			// TODO
+		case EImport(c):
+			// TODO
+		case EClass(_, _, _, _):
+			// TODO
+		case EEnum(en):
+			// TODO
+		case ECast(e, _):
+			// TODO
+		case EConst(c):
+			doEncodeConst(c);
+		case EIdent(v):
+			doEncodeString(v);
+		case EVar(n,_,e):
+			doEncodeString(n);
+			if( e == null )
+				bout.addByte(255);
+			else
 				doEncode(e);
-			case EBlock(el):
-				doEncodeExprType(EBlock);
-				doEncodeInt(el.length);
-				for (e in el) doEncode(e);
-			case EField(e, f):
-				doEncodeExprType(EField);
+		case EParent(e):
+			doEncode(e);
+		case EBlock(el):
+			bout.addByte(el.length);
+			for( e in el )
 				doEncode(e);
-				doEncodeString(f);
-			case EBinop(op, e1, e2):
-				doEncodeExprType(EBinop);
-				doEncodeString(op);
-				doEncode(e1);
-				doEncode(e2);
-			case EUnop(op, prefix, e):
-				doEncodeExprType(EUnop);
-				doEncodeString(op);
-				doEncodeBool(prefix);
-				doEncode(e);
-			case ECall(e, el):
-				doEncodeExprType(ECall);
+		case EField(e,f):
+			doEncode(e);
+			doEncodeString(f);
+		case EBinop(op,e1,e2):
+			doEncodeString(op);
+			doEncode(e1);
+			doEncode(e2);
+		case EUnop(op,prefix,e):
+			doEncodeString(op);
+			bout.addByte(prefix?1:0);
+			doEncode(e);
+		case ECall(e,el):
+			doEncode(e);
+			bout.addByte(el.length);
+			for( e in el )
 				doEncode(e);
 				bout.addByte(el.length);
 				for (e in el) doEncode(e);

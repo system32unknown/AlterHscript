@@ -59,42 +59,39 @@ enum ExprDef
 typedef ExprDef = Expr;
 enum Expr
 #end
-{
-	EIgnore(skip:Bool);
-	EConst(c:Const);
-	EIdent(v:String);
-	EVar(n:String, ?t:CType, ?e:Expr, ?isPublic:Bool, ?isStatic:Bool);
-	EParent(e:Expr);
-	EBlock(e:Array<Expr>);
-	EField(e:Expr, f:String, ?safe:Bool);
-	EBinop(op:String, e1:Expr, e2:Expr);
-	EUnop(op:String, prefix:Bool, e:Expr);
-	ECall(e:Expr, params:Array<Expr>);
-	EIf(cond:Expr, e1:Expr, ?e2:Expr);
-	EWhile(cond:Expr, e:Expr);
-	EFor(v:String, it:Expr, e:Expr, ?ithv:String);
+	EConst( c : Const );
+	EIdent( v : String );
+	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool, ?get : FieldPropertyAccess, ?set : FieldPropertyAccess, ?isVar:Bool );
+	EParent( e : Expr );
+	EBlock( e : Array<Expr> );
+	EField( e : Expr, f : String , ?safe : Bool );
+	EBinop( op : String, e1 : Expr, e2 : Expr );
+	EUnop( op : String, prefix : Bool, e : Expr );
+	ECall( e : Expr, params : Array<Expr> );
+	EIf( cond : Expr, e1 : Expr, ?e2 : Expr );
+	EWhile( cond : Expr, e : Expr );
+	EFor( v : String, it : Expr, e : Expr, ?ithv: String);
 	EBreak;
 	EContinue;
-	EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType, ?isPublic:Bool, ?isStatic:Bool, ?isOverride:Bool);
-	EReturn(?e:Expr);
-	EArray(e:Expr, index:Expr);
-	EArrayDecl(e:Array<Expr>, ?wantedType:CType);
-	ENew(cl:String, params:Array<Expr>);
-	EThrow(e:Expr);
-	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
-	EObject(fl:Array<ObjectField>);
-	ETernary(cond:Expr, e1:Expr, e2:Expr);
-	ESwitch(e:Expr, cases:Array<SwitchCase>, ?defaultExpr:Expr);
-	EDoWhile(cond:Expr, e:Expr);
-	EMeta(name:String, args:Array<Expr>, e:Expr);
-	ECheckType(e:Expr, t:CType);
+	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool );
+	EReturn( ?e : Expr );
+	EArray( e : Expr, index : Expr );
+	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
+	ENew( cl : String, params : Array<Expr>, ?paramType:Array<CType> );
+	EThrow( e : Expr );
+	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
+	EObject( fl : Array<ObjectField> );
+	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
+	ESwitch( e : Expr, cases : Array<SwitchCase>, ?defaultExpr : Expr );
+	EDoWhile( cond : Expr, e : Expr);
+	EMeta( name : String, args : Array<Expr>, e : Expr );
+	ECheckType( e : Expr, t : CType );
 
-	EImport(c:String, ?asname:String);
-	EImportStar(c:String);
-	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>);
-	EEnum(name:String, fields:Array<EnumType>);
-	EUsing(name:String);
-	ERedirect(name:String, className:String, ?cl:Class<Dynamic>);
+	EPackage( ?n:String );
+	EImport( c : String, ?asname:String, ?isUsing:Bool );
+	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
+	EEnum( en:EnumDecl, ?isAbstract:Bool );
+	ECast(e:Expr, ?t:CType);
 }
 
 @:structInit
@@ -125,13 +122,26 @@ final class MetadataEntry {
 
 typedef Metadata = Array<MetadataEntry>;
 
+@:structInit
+final class EnumDecl {
+	public var name : String;
+	public var fields : Array<EnumField>;
+}
+
+@:structInit
+final class EnumField {
+	public var name : String;
+	public var args : Array<Argument>;
+}
+
 enum CType {
-	CTPath(path:Array<String>, ?params:Array<CType>);
-	CTFun(args:Array<CType>, ret:CType);
-	CTAnon(fields:Array<{name:String, t:CType, ?meta:Metadata}>);
-	CTParent(t:CType);
-	CTOpt(t:CType);
-	CTNamed(n:String, t:CType);
+	CTPath( path : Array<String>, ?params : Array<CType> );
+	CTFun( args : Array<CType>, ret : CType );
+	CTAnon( fields : Array<{ name : String, t : CType, ?meta : Metadata }> );
+	CTParent( t : CType );
+	CTOpt( t : CType );
+	CTNamed( n : String, t : CType );
+	CTExpr( e : Expr ); // for type parameters only
 }
 
 #if hscriptPos
@@ -215,6 +225,15 @@ enum abstract FieldAccess(UInt8) {
 	var AOverride:FieldAccess;
 	var AStatic:FieldAccess;
 	var AMacro:FieldAccess;
+}
+
+enum abstract FieldPropertyAccess(UInt8) {
+	var ADefault;
+	var ANull;
+	var AGet;
+	var ASet;
+	var ADynamic;
+	var ANever;
 }
 
 enum FieldKind {

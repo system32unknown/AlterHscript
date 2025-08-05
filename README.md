@@ -1,16 +1,29 @@
 hscript-improved
 =======
 
+- [Features](docs/FEATURES.md)
+
 How to install
 ```
-haxelib git hscript-improved https://github.com/FNF-CNE-Devs/hscript-improved.git
+haxelib git hscript-improved https://github.com/CodenameCrew/hscript-improved.git
 ```
 
 To enable custom classes support you have to do this in project.xml
+
 ```xml
 <define name="CUSTOM_CLASSES" />
 ```
-Warning: custom classes are sometimes broken, would like help to fix them. You can only override functions from the current class, not from the extended part, like you cant override update in FlxText because FlxText doesnt have a update function overriden
+
+or set this in build.hxml
+
+```hxml
+-D CUSTOM_CLASSES
+```
+
+Current Custom Class Limitations :
+
+- For now, you can only override functions from the current class, not from the extended part, like you cant override update in FlxText because FlxText doesnt have a update function overriden.
+- You cannot create custom classes that extends a typed class (those ones that has `<T>`), this will be implemented in the future.
 
 -----------
 

@@ -1,45 +1,82 @@
 package hscript.utils;
 
-import hscript.utils.UsingEntry.UsingCall;
-import StringTools;
-import Lambda;
+@:structInit
+class UsingEntry  {
+	public var call:Dynamic->String->Array<Dynamic>->Dynamic;
+	public var fields:Array<String>;
 
-class UsingHandler {
-	public static var usingEntries:Array<UsingEntry> = [
-		new UsingEntry("StringTools", function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-			if (f == "isEof") // has @:noUsing
-				return null;
-			switch (Type.typeof(o)) {
-				case TInt if (f == "hex"):
-					return StringTools.hex(o, args[0]);
-				case TClass(String):
-					if (Reflect.hasField(StringTools, f)) {
-						var field = Reflect.field(StringTools, f);
-						if (Reflect.isFunction(field)) {
-							return Reflect.callMethod(StringTools, field, [o].concat(args));
-						}
-					}
-				default:
-			}
-			return null;
-		}),
-		new UsingEntry("Lambda", function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
-			if (Tools.isIterable(o)) {
-				// TODO: Check if the values are Iterable<T>
-				if (Reflect.hasField(Lambda, f)) {
-					var field = Reflect.field(Lambda, f);
-					if (Reflect.isFunction(field)) {
-						return Reflect.callMethod(Lambda, field, [o].concat(args));
-					}
+	public function hasField(name:String) {
+		return fields.contains(name);
+	}
+}
+
+/**
+ * Special class that handles static extension function calls. 
+ * 
+ * A static extension allows pseudo-extending 
+ * existing types without modifying their source.
+ * In Haxe this is achieved by declaring a static method with a first argument 
+ * of the extending type and then bringing the defining class into context through `using`.
+ * 
+ * Example:
+ * ```haxe
+ * class IntExtender {
+ * 	static public function triple(i:Int) {
+ * 	 	return i * 3;
+ * 	}
+ * }
+ * 
+ * using IntExtender;
+ * 
+ * trace(12.triple()); // 36
+ * ```
+ * 
+ * @see https://haxe.org/manual/lf-static-extension.html
+ */
+class UsingHandler { 
+	// Predefined static extension classes
+	public static final defaultExtension:Map<String, UsingEntry> = [
+		"StringTools" => { // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L45
+			fields: Type.getClassFields(StringTools),
+			call: function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+				if (f == "isEof") // has @:noUsing
+					return null;
+				return switch (Type.typeof(o)) {
+					case TInt if (f == 'hex'):
+						StringTools.hex(o, args[0]);
+					case TClass(String):
+						var field = UnsafeReflect.field(StringTools, f);
+						if (UnsafeReflect.isFunction(field)) UnsafeReflect.callMethodUnsafe(StringTools, field, [o].concat(args)); else null;
+					default:
+						null;
 				}
 			}
-			return null;
-		}),
+		},
+		"Lambda" => { // https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/iris/Iris.hx#L62
+			fields: Type.getClassFields(Lambda),
+			call: function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+				if (o != null && o.iterator != null) {
+					var field = UnsafeReflect.field(Lambda, f);
+					if (UnsafeReflect.isFunction(field)) {
+						return UnsafeReflect.callMethodUnsafe(Lambda, field, [o].concat(args));
+					}
+				}
+				return null;
+			}
+		}
 	];
 
-	public static function registerUsingGlobal(name:String, call:UsingCall):UsingEntry {
-		var entry = new UsingEntry(name, call);
-		usingEntries.push(entry);
-		return entry;
+	@:allow(hscript.CustomClass)
+	@:allow(hscript.CustomClassHandler)
+	public var usingEntries(default, null):Map<String, UsingEntry> = [];
+
+	public function new() {}
+
+	public function registerEntry(name:String, entry:Dynamic->String->Array<Dynamic>->Dynamic, fields:Array<String>) {
+		usingEntries.set(name, {call: entry, fields: fields});
+	}
+
+	public function entryExists(name:String):Bool {
+		return usingEntries.exists(name);
 	}
 }
