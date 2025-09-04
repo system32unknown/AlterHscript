@@ -1875,6 +1875,7 @@ class Parser {
 
 	function readString( until:Int, regex:Bool = false ):String {
 		var c = 0;
+		var prev = 0;
 		var b = new StringBuf();
 		var esc = false;
 		var old = line;
@@ -1923,11 +1924,19 @@ class Parser {
 				}
 			} else if( c == 92 && !regex)
 				esc = true;
-			else if( c == until )
-				break;
+			else if( c == until ) {
+				if(regex && prev == 92) {
+					b.addChar(c);
+					prev = c;
+				}
+				else
+					break;
+			}
 			else {
 				if( c == 10 ) line++;
 				b.addChar(c);
+				if(regex)
+					prev = c;
 			}
 		}
 		return b.toString();
