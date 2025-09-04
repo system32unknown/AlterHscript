@@ -84,6 +84,7 @@ enum Expr {
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
 	EEnum( en:EnumDecl, ?isAbstract:Bool );
 	ECast(e:Expr, ?t:CType);
+	ERegex(e:String, flags:String);
 }
 
 @:structInit

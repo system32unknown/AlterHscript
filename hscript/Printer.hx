@@ -186,6 +186,9 @@ class Printer {
 				addType(t);
 				add(")");
 			}
+		case ERegex(e, f):
+			add('~/$e/$f');
+			add(';\n');
 		case EConst(c):
 			switch( c ) {
 			case CInt(i): add(i);
