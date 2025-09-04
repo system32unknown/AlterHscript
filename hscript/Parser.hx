@@ -43,6 +43,7 @@ enum Token {
 	TDoubleDot;
 	TMeta( s : String );
 	TPrepro( s : String );
+	TRegex( e : String, f:String );
 }
 
 @:structInit
@@ -71,6 +72,11 @@ class Parser {
 		activate JSON compatiblity
 	**/
 	public var allowJSON : Bool;
+
+	/**
+		activate Regular Expression parsing 
+	**/
+	public var allowRegex : Bool;
 
 	/**
 		allow types declarations
@@ -114,6 +120,8 @@ class Parser {
 	var tokens : haxe.ds.GenericStack<Token>;
 
 	#end
+
+	static inline var regexFlags: String = "igmsu";
 
 	public function new() {
 		line = 1;
@@ -513,6 +521,8 @@ class Parser {
 			var e = parseExpr();
 			isVar = false;
 			return mk(EMeta(id, args, e),p1);
+		case TRegex(e, f) if(allowRegex):
+			return mk(ERegex(e, f), p1);
 		default:
 			return unexpected(tk);
 		}
@@ -1863,7 +1873,7 @@ class Parser {
 		return StringTools.fastCodeAt(input, readPos++);
 	}
 
-	function readString( until:Int ):String {
+	function readString( until:Int, regex:Bool = false ):String {
 		var c = 0;
 		var b = new StringBuf();
 		var esc = false;
@@ -1911,7 +1921,7 @@ class Parser {
 					b.addChar(k);
 				default: invalidChar(c);
 				}
-			} else if( c == 92 )
+			} else if( c == 92 && !regex)
 				esc = true;
 			else if( c == until )
 				break;
@@ -1920,6 +1930,39 @@ class Parser {
 				b.addChar(c);
 			}
 		}
+		return b.toString();
+	}
+
+	function readFlags():String {
+		if(!allowRegex) return null;
+		var c = 0;
+		var b = new StringBuf();
+		var old = line;
+		var s = input;
+		#if hscriptPos
+		var p1 = readPos - 1;
+		#end
+
+		while(true) {
+			var c = readChar();
+			if( StringTools.isEof(c) ) {
+				line = old;
+				error(EUnterminatedString, p1, p1);
+				break;
+			}
+			// semicolon
+			if(c == 59) {
+				this.char = c;
+				break;
+			}
+			
+			var f = String.fromCharCode(c);
+			if(regexFlags.indexOf(f) != -1) 
+				b.addChar(c);
+			else
+				invalidChar(c);
+		}
+
 		return b.toString();
 	}
 
@@ -2146,7 +2189,7 @@ class Parser {
 				invalidChar(char);
 			default:
 				if( ops[char] ) {
-					var op = String.fromCharCode(char);
+					var op:String = String.fromCharCode(char);
 					while( true ) {
 						char = readChar();
 						if( StringTools.isEof(char) ) char = 0;
@@ -2156,6 +2199,11 @@ class Parser {
 						}
 						var pop = op;
 						op += String.fromCharCode(char);
+						if( allowRegex && op == "~/") {
+							var e = readString(char, true);
+							var f = readFlags();
+							return TRegex(e, f);
+						}
 						if( !opPriority.exists(op) && opPriority.exists(pop) ) {
 							if( op == "//" || op == "/*" )
 								return tokenComment(op,char);
@@ -2370,6 +2418,7 @@ class Parser {
 		case TDoubleDot: ":";
 		case TMeta(id): "@" + id;
 		case TPrepro(id): "#" + id;
+		case TRegex(e, f): '~/$e/${f == null ? '' : f}';
 		}
 	}
 
