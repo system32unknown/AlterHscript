@@ -34,7 +34,7 @@ typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 enum Const {
 	CInt( v : Int );
 	CFloat( f : Float );
-	CString( s : String );
+	CString( s : String, ?i : Bool );
 }
 
 #if hscriptPos
