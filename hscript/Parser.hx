@@ -340,7 +340,7 @@ class Parser {
 					if( !allowJSON )
 						unexpected(tk);
 					switch( c ) {
-						case CString(s): id = s;
+						case CString(s, _): id = s;
 						default: unexpected(tk);
 					}
 				case TBrClose:
@@ -377,6 +377,11 @@ class Parser {
 				e = mk(EIdent(id));
 			return parseExprNext(e);
 		case TConst(c):
+			switch(c) {
+				case CString(s, i):
+					if(i) return parseExprNext(interpolateString(s));
+				default:
+			}
 			return parseExprNext(mk(EConst(c)));
 		case TPOpen:
 			tk = token();
@@ -1638,6 +1643,94 @@ class Parser {
 		}
 		return args;
 	}
+	
+	// From hscript-iris: https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/hscript/Parser.hx#L409
+	// by inky03
+	function interpolateString(s:String):Expr {
+		var exprs:Array<Expr> = [];
+		var dollarPos:Int = s.indexOf('$');
+
+		if(dollarPos == -1)
+			return mk(EConst(CString(s)));
+
+		final singleFirst:EReg = ~/[a-zA-Z_]/i;
+		final singleExpr:EReg = ~/[a-zA-Z0-9_]/i;
+		// TODO: optimize this using regex
+		while(dollarPos > -1) {
+			var pos:Int = dollarPos;
+			var pre:String = s.substr(0, pos);
+			var next:String = s.charAt(++pos);
+			if(next == '{') {
+				if (pre != '')
+					exprs.push(mk(EConst(CString(pre))));
+				var exprStr:String = '';
+				var depth:Int = 1;
+				while (true) {
+					next = s.charAt(++pos);
+					if (next == '{') {
+						depth++;
+					} else if (next == '}') {
+						depth--;
+					}
+					if (depth < 1)
+						break;
+					if (pos >= s.length) {
+						error(EUnterminatedString, pos, pos);
+					}
+					exprStr += next;
+				}
+				if (exprStr.trim() == '') {
+					error(ECustom("Expression cannot be empty"), pos, pos);
+				}
+				var prevChar = char;
+				var prevInput = input;
+				var prevReadPos = readPos; // a bit stupid innit???
+				#if hscriptPos
+				var prevOrigin = origin;
+				#end
+				var expr = parseString('($exprStr)' #if hscriptPos, origin #end);
+				readPos = prevReadPos; // rolling back parser state because otherwise we get problems...
+				input = prevInput;
+				char = prevChar;
+				#if hscriptPos
+				origin = prevOrigin;
+				#end
+				exprs.push(expr);
+				pos++;
+			}
+			else if(singleFirst.match(next)) {
+				if (pre != '')
+					exprs.push(mk(EConst(CString(pre))));
+				var ident: String = '';
+				while(singleExpr.match(next)) {
+					ident += next;
+					next = s.charAt(++pos);
+				}
+				exprs.push(mk(EIdent(ident)));
+			}
+			else if (next == '$') {
+				var secondToNext: String = s.charAt(pos);
+				if (secondToNext == "$") { // if its another dollar, skip...
+					s = pre + s.substr(pos, pos + 1); // remove $ ahead of the current one
+					break;
+				}
+				exprs.push(mk(EConst(CString(pre + '$'))));
+			}
+			s = s.substr(pos++);
+			dollarPos = s.indexOf('$');
+		}
+		if (exprs.length == 0) {
+			return mk(EConst(CString(s)));
+		} else {
+			exprs.push(mk(EConst(CString(s))));
+			var expr:Null<Expr> = exprs.shift();
+			while(true) {
+				if(exprs.length == 0) break;
+				expr = mk(EBinop('+', expr, exprs.shift()));
+			}
+			return expr;
+		}
+	}
 
 	function checkAccess(get:FieldPropertyAccess, set:FieldPropertyAccess, ?expr:Expr, ?type:CType) {
 		#if hscriptPos
@@ -1873,7 +1966,7 @@ class Parser {
 		return StringTools.fastCodeAt(input, readPos++);
 	}
 
-	function readString( until:Int, regex:Bool = false ):String {
+	function readString( until:Int, regex:Bool = false, interpolate:Bool = false ):String {
 		var c = 0;
 		var prev = 0;
 		var b = new StringBuf();
@@ -1931,6 +2024,40 @@ class Parser {
 				}
 				else
 					break;
+			}
+			else if (c == 36 && interpolate) { // brace for impact !!
+				// From hscript-iris: https://github.com/pisayesiwsi/hscript-iris/blob/dev/crowplexus/hscript/Parser.hx#L1665
+				// by inky03
+				// TODO: optimize this
+				b.addChar(c);
+				var next = readChar();
+				if (next == 123) {
+					b.addChar(next);
+					var depth:Int = 0;
+					while (true) {
+						next = readChar();
+						if (StringTools.isEof(next)) {
+							error(EUnterminatedString, p1, p1);
+						}
+						b.addChar(next);
+						if (next == "'".code) {
+							var nextStr:String = readString("'".code, false, true);
+							for (char in nextStr) {
+								b.addChar(char);
+							}
+							b.addChar("'".code);
+							next = readChar();
+							b.addChar(next);
+						}
+						if (next == 125) {
+							depth--;
+							if (depth < 0)
+								break;
+						}
+					}
+				} else {
+					readPos--;
+				}
 			}
 			else {
 				if( c == 10 ) line++;
@@ -2142,7 +2269,10 @@ class Parser {
 			case "}".code: return TBrClose;
 			case "[".code: return TBkOpen;
 			case "]".code: return TBkClose;
-			case "'".code, '"'.code: return TConst( CString(readString(char)) );
+			case "'".code:
+				return TConst( CString(readString(char, false, true), true) );
+			case '"'.code: 
+				return TConst( CString(readString(char), false) );
 			case "?".code:
 				char = readChar();
 				switch (char) {
@@ -2403,7 +2533,7 @@ class Parser {
 		return switch(c) {
 		case CInt(v): Std.string(v);
 		case CFloat(f): Std.string(f);
-		case CString(s): s; // TODO : escape + quote
+		case CString(s, _): s; // TODO : escape + quote
 		}
 	}
 
@@ -2427,7 +2557,7 @@ class Parser {
 		case TDoubleDot: ":";
 		case TMeta(id): "@" + id;
 		case TPrepro(id): "#" + id;
-		case TRegex(e, f): '~/$e/${f == null ? '' : f}';
+		case TRegex(e, f): '~/$e/$f';
 		}
 	}
 
