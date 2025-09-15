@@ -34,10 +34,7 @@ typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 enum Const {
 	CInt(v:Int);
 	CFloat(f:Float);
-	CString(s:String, ?interp: Bool);
-	#if !haxe3
-	CInt32(v:haxe.Int32);
-	#end
+	CString(s:String, ?i:Bool);
 }
 
 #if hscriptPos
@@ -93,6 +90,7 @@ enum Expr
 	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
 	EEnum( en:EnumDecl, ?isAbstract:Bool );
 	ECast(e:Expr, ?t:CType);
+	ERegex(e:String, flags:String);
 }
 
 @:structInit

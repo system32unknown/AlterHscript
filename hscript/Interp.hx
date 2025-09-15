@@ -126,7 +126,7 @@ class Interp {
 		return inCustomClass ? cast scriptObject : null;
 
 	public var errorHandler:Error->Void;
-	public var importFailedCallback:Array<String>->Bool;
+	public var importFailedCallback:Array<String>->Null<String>->Bool;
 
 	public var customClasses:Map<String, CustomClassHandler>;
 	public var variables:Map<String, Dynamic>;
@@ -147,6 +147,7 @@ class Interp {
 	var beforeAlias:Null<String> = null;
 
 	public var importEnabled:Bool = true;
+	public var allowStaticImports:Bool = true;
 
 	public var allowStaticVariables:Bool = false;
 	public var allowPublicVariables:Bool = false;
@@ -744,20 +745,19 @@ class Interp {
 					beforeAlias = null;
 					setAlias = null;
 				}
-			case EImport(c, n, isUsing):
-				if (!importEnabled)
-					return null;
-				var splitClassName = [for (e in c.split(".")) e.trim()];
+			case EImport(clsName, aliasAs, isUsing):
+				if(!importEnabled) return null;
+
+				var splitClassName = [for (e in clsName.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
 				var claVarName = splitClassName[splitClassName.length - 1];
-				var toSetName = n != null ? n : claVarName;
+				var toSetName = aliasAs != null ? aliasAs : claVarName;
 				var oldClassName = realClassName;
 				var oldSplitName = splitClassName.copy();
 
-				if (variables.exists(toSetName)) { // class is already imported 
+				if(variables.exists(toSetName)) { // class is already imported 
 					if(isUsing && !usingHandler.entryExists(toSetName))
 						setUsing(toSetName, variables.get(toSetName)); 
-					
 					return null;
 				}
 
@@ -770,13 +770,16 @@ class Interp {
 					return null;
 				}
 
-				var realClassName = getLocalImportRedirect(realClassName);
+				function importResolve(__clsName:String):Null<Dynamic> {
+					var _realClassName = getLocalImportRedirect(__clsName);
+					if(importBlocklist.contains(_realClassName)) return null;
 
-				if (importBlocklist.contains(realClassName))
-					return null;
-				var cl = Type.resolveClass(realClassName);
-				if (cl == null) cl = Type.resolveClass('${realClassName}_HSC');
+					var _cl = Type.resolveClass(_realClassName);
+					if(_cl == null) _cl = Type.resolveClass('${_realClassName}_HSC');
+					return _cl;
+				}
 
+				var cl = importResolve(realClassName);
 				var en = Type.resolveEnum(realClassName);
 				// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
 				if (cl == null && en == null) {
@@ -784,23 +787,30 @@ class Interp {
 						splitClassName.splice(-2, 1); // Remove the last last item
 						realClassName = splitClassName.join(".");
 
-						var realClassName = getLocalImportRedirect(realClassName);
-						if (importBlocklist.contains(realClassName)) return null;
-
-						cl = Type.resolveClass(realClassName);
-						if (cl == null) cl = Type.resolveClass('${realClassName}_HSC');
+						cl = importResolve(realClassName);
 						en = Type.resolveEnum(realClassName);
 					}
 				}
 
 				if (cl == null && en == null) {
+					if (allowStaticImports) { //allows for static imports like "haxe.io.Path.normalize"
+						var clPth = oldSplitName.copy();
+						var funcName = clPth.pop();
+						var statField = Reflect.getProperty(Type.resolveClass(StringTools.trim(clPth.join("."))), funcName);
+
+						if (statField != null) {
+							variables.set((toSetName != null && toSetName.length > 0 ? toSetName : funcName), statField);
+							return null;
+						}
+					}
+
 					beforeAlias = claVarName;
-					setAlias = n;
-					if (importFailedCallback == null || !importFailedCallback(oldSplitName)){
+					setAlias = aliasAs;
+					if(importFailedCallback == null || !importFailedCallback(oldSplitName, toSetName)){
 						beforeAlias = null;
 						setAlias = null;
 						error(EInvalidClass(oldClassName));
-					}	
+					}
 				} else {
 					if (en != null) {
 						if(isUsing) error(EInvalidClass(oldClassName));
@@ -808,11 +818,9 @@ class Interp {
 						var enumThingy:HEnum = {};
 						for (c in en.getConstructors()) {
 							try {
-								//UnsafeReflect.setField(enumThingy, c, en.createByName(c));
 								enumThingy.setEnum(c, en.createByName(c));
 							} catch(e) {
 								try {
-									//UnsafeReflect.setField(enumThingy, c, UnsafeReflect.field(en, c));
 									enumThingy.setEnum(c, UnsafeReflect.field(en, c));
 								} catch(ex) {
 									throw e;
@@ -893,6 +901,8 @@ class Interp {
 				variables.set(en.name, enumThingy);
 			case ECast(e, _): // TODO
 				return expr(e);
+			case ERegex(e, f):
+				return new EReg(e, f);
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -1465,7 +1475,7 @@ class Interp {
 		if (o == null)
 			error(EInvalidAccess(f));
 
-		var cls = Type.getClass(o);
+		var cls:Null<Class<Dynamic>> = useRedirects ? Type.getClass(o) : null;
 		if (useRedirects && {
 			var cl:Null<String> = getClassType(o, cls);
 			cl != null && getRedirects.exists(cl) && (_getRedirect = getRedirects[cl]) != null;
@@ -1488,9 +1498,9 @@ class Interp {
 			var obj:IHScriptCustomBehaviour = cast o;
 			return obj.hget(f);
 		}
-		var v = null;
-		if (isBypassAccessor) {
-			if ((v = UnsafeReflect.field(o, f)) == null)
+		var v:Null<Dynamic> = null;
+		if(isBypassAccessor) {
+			if ((v = UnsafeReflect.field(o, f)) == null && useRedirects)
 				v = Reflect.field(cls, f);
 		}
 
@@ -1498,15 +1508,15 @@ class Interp {
 			#if php
 			// https://github.com/HaxeFoundation/haxe/issues/4915
 			try {
-				if ((v = UnsafeReflect.getProperty(o, f)) == null)
+				if ((v = UnsafeReflect.getProperty(o, f)) == null && useRedirects)
 					v = Reflect.getProperty(cls, f);
 			}
 			catch(e:Dynamic) {
-				if ((v = UnsafeReflect.field(o, f)) == null)
+				if ((v = UnsafeReflect.field(o, f)) == null && useRedirects)
 					v = Reflect.field(cls, f);
 			}
 			#else
-			if ((v = UnsafeReflect.getProperty(o, f)) == null)
+			if ((v = UnsafeReflect.getProperty(o, f)) == null && useRedirects)
 				v = Reflect.getProperty(cls, f);
 			#end
 		}

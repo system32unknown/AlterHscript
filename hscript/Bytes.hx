@@ -135,6 +135,8 @@ class Bytes {
 				// TODO
 			case ECast(e, _):
 				// TODO
+			case ERegex(e, f):
+				// TODO
 			case EConst(c):
 				doEncodeConst(c);
 			case EIdent(v):
