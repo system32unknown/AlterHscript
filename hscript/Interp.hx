@@ -122,6 +122,7 @@ class Interp {
 		return inCustomClass ? cast scriptObject : null;
 
 	public var errorHandler:Error->Void;
+	public var warnHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Null<String>->Bool;
 
 	public var customClasses:Map<String, CustomClassHandler>;
@@ -603,6 +604,13 @@ class Interp {
 		return null;
 	}
 
+	public inline function warn(e:#if hscriptPos ErrorDef #else Error #end) {
+		if(warnHandler != null)
+			warnHandler(e);
+		else
+			trace('[ Warning ] ${Printer.errorToString(e)}');
+	}
+
 	inline function rethrow(e:Dynamic):Void {
 		#if hl
 		hl.Api.rethrow(e);
@@ -706,12 +714,15 @@ class Interp {
 		switch (e) {
 			case EPackage(_):
 			case EClass(name, fields, extend, interfaces, isFinal):
+				// TODO: module isolation
 				var oldName:String = name;
 				var hasAlias:Bool = (setAlias != null && beforeAlias == oldName);
 				var toSetName:String = hasAlias ? setAlias : oldName;
 
-				if (customClasses.exists(toSetName))
-					error(EAlreadyExistingClass(toSetName));
+				if (customClasses.exists(toSetName)) {
+					warn(EAlreadyExistingClass(toSetName));
+					return null;// ignore it
+				}
 
 				inline function importVar(thing:String):String {
 					if (thing == null)
@@ -800,13 +811,16 @@ class Interp {
 				} else {
 					//If the first letter of the alias is not an uppercase letter, then throw an error.
 					//We don't need to worry about this for static imports.
-					if(toSetName != claVarName && toSetName.charAt(0) != toSetName.charAt(0).toUpperCase()) {
+					if(toSetName != claVarName && !Tools.isUppercase(toSetName)) {
 						error(ECustom("Type aliases must start with an uppercase letter"));
 						return null;
 					}
 
 					if(en != null) { // ENUM!!!!
-						if(isUsing) error(EInvalidClass(oldClassName));
+						if(isUsing) {
+							error(EInvalidClass(oldClassName));
+							return null;
+						}
 
 						var enumThingy:HEnum = {};
 						for(c in en.getConstructors()) {
