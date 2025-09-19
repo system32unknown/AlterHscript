@@ -605,6 +605,8 @@ class Interp {
 	}
 
 	public inline function warn(e:#if hscriptPos ErrorDef #else Error #end) {
+		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
+		
 		if(warnHandler != null)
 			warnHandler(e);
 		else
