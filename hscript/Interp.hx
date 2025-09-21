@@ -1249,7 +1249,7 @@ class Interp {
 				var match = false;
 				for (c in cases) {
 					for (v in c.values) {
-						// https://github.com/FunkinCrew/hscript/blob/funkin-dev/hscript/Interp.hx#L531
+						// https://github.com/FunkinCrew/hscript/blob/funkin-dev/hscript/Interp.hx#L611
 						switch (Tools.expr(v)) {
 							case ECall(e, params):
 								switch (Tools.expr(e)) {
