@@ -19,15 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hscript;
 
-typedef Int8 = #if cpp cpp.Int8 #else Int #end;
-typedef Int16 = #if cpp cpp.Int16 #else Int #end;
+typedef Int8 = #if cpp cpp.Int8 #elseif java java.Int8 #elseif cs cs.Int8 #else Int #end;
+typedef Int16 = #if cpp cpp.Int16 #elseif java java.Int16 #elseif cs cs.Int16 #else Int #end;
 typedef Int32 = #if cpp cpp.Int32 #else Int #end;
-typedef Int64 = #if cpp cpp.Int64 #else Int #end;
-
-typedef UInt8 = #if cpp cpp.UInt8 #else Int #end;
-typedef UInt16 = #if cpp cpp.UInt16 #else Int #end;
+typedef Int64 = #if cpp cpp.Int64 #elseif java java.Int64 #elseif cs cs.Int64 #else Int #end;
+typedef UInt8 = #if cpp cpp.UInt8 #elseif cs cs.UInt8 #else Int #end;
+typedef UInt16 = #if cpp cpp.UInt16 #elseif cs cs.UInt16 #else Int #end;
 typedef UInt32 = #if cpp cpp.UInt32 #else Int #end;
 typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 
@@ -47,48 +47,54 @@ final class Expr {
 	public var line:Int;
 
 	public function toString():String {
-		return Std.string({e: e, pmin: pmin, pmax: pmax, origin: origin, line: line});
+		return Std.string({
+			e: e,
+			pmin: pmin,
+			pmax: pmax,
+			origin: origin,
+			line: line
+		});
 	}
 }
 
 enum ExprDef
 #else
 typedef ExprDef = Expr;
+
 enum Expr
 #end
 {
-	EConst( c : Const );
-	EIdent( v : String );
-	EVar( n : String, ?t : CType, ?e : Expr, ?isPublic : Bool, ?isStatic : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool, ?get : FieldPropertyAccess, ?set : FieldPropertyAccess, ?isVar:Bool );
-	EParent( e : Expr );
-	EBlock( e : Array<Expr> );
-	EField( e : Expr, f : String , ?safe : Bool );
-	EBinop( op : String, e1 : Expr, e2 : Expr );
-	EUnop( op : String, prefix : Bool, e : Expr );
-	ECall( e : Expr, params : Array<Expr> );
-	EIf( cond : Expr, e1 : Expr, ?e2 : Expr );
-	EWhile( cond : Expr, e : Expr );
-	EFor( v : String, it : Expr, e : Expr, ?ithv: String);
+	EConst(c:Const);
+	EIdent(v:String);
+	EVar(n:String, ?t:CType, ?e:Expr, ?isPublic:Bool, ?isStatic:Bool, ?isPrivate:Bool, ?isFinal:Bool, ?isInline:Bool, ?get:FieldPropertyAccess, ?set:FieldPropertyAccess, ?isVar:Bool);
+	EParent(e:Expr);
+	EBlock(e:Array<Expr>);
+	EField(e:Expr, f:String, ?safe:Bool);
+	EBinop(op:String, e1:Expr, e2:Expr);
+	EUnop(op:String, prefix:Bool, e:Expr);
+	ECall(e:Expr, params:Array<Expr>);
+	EIf(cond:Expr, e1:Expr, ?e2:Expr);
+	EWhile(cond:Expr, e:Expr);
+	EFor(v:String, it:Expr, e:Expr, ?ithv:String);
 	EBreak;
 	EContinue;
-	EFunction( args : Array<Argument>, e : Expr, ?name : String, ?ret : CType, ?isPublic : Bool, ?isStatic : Bool, ?isOverride : Bool, ?isPrivate : Bool, ?isFinal : Bool, ?isInline : Bool );
-	EReturn( ?e : Expr );
-	EArray( e : Expr, index : Expr );
-	EArrayDecl( e : Array<Expr>, ?wantedType: CType );
-	ENew( cl : String, params : Array<Expr>, ?paramType:Array<CType> );
-	EThrow( e : Expr );
-	ETry( e : Expr, v : String, t : Null<CType>, ecatch : Expr );
-	EObject( fl : Array<ObjectField> );
-	ETernary( cond : Expr, e1 : Expr, e2 : Expr );
-	ESwitch( e : Expr, cases : Array<SwitchCase>, ?defaultExpr : Expr );
-	EDoWhile( cond : Expr, e : Expr);
-	EMeta( name : String, args : Array<Expr>, e : Expr );
-	ECheckType( e : Expr, t : CType );
-
-	EPackage( ?n:String );
-	EImport( c : String, ?asname:String, ?isUsing:Bool );
-	EClass( name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool );
-	EEnum( en:EnumDecl, ?isAbstract:Bool );
+	EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType, ?isPublic:Bool, ?isStatic:Bool, ?isOverride:Bool, ?isPrivate:Bool, ?isFinal:Bool, ?isInline:Bool);
+	EReturn(?e:Expr);
+	EArray(e:Expr, index:Expr);
+	EArrayDecl(e:Array<Expr>, ?wantedType:CType);
+	ENew(cl:String, params:Array<Expr>, ?paramType:Array<CType>);
+	EThrow(e:Expr);
+	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
+	EObject(fl:Array<ObjectField>);
+	ETernary(cond:Expr, e1:Expr, e2:Expr);
+	ESwitch(e:Expr, cases:Array<SwitchCase>, ?defaultExpr:Expr);
+	EDoWhile(cond:Expr, e:Expr);
+	EMeta(name:String, args:Array<Expr>, e:Expr);
+	ECheckType(e:Expr, t:CType);
+	EPackage(?n:String);
+	EImport(c:String, ?asname:String, ?isUsing:Bool);
+	EClass(name:String, fields:Array<Expr>, ?extend:String, interfaces:Array<String>, ?isFinal:Bool, ?isPrivate:Bool);
+	EEnum(en:EnumDecl, ?isAbstract:Bool);
 	ECast(e:Expr, ?t:CType);
 	ERegex(e:String, flags:String);
 }
@@ -123,24 +129,24 @@ typedef Metadata = Array<MetadataEntry>;
 
 @:structInit
 final class EnumDecl {
-	public var name : String;
-	public var fields : Array<EnumField>;
+	public var name:String;
+	public var fields:Array<EnumField>;
 }
 
 @:structInit
 final class EnumField {
-	public var name : String;
-	public var args : Array<Argument>;
+	public var name:String;
+	public var args:Array<Argument>;
 }
 
 enum CType {
-	CTPath( path : Array<String>, ?params : Array<CType> );
-	CTFun( args : Array<CType>, ret : CType );
-	CTAnon( fields : Array<{ name : String, t : CType, ?meta : Metadata }> );
-	CTParent( t : CType );
-	CTOpt( t : CType );
-	CTNamed( n : String, t : CType );
-	CTExpr( e : Expr ); // for type parameters only
+	CTPath(path:Array<String>, ?params:Array<CType>);
+	CTFun(args:Array<CType>, ret:CType);
+	CTAnon(fields:Array<{name:String, t:CType, ?meta:Metadata}>);
+	CTParent(t:CType);
+	CTOpt(t:CType);
+	CTNamed(n:String, t:CType);
+	CTExpr(e:Expr); // for type parameters only
 }
 
 #if hscriptPos
@@ -168,22 +174,21 @@ enum ErrorDef {
 #else
 enum Error {
 #end
-	EInvalidChar(c:Int);
-	EUnexpected(s:String);
-	EUnterminatedString;
-	EUnterminatedComment;
-	EInvalidPreprocessor(msg:String);
-	EUnknownVariable(v:String);
-	EInvalidIterator(v:String);
-	EInvalidOp(op:String);
-	EInvalidAccess(f:String);
-	ECustom(msg:String);
-	EInvalidClass(className:String);
-	EAlreadyExistingClass(className:String);
-	EEmptyExpression;
-}
 
-enum ModuleDecl {
+EInvalidChar(c:Int);
+EUnexpected(s:String);
+EUnterminatedString;
+EUnterminatedComment;
+EInvalidPreprocessor(msg:String);
+EUnknownVariable(v:String);
+EInvalidIterator(v:String);
+EInvalidOp(op:String);
+EInvalidAccess(f:String);
+ECustom(msg:String);
+EInvalidClass(className:String);
+EAlreadyExistingClass(className:String);
+EEmptyExpression;
+} enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);
 	DClass(c:ClassDecl);
@@ -252,9 +257,4 @@ typedef VarDecl = {
 	var set:Null<String>;
 	var expr:Null<Expr>;
 	var type:Null<CType>;
-}
-
-enum EnumType {
-	ESimple(name:String);
-	EConstructor(name:String, args:Array<Argument>);
 }

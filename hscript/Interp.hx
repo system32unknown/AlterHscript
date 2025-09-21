@@ -609,11 +609,8 @@ class Interp {
 
 	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
-
-		if (rethrow)
-			this.rethrow(e);
+		if (rethrow) this.rethrow(e);
 		else throw e;
-		
 		return null;
 	}
 
@@ -726,12 +723,15 @@ class Interp {
 		switch (e) {
 			case EPackage(_):
 			case EClass(name, fields, extend, interfaces, isFinal):
+				// TODO: module isolation
 				var oldName:String = name;
 				var hasAlias:Bool = (setAlias != null && beforeAlias == oldName);
 				var toSetName:String = hasAlias ? setAlias : oldName;
 
-				if (customClasses.exists(toSetName))
-					error(EAlreadyExistingClass(toSetName));
+				if (customClasses.exists(toSetName)) {
+					warn(EAlreadyExistingClass(toSetName));
+					return null; // ignore it
+				}
 
 				inline function importVar(thing:String):String {
 					if (thing == null) return null;
@@ -812,9 +812,17 @@ class Interp {
 						error(EInvalidClass(oldClassName));
 					}
 				} else {
-					if (en != null) {
-						if(isUsing) error(EInvalidClass(oldClassName));
-						// ENUM!!!!
+					if (toSetName != claVarName && !Tools.isUppercase(toSetName)) {
+						error(ECustom("Type aliases must start with an uppercase letter"));
+						return null;
+					}
+
+					if (en != null) { // ENUM!!!!
+						if (isUsing) {
+							error(EInvalidClass(oldClassName));
+							return null;
+						}
+
 						var enumThingy:HEnum = {};
 						for (c in en.getConstructors()) {
 							try {
@@ -926,6 +934,7 @@ class Interp {
 						getter: getter,
 						setter: setter,
 						isVar: isVar,
+						isStatic: isStatic,
 						interp: this,
 					}
 				}
@@ -1567,7 +1576,10 @@ class Interp {
 			usingHandler.usingEntries.set(name, us);
 			return;
 		}
-		if (obj == null) warn(ECustom("Unknown using class " + name));
+		if (obj == null) {
+			warn(ECustom("Unknown using class " + name));
+			return;
+		}
 
 		var fn:Dynamic->String->Array<Dynamic>->Dynamic = null;
 		var fields:Array<String> = [];

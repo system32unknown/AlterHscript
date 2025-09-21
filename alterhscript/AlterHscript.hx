@@ -4,7 +4,9 @@ import haxe.ds.StringMap;
 import hscript.*;
 import alterhscript.ErrorSeverity;
 import alterhscript.AlterConfig;
+#if ALTER_DEBUG
 import haxe.CallStack;
+#end
 import haxe.PosInfos;
 
 using alterhscript.utils.Ansi;

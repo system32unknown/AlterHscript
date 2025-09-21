@@ -127,7 +127,7 @@ class Parser {
 	var tokens:haxe.ds.GenericStack<Token>;
 	#end
 
-	static inline var regexFlags: String = "igmsu";
+	static inline var regexFlags:String = "igmsu";
 
 	public function new() {
 		line = 1;
@@ -402,7 +402,7 @@ class Parser {
 					e = mk(EIdent(id));
 				return parseExprNext(e);
 			case TConst(c):
-				switch(c) {
+				switch (c) {
 					case CString(s, i):
 						if (i) return parseExprNext(interpolateString(s));
 					default:
@@ -564,7 +564,7 @@ class Parser {
 				var e = parseExpr();
 				isVar = false;
 				return mk(EMeta(id, args, e), p1);
-			case TRegex(e, f) if(allowRegex):
+			case TRegex(e, f) if (allowRegex):
 				return mk(ERegex(e, f), p1);
 			default:
 				return unexpected(tk);
@@ -1723,11 +1723,11 @@ class Parser {
 		final singleFirst:EReg = ~/[a-zA-Z_]/i;
 		final singleExpr:EReg = ~/[a-zA-Z0-9_]/i;
 		// TODO: optimize this using regex
-		while(dollarPos > -1) {
+		while (dollarPos > -1) {
 			var pos:Int = dollarPos;
 			var pre:String = s.substr(0, pos);
 			var next:String = s.charAt(++pos);
-			if(next == '{') {
+			if (next == '{') {
 				if (pre != '')
 					exprs.push(mk(EConst(CString(pre))));
 				var exprStr:String = '';
@@ -1747,7 +1747,7 @@ class Parser {
 					exprStr += next;
 				}
 				if (exprStr.trim() == '') {
-					error(ECustom("Expression cannot be empty"), pos, pos);
+					error(ECustom(EEmptyExpression), pos, pos);
 				}
 				var prevChar = char;
 				var prevInput = input;
@@ -1764,19 +1764,17 @@ class Parser {
 				#end
 				exprs.push(expr);
 				pos++;
-			}
-			else if(singleFirst.match(next)) {
+			} else if(singleFirst.match(next)) {
 				if (pre != '')
 					exprs.push(mk(EConst(CString(pre))));
-				var ident: String = '';
-				while(singleExpr.match(next)) {
+				var ident:String = '';
+				while (singleExpr.match(next)) {
 					ident += next;
 					next = s.charAt(++pos);
 				}
 				exprs.push(mk(EIdent(ident)));
-			}
-			else if (next == '$') {
-				var secondToNext: String = s.charAt(pos);
+			} else if (next == '$') {
+				var secondToNext:String = s.charAt(pos);
 				if (secondToNext == "$") { // if its another dollar, skip...
 					s = pre + s.substr(pos, pos + 1); // remove $ ahead of the current one
 					break;
@@ -1791,8 +1789,8 @@ class Parser {
 		} else {
 			exprs.push(mk(EConst(CString(s))));
 			var expr:Null<Expr> = exprs.shift();
-			while(true) {
-				if(exprs.length == 0) break;
+			while (true) {
+				if (exprs.length == 0) break;
 				expr = mk(EBinop('+', expr, exprs.shift()));
 			}
 			return expr;
@@ -2096,7 +2094,7 @@ class Parser {
 			} else if (c == 92 && !regex)
 				esc = true;
 			else if (c == until) {
-				if(regex && prev == 92) {
+				if (regex && prev == 92) {
 					b.addChar(c);
 					prev = c;
 				} else break;
@@ -2142,7 +2140,7 @@ class Parser {
 	}
 
 	function readFlags():String {
-		if(!allowRegex) return null;
+		if (!allowRegex) return null;
 		var c = 0;
 		var b = new StringBuf();
 		var old = line;
@@ -2151,21 +2149,21 @@ class Parser {
 		var p1 = readPos - 1;
 		#end
 
-		while(true) {
+		while (true) {
 			var c = readChar();
-			if( StringTools.isEof(c) ) {
+			if (StringTools.isEof(c)) {
 				line = old;
 				error(EUnterminatedString, p1, p1);
 				break;
 			}
 			// semicolon
-			if(c == 59) {
+			if (c == 59) {
 				this.char = c;
 				break;
 			}
-			
+
 			var f = String.fromCharCode(c);
-			if(regexFlags.indexOf(f) != -1) 
+			if (regexFlags.indexOf(f) != -1) 
 				b.addChar(c);
 			else
 				invalidChar(c);
@@ -2351,7 +2349,7 @@ class Parser {
 					return TBkClose;
 				case "'".code:
 					return TConst(CString(readString(char, false, true), true));
-				case '"'.code: 
+				case '"'.code:
 					return TConst(CString(readString(char), false));
 				case "?".code:
 					char = readChar();

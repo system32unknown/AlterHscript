@@ -131,6 +131,12 @@ class Tools {
 		#end
 	}
 
+	public static function isUppercase(s:String) {
+		if (s.length == 0) return false;
+		var c:Int = StringTools.fastCodeAt(s, 0);
+		if (StringTools.isEof(c)) return false; // Just in case :3
+		return c >= 65 && c <= 90; // A-Z
+	}
 	public static inline function isCustomAbstract(obj:Dynamic):Bool
 		return obj != null && obj is IHScriptAbstractBehaviour;
 
