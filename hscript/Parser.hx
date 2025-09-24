@@ -1747,7 +1747,7 @@ class Parser {
 					exprStr += next;
 				}
 				if (exprStr.trim() == '') {
-					error(ECustom(EEmptyExpression), pos, pos);
+					error(EEmptyExpression, pos, pos);
 				}
 				var prevChar = char;
 				var prevInput = input;
