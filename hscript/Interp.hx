@@ -552,38 +552,21 @@ class Interp {
 		return exprReturn(expr);
 	}
 
-	public var printCallStack:Bool = false;
-
-	function exprReturn(e):Dynamic {
+	function exprReturn(e, returnDef:Bool = true):Dynamic {
 		try {
-			try {
-				return expr(e);
-			} catch (e:Stop) {
-				switch (e) {
-					case SBreak:
-						throw "Invalid break";
-					case SContinue:
-						throw "Invalid continue";
-					case SReturn:
-						var v = returnValue;
-						returnValue = null;
-						return v;
-				}
-			} catch(e) {
-				if(printCallStack)
-					error(ECustom('${e.toString()}\n${CallStack.toString(CallStack.exceptionStack(true))}'));
-				else
-					error(ECustom(e.toString()));
-				return null;
+			var dvalue = expr(e);
+			if (returnDef) return dvalue;
+		} catch (e:Stop) {
+			switch (e) {
+				case SBreak:
+					throw "Invalid break";
+				case SContinue:
+					throw "Invalid continue";
+				case SReturn:
+					var v = returnValue;
+					returnValue = null;
+					return v;
 			}
-		} catch(e:Error) {
-			if (errorHandler != null)
-				errorHandler(e);
-			else
-				throw e;
-			return null;
-		} catch(e) {
-			trace(e);
 		}
 		return null;
 	}
@@ -1105,7 +1088,7 @@ class Interp {
 					var oldDecl = declared.length;
 					if (inTry)
 						try {
-							r = me.exprReturn(fexpr);
+							r = me.exprReturn(fexpr, false);
 						} catch (e:Dynamic) {
 							me.locals = old;
 							me.depth = depth;
@@ -1116,7 +1099,7 @@ class Interp {
 							#end
 						}
 					else
-						r = me.exprReturn(fexpr);
+						r = me.exprReturn(fexpr, false);
 					restore(oldDecl);
 					me.locals = old;
 					me.depth = depth;
