@@ -621,6 +621,13 @@ class Interp {
 		#end
 	}
 
+	inline function getProperty(o:Null<Dynamic>, n:String, allowProperty:Bool = true):Dynamic {
+		if(o != null && o is Property && allowProperty)
+			return cast(o, Property).callGetter(n);
+		else
+			return o;
+	}
+
 	public function resolve(id:String, doException:Bool = true, allowProperty:Bool = true):Dynamic {
 		if (id == null)
 			return null;
@@ -635,20 +642,14 @@ class Interp {
 		if (locals.exists(id)) {
 			var l = locals.get(id);
 			if(l != null) {
-				if(l.r != null && l.r is Property && allowProperty)  
-					return cast(l.r, Property).callGetter(id);
-				else 
-					return l.r;
+				return getProperty(l.r, id, allowProperty);
 			}
 		}
 
 		for(map in [variables, publicVariables, staticVariables]) {
 			if(map.exists(id)) {
 				var r:Null<Dynamic> = map.get(id);
-				if(r != null && r is Property && allowProperty) 
-					return cast(r, Property).callGetter(id);
-				else 
-					return r;
+				return getProperty(r, id, allowProperty);
 			}
 		}
 
@@ -1362,7 +1363,7 @@ class Interp {
 		for (p in params) {
 			switch (Tools.expr(p)) {
 				case EIdent(id):
-					var ident = resolve(id);
+					var ident:Dynamic = resolve(id);
 					if (ident is CustomClass) {
 						var customClass:CustomClass = cast ident; // Pass the underlying superclass if exist
 						args.push(customClass.__superClass != null ? customClass.getSuperclass() : customClass);
@@ -1566,7 +1567,7 @@ class Interp {
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
 			var field = Reflect.field(cls, f);
-			if (!Reflect.isFunction(field))
+			if (field == null || !Reflect.isFunction(field))
 				return null;
 
 			// invalid if the function has no arguments
@@ -1591,7 +1592,7 @@ class Interp {
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			var field:Dynamic = customClass.getField(f);
-			if (!Reflect.isFunction(field))
+			if (field == null || !Reflect.isFunction(field))
 				return null;
 			/*
 			var totalArgs:Int = Tools.argCount(field);
@@ -1617,13 +1618,17 @@ class Interp {
 
 		if (usingHandler.usingEntries.iterator().hasNext()) { // If is not empty
 			var v:Dynamic = null;
-			for (n => us in usingHandler.usingEntries) {
-				if(us.hasField(f)) {
-					v = us.call(o, f, args);
-					if (v != null)
-						return v;
+			var clsName:String = o is CustomClassHandler ? cast(o, CustomClassHandler).name : Type.getClassName(Type.getClass(o));
+			if(!usingHandler.entryExists(clsName)) {
+				for (n => us in usingHandler.usingEntries) {
+					if (us.hasField(f)) {
+						v = us.call(o, f, args);
+						if (v != null)
+							return v;
+					}
 				}
 			}
+			
 		}
 
 		var func = get(o, f);
