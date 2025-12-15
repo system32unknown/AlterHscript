@@ -28,6 +28,7 @@
  */
 package hscript;
 
+import haxe.ds.StringMap;
 import hscript.HEnum.HEnumValue;
 import haxe.CallStack;
 import hscript.utils.UsingHandler;
@@ -70,10 +71,7 @@ class RedeclaredVar {
 @:access(hscript.CustomClass)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
-	private var hasScriptObject(get, never):Bool;
-	private function get_hasScriptObject():Bool 
-		return scriptObject != null;
-
+	private var hasScriptObject(default, null):Bool = false;
 	private var _scriptObjectType(default, null):ScriptObjectType = SNull;
 
 	var __instanceFields:Array<String> = [];
@@ -88,6 +86,7 @@ class Interp {
 					var classFields = v.__class__fields;
 					if(classFields != null)
 						__instanceFields = __instanceFields.concat(classFields);
+					inCustomClass = true;
 					_scriptObjectType = SCustomClass;
 				} else if(v is IHScriptCustomAccessBehaviour) {
 					_scriptObjectType = SAccessBehaviourObject;
@@ -110,12 +109,11 @@ class Interp {
 				__instanceFields = [];
 				_scriptObjectType = SNull;
 		}
+		hasScriptObject = v != null;
 		return scriptObject = v;
 	}
 
-	var inCustomClass(get, never):Bool;
-	private function get_inCustomClass():Bool
-		return hasScriptObject && _scriptObjectType == SCustomClass;
+	var inCustomClass(default, null):Bool = false;
 
 	var __customClass(get, never):CustomClass;
 	private function get___customClass():CustomClass
@@ -132,7 +130,7 @@ class Interp {
 
 	// warning can be null
 	public var locals:Map<String, DeclaredVar>;
-	var binops:Map<String, Expr->Expr->Dynamic>;
+	var binops:StringMap<Expr->Expr->Dynamic>;
 
 	var depth:Int = 0;
 	var inTry:Bool;
@@ -197,7 +195,7 @@ class Interp {
 
 	function initOps():Void {
 		var me = this;
-		binops = new Map();
+		binops = new StringMap<Expr -> Expr -> Dynamic>();
 		binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
 		binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
 		binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
@@ -586,7 +584,7 @@ class Interp {
 		return h2;
 	}
 
-	function restore(old:Int):Void {
+	inline function restore(old:Int):Void {
 		while (declared.length > old) {
 			var d = declared.pop();
 			locals.set(d.n, d.old);
@@ -596,10 +594,10 @@ class Interp {
 	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 
-		if (rethrow)
-			this.rethrow(e);
-		else
+		if(!rethrow) 
 			throw e;
+		else
+			this.rethrow(e);
 		
 		return null;
 	}
@@ -622,7 +620,7 @@ class Interp {
 	}
 
 	inline function getProperty(o:Null<Dynamic>, n:String, allowProperty:Bool = true):Dynamic {
-		if(o != null && o is Property && allowProperty)
+		if(o != null && allowProperty && o is Property)
 			return cast(o, Property).callGetter(n);
 		else
 			return o;
@@ -743,7 +741,7 @@ class Interp {
 			case EImport(clsName, aliasAs, isUsing):
 				if(!importEnabled) return null;
 
-				var splitClassName = [for (e in clsName.split(".")) e.trim()];
+				var splitClassName:Array<String> = [for (e in clsName.split(".")) e.trim()];
 				var realClassName = splitClassName.join(".");
 				var claVarName = splitClassName[splitClassName.length - 1];
 				var toSetName = aliasAs != null ? aliasAs : claVarName;
@@ -794,9 +792,9 @@ class Interp {
 
 				if(cl == null && en == null) {
 					if(allowStaticImports) { //allows for static imports like "haxe.io.Path.normalize"
-						var clPth = oldSplitName.copy();
-						var funcName = clPth.pop();
-						var statField = Reflect.getProperty(Type.resolveClass(StringTools.trim(clPth.join("."))), funcName);
+						var clPth:Array<String> = oldSplitName.copy();
+						var funcName:String = clPth.pop();
+						var statField:Dynamic = Reflect.getProperty(Type.resolveClass(StringTools.trim(clPth.join("."))), funcName);
 
 						if(statField != null) {
 							variables.set((toSetName != null && toSetName.length > 0 ? toSetName : funcName), statField);
@@ -961,14 +959,14 @@ class Interp {
 			case EParent(e):
 				return expr(e);
 			case EBlock(exprs):
-				var old = declared.length;
-				var v = null;
+				var old:Int = declared.length;
+				var v:Null<Dynamic> = null;
 				for (e in exprs)
 					v = expr(e);
 				restore(old);
 				return v;
 			case EField(e, f, s):
-				var field = expr(e);
+				var field:Null<Dynamic> = expr(e);
 				if(s && field == null)
 					return null;
 				return get(field, f);
@@ -997,7 +995,7 @@ class Interp {
 
 				switch (Tools.expr(e)) {
 					case EField(e, f, s):
-						var obj = expr(e);
+						var obj:Null<Dynamic> = expr(e);
 						if (obj == null) {
 							if(s) return null;
 							error(EInvalidAccess(f));
@@ -1075,8 +1073,8 @@ class Interp {
 					me.locals = me.duplicate(capturedLocals);
 					for (i in 0...params.length)
 						me.locals.set(params[i].name, {r: args[i], depth: depth});
-					var r = null;
-					var oldDecl = declared.length;
+					var r:Null<Dynamic> = null;
+					var oldDecl:Int = declared.length;
 					if (inTry)
 						try {
 							r = me.exprReturn(fexpr);
@@ -1117,7 +1115,7 @@ class Interp {
 				}
 				return f;
 			case EArrayDecl(arr, wantedType):
-				var isMap = false;
+				var isMap:Bool = false;
 
 				if (wantedType != null) {
 					isMap = switch (wantedType) {
@@ -1215,7 +1213,7 @@ class Interp {
 			case EThrow(e):
 				throw expr(e);
 			case ETry(e, n, _, ecatch):
-				var old = declared.length;
+				var old:Int = declared.length;
 				var oldTry = inTry;
 				try {
 					inTry = true;
@@ -1245,7 +1243,7 @@ class Interp {
 			case ETernary(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else expr(e2);
 			case ESwitch(e, cases, def):
-				var old = declared.length;
+				var old:Int = declared.length;
 				var val:Dynamic = expr(e);
 				var match = false;
 				for (c in cases) {
@@ -1318,7 +1316,7 @@ class Interp {
 		return null;
 	}
 
-	function doWhileLoop(econd:Expr, e:Expr):Void {
+	inline function doWhileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		do {
 			if (!loopRun(() -> expr(e)))
@@ -1327,7 +1325,7 @@ class Interp {
 		restore(old);
 	}
 
-	function whileLoop(econd:Expr, e:Expr):Void {
+	inline function whileLoop(econd:Expr, e:Expr):Void {
 		var old = declared.length;
 		while (expr(econd) == true) {
 			if (!loopRun(() -> expr(e)))
@@ -1643,7 +1641,7 @@ class Interp {
 		return call(o, func, args);
 	}
 
-	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
+	inline function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
 		return UnsafeReflect.callMethodSafe(o, f, args);
 	}
 
@@ -1651,10 +1649,9 @@ class Interp {
 		var c:Dynamic = resolve(cl);
 		if (c == null)
 			c = Type.resolveClass(cl);
-		if (c is IHScriptCustomConstructor) {
-			var c:IHScriptCustomConstructor = cast c;
-			return c.hnew(args);
-		} else
+		if (c is IHScriptCustomConstructor)
+			return cast(c, IHScriptCustomConstructor).hnew(args);
+		else
 			return Type.createInstance(c, args);
 	}
 }
