@@ -340,7 +340,7 @@ class Interp {
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
-					setMapValue(arr, index, v);
+					setMapValue(getMap(arr), index, v);
 				} else {
 					arr[index] = v;
 				}
@@ -1189,7 +1189,7 @@ class Interp {
 							throw 'Unknown Type Key';
 					}
 					for (n in 0...keys.length) {
-						setMapValue(map, keys[n], values[n]);
+						setMapValue(getMap(map), keys[n], values[n]);
 					}
 					return map;
 				} else {
@@ -1203,7 +1203,7 @@ class Interp {
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
-					return getMapValue(arr, index);
+					return getMapValue(getMap(arr), index);
 				} else {
 					return arr[index];
 				}
@@ -1417,17 +1417,14 @@ class Interp {
 	}
 
 	inline function getMap(map:Dynamic):IMap<Dynamic, Dynamic> {
-		var map:IMap<Dynamic, Dynamic> = cast map;
-		return map;
+		return cast map;
 	}
 
-	inline function getMapValue(map:Dynamic, key:Dynamic):Dynamic {
-		var map:IMap<Dynamic, Dynamic> = cast map;
+	inline function getMapValue(map:IMap<Dynamic, Dynamic>, key:Dynamic):Dynamic {
 		return map.get(key);
 	}
 
-	inline function setMapValue(map:Dynamic, key:Dynamic, value:Dynamic):Void {
-		var map:IMap<Dynamic, Dynamic> = cast map;
+	inline function setMapValue(map:IMap<Dynamic, Dynamic>, key:Dynamic, value:Dynamic):Void {
 		map.set(key, value);
 	}
 
@@ -1646,14 +1643,12 @@ class Interp {
 	}
 
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
-		var c:Dynamic = resolve(cl);
+		var c:Dynamic = Type.resolveClass(cl);
 		if (c == null)
-			c = Type.resolveClass(cl);
+			c = resolve(cl);
 		if (c is IHScriptCustomConstructor)
 			return cast(c, IHScriptCustomConstructor).hnew(args);
-		else
-			return Type.createInstance(c, args);
+		
+		return Type.createInstance(c, args);
 	}
 }
-
-
