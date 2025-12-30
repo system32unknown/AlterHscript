@@ -446,7 +446,8 @@ class Interp {
 					arr[index] = v;
 				}
 			default:
-				return error(EInvalidOp(op));
+				error(EInvalidOp(op));
+				return null;
 		}
 		return v;
 	}
@@ -539,7 +540,8 @@ class Interp {
 					return v;
 				}
 			default:
-				return error(EInvalidOp((delta > 0) ? "++" : "--"));
+				error(EInvalidOp((delta > 0) ? "++" : "--"));
+				return null;
 		}
 	}
 
