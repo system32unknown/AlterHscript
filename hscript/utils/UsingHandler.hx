@@ -76,7 +76,7 @@ class UsingHandler {
 		usingEntries.set(name, {call: entry, fields: fields});
 	}
 
-	public function entryExists(name:String):Bool {
+	public inline function entryExists(name:String):Bool {
 		return usingEntries.exists(name);
 	}
 }
