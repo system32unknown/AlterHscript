@@ -552,10 +552,9 @@ class Interp {
 		return exprReturn(expr);
 	}
 
-	function exprReturn(e, returnDef:Bool = true):Dynamic {
+	function exprReturn(e):Dynamic {
 		try {
-			var dvalue = expr(e);
-			if (returnDef) return dvalue;
+			return expr(e);
 		} catch (e:Stop) {
 			switch (e) {
 				case SBreak:
@@ -1057,7 +1056,7 @@ class Interp {
 					var oldDecl:Int = declared.length;
 					if (inTry)
 						try {
-							r = me.exprReturn(fexpr, false);
+							r = me.exprReturn(fexpr);
 						} catch (e:Dynamic) {
 							me.locals = old;
 							me.depth = depth;
@@ -1067,8 +1066,7 @@ class Interp {
 							throw e;
 							#end
 						}
-					else
-						r = me.exprReturn(fexpr, false);
+					else r = me.exprReturn(fexpr);
 					restore(oldDecl);
 					me.locals = old;
 					me.depth = depth;
