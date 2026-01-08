@@ -1046,40 +1046,44 @@ class Parser {
 				}
 
 		case "class":
-			// example: class ClassName
-			var tk = token();
-			var name = null;
-
-			switch (tk) {
-				case TId(id): name = id;
-				default: push(tk);
+			// example: class ClassName<K, V>
+			var name:String = null;
+			var ct = parseType(); // this is for handling type parameters
+			switch(ct) {
+				case CTPath(path, params):
+					name = path.join(".");
+				default:
+					error(EUnexpected(Std.string(ct)), p1, tokenMax);
 			}
 
 			var extend:String = null;
+			if(maybe(TId("extends"))) {
+				var e = parseType();
+				switch(e) {
+					case CTPath(path, params):
+						var buf = new StringBuf();
+						for(i in 0...path.length) {
+							if(i > 0) buf.add(".");
+							buf.add(path[i]);
+						}
+						extend = buf.toString();
+					default:
+						error(ECustom('${Std.string(e)} is not a valid path.'), p1, tokenMax);
+				}
+			}
+			
 			var interfaces:Array<String> = [];
-			// optional - example: extends BaseClass
-
-			var t = token();
-			switch( t ) {
-				case TId("extends"):
-					var e = parseType();
-					switch(e) {
-						case CTPath(path, params):
-							if(extend != null) {
-								error(ECustom('Cannot extend a class twice.'), 0, 0);
-							}
-							var buf = new StringBuf();
-							for(i in 0...path.length) {
-								if(i > 0) buf.add(".");
-								buf.add(path[i]);
-							}
-							extend = buf.toString();
-						default:
-							error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
-					}
-					t = token();
-					switch(t) {
-						case TId("implements"):
+			var tk:Token = null;
+			if(maybe(TId("implements"))) {
+				// handled manually for multiple implements
+				while(true) {
+					tk = token();
+					switch(tk) {
+						case TId("implements"): continue;
+						case TId("extends"):
+							error(ECustom('Implements must come after extends.'), p1, tokenMax);
+						case TId(_):
+							push(tk);
 							var e = parseType();
 							switch(e) {
 								case CTPath(path, params):
@@ -1090,67 +1094,14 @@ class Parser {
 									}
 									interfaces.push(buf.toString());
 								default:
-									error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
+									error(ECustom('${Std.string(e)} is not a valid path.'), p1, tokenMax);
 							}
-							t = token();
-						default:
+						default: 
+							push(tk);
+							break;
 					}
-				case TId("implements"):
-					var e = parseType();
-					switch(e) {
-						case CTPath(path, params):
-							var buf = new StringBuf();
-							for(i in 0...path.length) {
-								if(i > 0) buf.add(".");
-								buf.add(path[i]);
-							}
-							interfaces.push(buf.toString());
-						default:
-							error(ECustom('${Std.string(e)} is not a valid path.'), 0, 0);
-					}
-					t = token();
-					switch(t) {
-						case TId("extends"):
-							error(ECustom('Implements must come after extends.'), 0, 0);
-						default:
-					}
-				default:
-			}
-			push(t);
-
-			/*while(true) {
-				tk = token();
-				trace(tk);
-				switch (tk) {
-					case TId(id):
-						if (id == "extends") {
-							tk = token();
-							if(extend != null) {
-								unexpected(tk);
-							} else {
-								switch (tk) {
-									case TId(id): extend = id;
-									default: unexpected(tk);
-								}
-							}
-						} else if (id == "implements") {
-							tk = token();
-							switch (tk) {
-								case TId(id): interfaces.push(id);
-								default: unexpected(tk);
-							}
-						} else {
-							//push(tk);
-						}
-
-					case TBrOpen:
-						push(tk);
-						break;
-
-					default:
-						//push(tk);
 				}
-			}*/
+			}
 
 			var fields = [];
 			ensure(TBrOpen);
@@ -1231,7 +1182,8 @@ class Parser {
 			var e = if( tk == TSemicolon ) null else parseExpr();
 			mk(EReturn(e),p1,if( e == null ) tokenMax else pmax(e));
 		case "new":
-			var a = [];
+			// TODO: maybe use CTPath for this
+			var a:Array<String> = [];
 			var params:Null<Array<CType>> = null;
 			a.push(getIdent());
 			while( true ) {
