@@ -620,7 +620,7 @@ class Interp {
 	}
 
 	inline function getProperty(o:Null<Dynamic>, n:String, allowProperty:Bool = true):Dynamic {
-		if(o != null && allowProperty && o is Property)
+		if(allowProperty && o != null && o is Property)
 			return cast(o, Property).callGetter(n);
 		else
 			return o;
@@ -644,12 +644,12 @@ class Interp {
 			}
 		}
 
-		for(map in [variables, publicVariables, staticVariables]) {
-			if(map.exists(id)) {
-				var r:Null<Dynamic> = map.get(id);
-				return getProperty(r, id, allowProperty);
-			}
-		}
+		if (variables.exists(id))
+			return getProperty(variables.get(id), id, allowProperty);
+		if (publicVariables.exists(id))
+			return getProperty(publicVariables.get(id), id, allowProperty);
+		if (staticVariables.exists(id))
+			return getProperty(staticVariables.get(id), id, allowProperty);
 
 		if(customClasses.exists(id))
 			return customClasses.get(id);
