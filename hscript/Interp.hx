@@ -568,9 +568,6 @@ class Interp {
 						returnValue = null;
 						return v;
 				}
-			} catch(e) {
-				error(ECustom(e.toString()));
-				return null;
 			}
 		} catch(e:Error) {
 			throw _errorString(e);
