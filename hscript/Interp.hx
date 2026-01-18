@@ -28,6 +28,7 @@
  */
 package hscript;
 
+import haxe.Exception;
 import alterhscript.AlterHscript;
 
 import haxe.CallStack;
@@ -566,11 +567,24 @@ class Interp {
 					returnValue = null;
 					return v;
 			}
-		} catch(e) {
-			error(ECustom(e.toString()));
+		} catch(e:Error) {
+			error(ECustom(_errorString(e)));
 			return null;
 		}
 		return null;
+	}
+
+	function _errorString(e:Error):String {
+		var origin:String = e.origin;
+		var oldfn:String = '$origin:${e.line}: ';
+		var fn:String = '$origin:${e.line}: ';
+
+		var err = e.toString();
+		while(err.startsWith(oldfn) || err.startsWith(fn)) {
+			if (err.startsWith(oldfn)) err = err.substr(oldfn.length);
+			if (err.startsWith(fn)) err = err.substr(fn.length);
+		}
+		return err;
 	}
 
 	public function duplicate<T>(h:Map<String, T>) {
