@@ -555,21 +555,25 @@ class Interp {
 
 	function exprReturn(e):Dynamic {
 		try {
-			return expr(e);
-		} catch (e:Stop) {
-			switch (e) {
-				case SBreak:
-					throw "Invalid break";
-				case SContinue:
-					throw "Invalid continue";
-				case SReturn:
-					var v = returnValue;
-					returnValue = null;
-					return v;
+			try {
+				return expr(e);
+			} catch (e:Stop) {
+				switch (e) {
+					case SBreak:
+						throw "Invalid break";
+					case SContinue:
+						throw "Invalid continue";
+					case SReturn:
+						var v = returnValue;
+						returnValue = null;
+						return v;
+				}
+			} catch(e) {
+				error(ECustom(e.toString()));
+				return null;
 			}
 		} catch(e:Error) {
-			error(ECustom(_errorString(e)));
-			return null;
+			throw _errorString(e);
 		}
 		return null;
 	}
