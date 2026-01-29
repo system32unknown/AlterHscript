@@ -12,11 +12,13 @@ using StringTools;
 
 class AbstractHandler {
 	public static function init() {
+		#if HSCRIPT_ABSTRACT_SUPPORT
 		#if !display
 		if(Context.defined("display")) return;
 		for(apply in Config.ALLOWED_ABSTRACT_AND_ENUM) {
 			Compiler.addGlobalMetadata(apply, '@:build(hscript.macros.AbstractHandler.build())');
 		}
+		#end
 		#end
 	}
 
