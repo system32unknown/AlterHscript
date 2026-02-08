@@ -23,11 +23,13 @@ class ClassExtendMacro {
 	public static var modifiedClasses:Array<String> = [];
 
 	public static function init() {
-		#if (!display && CUSTOM_CLASSES)
+		#if !display
+		#if CUSTOM_CLASSES
 		if(Context.defined("display")) return;
 		for(apply in Config.ALLOWED_CUSTOM_CLASSES) {
 			Compiler.addGlobalMetadata(apply, "@:build(hscript.macros.ClassExtendMacro.build())");
 		}
+		#end
 		#end
 	}
 
