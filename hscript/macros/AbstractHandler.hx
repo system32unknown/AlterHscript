@@ -12,9 +12,9 @@ using StringTools;
 
 class AbstractHandler {
 	public static function init() {
-		#if !display
-		if(Context.defined("display")) return;
-		for(apply in Config.ALLOWED_ABSTRACT_AND_ENUM) {
+		#if (HSCRIPT_ABSTRACT_SUPPORT && !display)
+		if (Context.defined("display")) return;
+		for (apply in Config.ALLOWED_ABSTRACT_AND_ENUM) {
 			Compiler.addGlobalMetadata(apply, '@:build(hscript.macros.AbstractHandler.build())');
 		}
 		#end
