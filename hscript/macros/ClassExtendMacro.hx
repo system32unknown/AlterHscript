@@ -57,7 +57,6 @@ class ClassExtendMacro {
 			if (key == "away3d.tools.commands.Mirror") return fields; // Error: Unknown identifier
 			if (key == "away3d.tools.commands.SphereMaker") return fields; // Error: Unknown identifier
 			if (key == "away3d.tools.commands.Weld") return fields; // Error: Unknown identifier
-			if (key == "flixel.graphics.frames.FlxFrame.FlxUVRect") return fields;
 			if (fkey == "hscript.CustomClassHandler.TemplateClass") return fields; // Error: Redefined
 			if (fkey == "hscript.CustomClassHandler.CustomTemplateClass") return fields; // Error: Redefined
 			if (fkey == "hscript.CustomClass") return fields; // Error: Redefined
