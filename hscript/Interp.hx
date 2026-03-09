@@ -909,8 +909,6 @@ class Interp {
 				}
 
 				variables.set(en.name, enumThingy);
-			case ECast(e, _): // TODO
-				return expr(e);
 			case ERegex(e, f):
 				return new EReg(e, f);
 			case EConst(c):
@@ -941,7 +939,7 @@ class Interp {
 					}
 				}
 				var declVar:DeclaredVar = {
-					r: (declProp == null) ? r : declProp,
+					r: (!hasGetSet) ? r : declProp,
 					depth: depth
 				};
 				locals.set(n, declVar);
@@ -1248,7 +1246,7 @@ class Interp {
 				var match = false;
 				for (c in cases) {
 					for (v in c.values) {
-						// https://github.com/FunkinCrew/hscript/blob/funkin-dev/hscript/Interp.hx#L611
+						// https://github.com/FunkinCrew/polymod/blob/5d47a5c7c6b4e0cb94bd8fd45d012ca93bde9ab7/polymod/hscript/_internal/Interp.hx#L613
 						switch (Tools.expr(v)) {
 							case ECall(e, params):
 								switch (Tools.expr(e)) {
@@ -1310,7 +1308,7 @@ class Interp {
 
 				isBypassAccessor = oldAccessor;
 				return val;
-			case ECheckType(e, _):
+			case ECheckType(e, _), ECast(e, _):
 				return expr(e);
 		}
 		return null;
