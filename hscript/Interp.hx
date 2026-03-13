@@ -906,8 +906,6 @@ class Interp {
 				}
 
 				variables.set(en.name, enumThingy);
-			case ECast(e, _): // TODO
-				return expr(e);
 			case ERegex(e, f):
 				return new EReg(e, f);
 			case EConst(c):
@@ -938,7 +936,7 @@ class Interp {
 					}
 				}
 				var declVar:DeclaredVar = {
-					r: (declProp == null) ? r : declProp,
+					r: (!hasGetSet) ? r : declProp,
 					depth: depth
 				};
 				locals.set(n, declVar);
@@ -1307,7 +1305,7 @@ class Interp {
 
 				isBypassAccessor = oldAccessor;
 				return val;
-			case ECheckType(e, _):
+			case ECheckType(e, _), ECast(e, _):
 				return expr(e);
 		}
 		return null;
@@ -1587,7 +1585,7 @@ class Interp {
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			var field:Dynamic = customClass.getField(f);
-			if (!Reflect.isFunction(field))
+			if (field == null || !Reflect.isFunction(field))
 				return null;
 			return UnsafeReflect.callMethodUnsafe(null, field, [o].concat(args));
 		}
@@ -1640,7 +1638,7 @@ class Interp {
 		return call(o, func, args);
 	}
 
-	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
+	inline function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
 		return UnsafeReflect.callMethodSafe(o, f, args);
 	}
 

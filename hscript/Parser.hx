@@ -249,7 +249,7 @@ class Parser {
 			unexpected(t);
 	}
 
-	function maybe(tk:Token):Bool {
+	@:analyzer(fusion) inline function maybe(tk:Token):Bool {
 		var t = token();
 		if (Type.enumEq(t, tk))
 			return true;
