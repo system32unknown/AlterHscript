@@ -131,12 +131,14 @@ typedef Metadata = Array<MetadataEntry>;
 final class EnumDecl {
 	public var name:String;
 	public var fields:Array<EnumField>;
+	public var underlyingType:Null<CType>;
 }
 
 @:structInit
 final class EnumField {
 	public var name:String;
 	public var args:Array<Argument>;
+	public var value:Null<Expr>;
 }
 
 enum CType {
@@ -170,25 +172,27 @@ class Error {
 	}
 }
 
-enum ErrorDef {
+enum ErrorDef
 #else
-enum Error {
+enum Error
 #end
+{
+	EInvalidChar(c:Int);
+	EUnexpected(s:String);
+	EUnterminatedString;
+	EUnterminatedComment;
+	EInvalidPreprocessor(msg:String);
+	EUnknownVariable(v:String);
+	EInvalidIterator(v:String);
+	EInvalidOp(op:String);
+	EInvalidAccess(f:String);
+	ECustom(msg:String);
+	EInvalidClass(className:String);
+	EAlreadyExistingClass(className:String);
+	EEmptyExpression;
+}
 
-EInvalidChar(c:Int);
-EUnexpected(s:String);
-EUnterminatedString;
-EUnterminatedComment;
-EInvalidPreprocessor(msg:String);
-EUnknownVariable(v:String);
-EInvalidIterator(v:String);
-EInvalidOp(op:String);
-EInvalidAccess(f:String);
-ECustom(msg:String);
-EInvalidClass(className:String);
-EAlreadyExistingClass(className:String);
-EEmptyExpression;
-} enum ModuleDecl {
+enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);
 	DClass(c:ClassDecl);
@@ -232,12 +236,12 @@ enum abstract FieldAccess(UInt8) {
 }
 
 enum abstract FieldPropertyAccess(UInt8) {
-	var ADefault;
-	var ANull;
-	var AGet;
-	var ASet;
-	var ADynamic;
-	var ANever;
+	var ADefault:FieldPropertyAccess;
+	var ANull:FieldPropertyAccess;
+	var AGet:FieldPropertyAccess;
+	var ASet:FieldPropertyAccess;
+	var ADynamic:FieldPropertyAccess;
+	var ANever:FieldPropertyAccess;
 }
 
 enum FieldKind {

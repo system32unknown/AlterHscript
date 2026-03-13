@@ -58,7 +58,8 @@ class Printer {
 					add("<");
 					var first = true;
 					for (p in params) {
-						if (first) first = false else add(", ");
+						if (first) first = false
+						else add(", ");
 						type(p);
 					}
 					add(">");
@@ -148,34 +149,60 @@ class Printer {
 
 				tabs = tabs.substr(1);
 				add("}");
-			case EEnum(en, _): // TODO: enum abstracts
-				add('enum ${en.name}');
-				if (en.fields.length == 0) {
-					add(' {}');
-					return;
-				}
-				tabs += "\t";
-				add(" {\n");
-
-				for (e in en.fields) {
-					add(tabs);
-					add(e.name);
-					if (e.args.length > 0) {
-						add("(");
-						var first = true;
-						for (a in e.args) {
-							if (first) first = false else add(", ");
-							if (a.opt) add("?");
-							add(a.name);
-							addType(a.t);
-						}
-						add(')');
+			case EEnum(en, isAbstract):
+				if (isAbstract) {
+					add('enum abstract ${en.name}(');
+					if (en.underlyingType != null) type(en.underlyingType);
+					else add('Int');
+					add(')');
+					if (en.fields.length == 0) {
+						add(' {}');
+						return;
 					}
-					add(";\n");
+					tabs += "\t";
+					add(" {\n");
+					for (e in en.fields) {
+						add(tabs);
+						add(e.name);
+						if (e.value != null) {
+							add(" = ");
+							expr(e.value);
+						}
+						add(";\n");
+					}
+					tabs = tabs.substr(1);
+					add("}");
+				} else {
+					add('enum ${en.name}');
+					if (en.fields.length == 0) {
+						add(' {}');
+						return;
+					}
+					tabs += "\t";
+					add(" {\n");
+					for (e in en.fields) {
+						add(tabs);
+						add(e.name);
+						if (e.args.length > 0) {
+							add("(");
+							var first = true;
+							for (a in e.args) {
+								if (first)
+									first = false
+								else
+									add(", ");
+								if (a.opt)
+									add("?");
+								add(a.name);
+								addType(a.t);
+							}
+							add(')');
+						}
+						add(";\n");
+					}
+					tabs = tabs.substr(1);
+					add("}");
 				}
-
-				tabs = tabs.substr(1);
-				add("}");
 			case ECast(e, t):
 				var safe = t != null;
 				add("cast ");
@@ -193,7 +220,10 @@ class Printer {
 				switch (c) {
 					case CInt(i): add(i);
 					case CFloat(f): add(f);
-					case CString(s): add('"'); add(s.split('"').join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t")); add('"');
+					case CString(s):
+						add('"');
+						add(s.split('"').join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t"));
+						add('"');
 				}
 			case EIdent(v):
 				add(v);
@@ -279,7 +309,8 @@ class Printer {
 				add("(");
 				var first = true;
 				for (a in args) {
-					if (first) first = false else add(", ");
+					if (first) first = false
+					else add(", ");
 					expr(a);
 				}
 				add(")");
@@ -322,7 +353,8 @@ class Printer {
 				add("(");
 				var first = true;
 				for (a in params) {
-					if (first) first = false else add(", ");
+					if (first) first = false
+					else add(", ");
 					if (a.opt) add("?");
 					add(a.name);
 					addType(a.t);
@@ -346,7 +378,8 @@ class Printer {
 				add("[");
 				var first = true;
 				for (e in el) {
-					if (first) first = false else add(", ");
+					if (first) first = false
+					else add(", ");
 					expr(e);
 				}
 				add("]");
@@ -356,7 +389,8 @@ class Printer {
 					add("<");
 					var first = true;
 					for (p in params) {
-						if (first) first = false else add(", ");
+						if (first) first = false
+						else add(", ");
 						type(p);
 					}
 					add(">");
@@ -364,7 +398,8 @@ class Printer {
 				add("(");
 				var first = true;
 				for (e in args) {
-					if (first) first = false else add(", ");
+					if (first) first = false
+					else add(", ");
 					expr(e);
 				}
 				add(")");
@@ -407,7 +442,8 @@ class Printer {
 					add("case ");
 					var first = true;
 					for (v in c.values) {
-						if (first) first = false else add(", ");
+						if (first) first = false
+						else add(", ");
 						expr(v);
 					}
 					add(": ");
@@ -427,7 +463,8 @@ class Printer {
 					add("(");
 					var first = true;
 					for (a in args) {
-						if( first ) first = false else add(", ");
+						if (first) first = false
+						else add(", ");
 						expr(e);
 					}
 					add(")");
