@@ -371,7 +371,7 @@ class Parser {
 		var p1 = tokenMin;
 		#end
 		switch( tk ) {
-		case TId(id): // TODO: direct access to classes by typing their path
+		case TId(id): 
 			var e = parseStructure(id, oldPos);
 			if( e == null )
 				e = mk(EIdent(id));

@@ -856,7 +856,7 @@ class Interp {
 					var enumFields = en.fields;
 					for (i => ef in enumFields) {
 						var fieldName = ef.name;
-						var fieldValue = ef.value != null ? exprReturn(ef.value) : i;
+						var fieldValue:Dynamic = ef.value != null ? exprReturn(ef.value) : i;
 						UnsafeReflect.setField(enumObj, fieldName, fieldValue);
 					}
 					variables.set(enumName, enumObj);
@@ -927,10 +927,10 @@ class Interp {
 			case ERegex(e, f):
 				return new EReg(e, f);
 			case EConst(c):
-				switch (c) {
-					case CInt(v): return v;
-					case CFloat(f): return f;
-					case CString(s): return s;
+				return switch (c) {
+					case CInt(v): v;
+					case CFloat(f): f;
+					case CString(s): s;
 				}
 			case EIdent(id):
 				return resolve(id);
@@ -1169,6 +1169,7 @@ class Interp {
 					isMap = Tools.expr(arr[0]).match(EBinop("=>", _));
 				}
 
+				// TODO: separate this into a function
 				if (isMap) {
 					var isAllString:Bool = true;
 					var isAllInt:Bool = true;
