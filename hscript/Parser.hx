@@ -1174,6 +1174,7 @@ class Parser {
 						}
 						fieldValue = parseExpr();
 					default:
+						if(tk.match(TId("var"))) continue;
 						if(fieldName.trim().length != 0) {
 							error(ECustom("Expected comma or semicolon"), tokenMin, tokenMax);
 							break;

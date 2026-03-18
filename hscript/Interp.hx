@@ -852,11 +852,34 @@ class Interp {
 			case EEnum(en, isAbstract):
 				if(isAbstract) {
 					var enumObj:Dynamic = {};
+					var enumType:String = 'Int';
+					if(en.underlyingType != null) {
+						enumType = switch(en.underlyingType) {
+							case CTPath(path, _):
+								path.join(".");
+							default:
+								''; // ???
+						}
+					}
 					var enumName = en.name;
 					var enumFields = en.fields;
+					// TODO: incremental implicit int value from previous value
+					// i.e.
+					/*
+					enum abstract Numeric(Int) {
+						var Zero; // implicit value: 0
+						var Ten = 10;
+						var Eleven; // implicit value: 11
+					}
+					*/
 					for (i => ef in enumFields) {
 						var fieldName = ef.name;
-						var fieldValue:Dynamic = ef.value != null ? exprReturn(ef.value) : i;
+						var fieldValue:Dynamic = ef.value != null ? expr(ef.value) : switch(enumType) {
+							case 'Int': i;
+							case 'String': fieldName;
+							default: null;
+						}
+						//var fieldValue:Dynamic = ef.value != null ? exprReturn(ef.value) : i;
 						UnsafeReflect.setField(enumObj, fieldName, fieldValue);
 					}
 					variables.set(enumName, enumObj);
