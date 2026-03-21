@@ -28,8 +28,9 @@
  */
 package hscript;
 
-import haxe.Exception;
 import alterhscript.AlterHscript;
+import haxe.Exception;
+import haxe.CallStack;
 import haxe.PosInfos;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
@@ -547,6 +548,8 @@ class Interp {
 		return exprReturn(expr);
 	}
 
+	public var printCallStack:Bool = false;
+
 	function exprReturn(e, returnDef:Bool = true):Dynamic {
 		try {
 			try {
@@ -564,11 +567,14 @@ class Interp {
 						return v;
 				}
 			} catch (e) {
-				error(ECustom(e.toString()));
+				if (printCallStack)
+					error(ECustom('${e.toString()}\n${CallStack.toString(CallStack.exceptionStack(true))}'));
+				else error(ECustom(e.toString()));
 				return null;
 			}
 		} catch (e:Error) {
-			throw _errorString(e);
+			if (errorHandler != null) errorHandler(e);
+			else throw _errorString(e);
 			return null;
 		}
 		return null;
@@ -655,9 +661,7 @@ class Interp {
 
 		if (hasScriptObject) {
 			// search in object
-			if (id == "this") {
-				return scriptObject;
-			}
+			if (id == "this") return scriptObject;
 			var instanceHasField = __instanceFields.contains(id);
 
 			if (_scriptObjectType == SObject && instanceHasField) {
@@ -810,6 +814,8 @@ class Interp {
 						error(EInvalidClass(oldClassName));
 					}
 				} else {
+					// If the first letter of the alias is not an uppercase letter, then throw an error.
+					// We don't need to worry about this for static imports.
 					if (toSetName != claVarName && !Tools.isUppercase(toSetName)) {
 						error(ECustom("Type aliases must start with an uppercase letter"));
 						return null;
@@ -844,11 +850,34 @@ class Interp {
 			case EEnum(en, isAbstract):
 				if (isAbstract) {
 					var enumObj:Dynamic = {};
+					var enumType:String = 'Int';
+					if (en.underlyingType != null) {
+						enumType = switch (en.underlyingType) {
+							case CTPath(path, _):
+								path.join(".");
+							default:
+								''; // ???
+						}
+					}
 					var enumName = en.name;
 					var enumFields = en.fields;
+					// TODO: incremental implicit int value from previous value
+					// i.e.
+					/*
+						enum abstract Numeric(Int) {
+							var Zero; // implicit value: 0
+							var Ten = 10;
+							var Eleven; // implicit value: 11
+						}
+					 */
 					for (i => ef in enumFields) {
 						var fieldName = ef.name;
-						var fieldValue = ef.value != null ? exprReturn(ef.value) : i;
+						var fieldValue:Dynamic = ef.value != null ? expr(ef.value) : switch (enumType) {
+							case 'Int': i;
+							case 'String': fieldName;
+							default: null;
+						}
+						// var fieldValue:Dynamic = ef.value != null ? exprReturn(ef.value) : i;
 						UnsafeReflect.setField(enumObj, fieldName, fieldValue);
 					}
 					variables.set(enumName, enumObj);
@@ -914,10 +943,10 @@ class Interp {
 			case ERegex(e, f):
 				return new EReg(e, f);
 			case EConst(c):
-				switch (c) {
-					case CInt(v): return v;
-					case CFloat(f): return f;
-					case CString(s): return s;
+				return switch (c) {
+					case CInt(v): v;
+					case CFloat(f): f;
+					case CString(s): s;
 				}
 			case EIdent(id):
 				return resolve(id);
@@ -970,7 +999,7 @@ class Interp {
 				var field:Null<Dynamic>;
 				try {
 					field = expr(e);
-				} catch(exc:Dynamic) {
+				} catch (exc:Dynamic) {
 					var path = getExprPath(e);
 					if (path != null) {
 						var fullPath = path + "." + f;
@@ -1113,8 +1142,7 @@ class Interp {
 							throw e;
 							#end
 						}
-					else
-						r = me.exprReturn(fexpr, false);
+					else r = me.exprReturn(fexpr, false);
 					restore(oldDecl);
 					me.locals = old;
 					me.depth = depth;
@@ -1158,6 +1186,7 @@ class Interp {
 					isMap = Tools.expr(arr[0]).match(EBinop("=>", _));
 				}
 
+				// TODO: separate this into a function
 				if (isMap) {
 					var isAllString:Bool = true;
 					var isAllInt:Bool = true;
@@ -1266,7 +1295,7 @@ class Interp {
 				var match = false;
 				for (c in cases) {
 					for (v in c.values) {
-						// https://github.com/FunkinCrew/hscript/blob/funkin-dev/hscript/Interp.hx#L611
+						// https://github.com/FunkinCrew/polymod/blob/5d47a5c7c6b4e0cb94bd8fd45d012ca93bde9ab7/polymod/hscript/_internal/Interp.hx#L613
 						switch (Tools.expr(v)) {
 							case ECall(e, params):
 								switch (Tools.expr(e)) {
@@ -1615,8 +1644,7 @@ class Interp {
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 			var field:Dynamic = customClass.getField(f);
-			if (field == null || !Reflect.isFunction(field))
-				return null;
+			if (field == null || !Reflect.isFunction(field)) return null;
 			return UnsafeReflect.callMethodUnsafe(null, field, [o].concat(args));
 		}
 
@@ -1674,10 +1702,8 @@ class Interp {
 
 	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
 		var c:Dynamic = Type.resolveClass(cl);
-		if (c == null)
-			c = resolve(cl);
-		if (c is IHScriptCustomConstructor)
-			return cast(c, IHScriptCustomConstructor).hnew(args);
+		if (c == null) c = resolve(cl);
+		if (c is IHScriptCustomConstructor) return cast(c, IHScriptCustomConstructor).hnew(args);
 		return Type.createInstance(c, args);
 	}
 }

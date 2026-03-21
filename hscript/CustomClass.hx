@@ -42,23 +42,21 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		__interp.errorHandler = __class.__interp.errorHandler;
 		__interp.importFailedCallback = __class.__interp.importFailedCallback;
 
-		// __interp.variables = __class.staticInterp.variables;
 		@:privateAccess __interp.usingHandler.usingEntries = __class.ogInterp.usingHandler.usingEntries;
 		__interp.publicVariables = __class.ogInterp.publicVariables;
 		__interp.staticVariables = __class.ogInterp.staticVariables;
 		__interp.customClasses = __class.ogInterp.customClasses;
 
-		for(f => v in __class.__interp.variables) {
-			if(f == 'new') continue;
-			if (!__interp.variables.exists(f))
-				__interp.variables.set(f, v);
+		for (f => v in __class.__interp.variables) {
+			if (f == 'new') continue;
+			if (!__interp.variables.exists(f)) __interp.variables.set(f, v);
 		}
 
 		for (f in __class.fields) {
 			switch (Tools.expr(f)) {
 				case EVar(n): __class__fields.push(n);
-				case EFunction(_, _, n, _, _, _, isOverride): 
-					if(isOverride) __overrideFields.push(n);
+				case EFunction(_, _, n, _, _, _, isOverride):
+					if (isOverride) __overrideFields.push(n);
 					__class__fields.push(n);
 				default: continue;
 			}
@@ -69,15 +67,15 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 		initializing = true;
 
-		if(cachedFieldSet != null)
-			for(f => v in cachedFieldSet)
+		if (cachedFieldSet != null)
+			for (f => v in cachedFieldSet)
 				this.hset(f, v);
 
 		if (hasField('new')) {
 			buildConstructor();
 			call('new', args);
 
-			if(__cachedFieldSet != null) {
+			if (__cachedFieldSet != null) {
 				__cachedFieldSet.clear();
 				__cachedFieldSet = null;
 			}
@@ -92,8 +90,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	function cacheFieldSet(name:String, val:Dynamic) {
-		if(!initializing) return;
-		if(__cachedFieldSet == null) __cachedFieldSet = [];
+		if (!initializing) return;
+		if (__cachedFieldSet == null) __cachedFieldSet = [];
 		__cachedFieldSet.set(name, val);
 	}
 
@@ -112,7 +110,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 		if (__class.cl is CustomClassHandler) {
 			var customClass = new CustomClass(__class.cl, args, __cachedFieldSet);
-			if(__overrideFields.length > 0) {
+			if (__overrideFields.length > 0) {
 				for (field in __overrideFields) {
 					var func = __interp.variables.get(field);
 					customClass.overrideField(field, func);
@@ -122,13 +120,13 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			__superClass = customClass;
 			@:privateAccess __interp.__instanceFields = __interp.__instanceFields.concat(getSuperFields());
 		} else {
-			if(__cachedFieldSet != null)
+			if (__cachedFieldSet != null)
 				UnsafeReflect.setField(__class.cl, "__cachedFieldSet", __cachedFieldSet);
 
 			__superClass = Type.createInstance(__class.cl, args);
 			var disallowCopy:Array<String> = {
 				var fieldMap:Map<String, String> = []; // Prevent duplicate values
-				for(f in Reflect.fields(__superClass).concat(Type.getInstanceFields(Type.getClass(__superClass))))
+				for (f in Reflect.fields(__superClass).concat(Type.getInstanceFields(Type.getClass(__superClass))))
 					fieldMap.set(f, f);
 
 				fieldMap.array();
@@ -144,11 +142,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	public function call(name:String, ?args:Array<Dynamic>, ?toSuper:Bool = false):Dynamic {
 		var superFnName:Null<String> = toSuper ? '_HX_SUPER__$name' : null;
 		var fn:Dynamic = {
-			if(toSuper && __interp.variables.exists(superFnName)) {
+			if (toSuper && __interp.variables.exists(superFnName)) {
 				__interp.variables.get(superFnName);
-			}
-			else 
-				__interp.variables.get(name);
+			} else __interp.variables.get(name);
 		};
 
 		if (fn != null && Reflect.isFunction(fn))
@@ -198,11 +194,10 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	 */
 	function overrideField(name:String, func:Function) {
 		var f = getField(name, false);
-		if(f != null && Reflect.isFunction(f)) {
+		if (f != null && Reflect.isFunction(f)) {
 			__interp.variables.set(name, func);
 			__interp.variables.set('_HX_SUPER__$name', f);
-		}
-		else if(__superClass != null && __superClass is CustomClass) {
+		} else if (__superClass != null && __superClass is CustomClass) {
 			cast(__superClass, CustomClass).overrideField(name, func);
 		}
 	}
@@ -214,31 +209,29 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var realFieldExists = __superClass.__real_fields != null && __superClass.__real_fields.contains(name);
 		var classFieldExists = __superClass.__class__fields != null && __superClass.__class__fields.contains(name);
 
-		if(!realFieldExists && !classFieldExists && __superClass is CustomClass)
+		if (!realFieldExists && !classFieldExists && __superClass is CustomClass)
 			return cast(__superClass, CustomClass).superHasField(name);
 
 		return realFieldExists || classFieldExists;
 	}
 
 	function getSuperFields():Array<String> {
-		if(__superClass == null) return [];
+		if (__superClass == null) return [];
 
 		var classFields:Map<String, String> = []; // Prevents duplicated values
 		var cls:Null<IHScriptCustomClassBehaviour> = __superClass;
 
 		while (cls != null) {
-			for(fieldSet in [cls.__class__fields, cls.__real_fields])
-				for(f in fieldSet)
+			for (fieldSet in [cls.__class__fields, cls.__real_fields])
+				for (f in fieldSet)
 					classFields.set(f, f);
 			var next:IHScriptCustomClassBehaviour = null;
-			if(cls is CustomClass)
-				next = cast(cls, CustomClass).__superClass;
-			if (next == null)
-				break;
+			if (cls is CustomClass) next = cast(cls, CustomClass).__superClass;
+			if (next == null) break;
 			cls = next;
 		}
 
-		return [for(f in classFields) f];
+		return [for (f in classFields) f];
 	}
 
 	public function hget(name:String):Dynamic {
@@ -272,8 +265,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	public function hset(name:String, val:Dynamic):Dynamic {
-		if (hasField(name)) 
-			return setField(name, val);
+		if (hasField(name)) return setField(name, val);
 
 		if (hasStaticField(name)) {
 			__interp.error(ECustom('The field ${name} should be accessed in a static way.'));
@@ -285,8 +277,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 				__superClass.__allowSetGet = this.__allowSetGet;
 				return __superClass.hset(name, val);
 			}
-		}
-		else if(__class.extend != null && initializing) {
+		} else if (__class.extend != null && initializing) {
 			cacheFieldSet(name, val);
 			return val;
 		}
@@ -318,8 +309,8 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	 * @return Null<Dynamic>
 	 */
 	public function getSuperclass():IHScriptCustomClassBehaviour {
-		if(__superClass == null) return null;
-		
+		if (__superClass == null) return null;
+
 		var cls:Null<IHScriptCustomClassBehaviour> = __superClass;
 
 		// Check if the superClass is another custom class,
@@ -336,14 +327,13 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	// TODO: scripted safe cast for custom classes
 	public function getUpperclass():IHScriptCustomClassBehaviour {
-		if(__upperClass == null) return this;
+		if (__upperClass == null) return this;
 
 		var cls:CustomClass = cast __upperClass;
 
 		while (cls != null) {
 			var prev:CustomClass = cast cls.__upperClass;
-			if(prev == null)
-				break;
+			if (prev == null) break;
 			cls = prev;
 		}
 

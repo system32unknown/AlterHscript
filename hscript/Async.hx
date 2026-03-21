@@ -42,7 +42,7 @@ class Async {
 
 	public var asyncIdents:Map<String, Bool>;
 
-	static var nullExpr:Expr = #if hscriptPos {e : null, pmin : 0, pmax : 0, origin : "<null>", line : 0} #else null #end;
+	static var nullExpr:Expr = #if hscriptPos {e: null, pmin: 0, pmax: 0, origin: "<null>", line: 0} #else null #end;
 	static var nullId = mk(EIdent("null"), nullExpr);
 
 	inline static function expr(e:Expr) {
@@ -54,27 +54,29 @@ class Async {
 	}
 
 	/**
-		Convert a script into asynchronous one.
-		- calls such as foo(a,b,c) are translated to a_foo(function(r) ...rest, a,b,c) where r is the result value
-		- object access such obj.bar(a,b,c) are translated to obj.a_bar(function(r) ...rest, a, b, c)
-		- @async expr will execute the expression but continue without waiting for it to finish
-		- @split [ e1, e2, e3 ] is transformed to split(function(_) ...rest, [e1, e2, e3]) which
+		* Convert a script into asynchronous one.
+		* - calls such as foo(a,b,c) are translated to a_foo(function(r) ...rest, a,b,c) where r is the result value
+		* - object access such obj.bar(a,b,c) are translated to obj.a_bar(function(r) ...rest, a, b, c)
+		* - @async expr will execute the expression but continue without waiting for it to finish
+		* - @split [ e1, e2, e3 ] is transformed to split(function(_) ...rest, [e1, e2, e3]) which
 		  should execute asynchronously all expressions - until they return - before continuing the execution
-		- for(i in v) block; loops are translated to the following:
-			var _i = makeIterator(v);
-			function _loop() {
-				if( !_i.hasNext() ) return;
-				var v = _i.next();
-				block(function(_) _loop());
-			}
-			_loop()
-		- while loops are translated similar to for loops
-		- break and continue are correctly handled
-		- you can use @sync <expr> to disable async transformation in some code parts (for performance reason)
-		- a few expressions are still not supported (complex calls, try/catch, and a few others)
+		* - for(i in v) block; loops are translated to the following:
+		* ```haxe
+		* var _i = makeIterator(v);
+		* function _loop() {
+		* 	if( !_i.hasNext() ) return;
+		* 	var v = _i.next();
+		* 	block(function(_) _loop());
+		* }
+		* _loop()
+		* ```
+		*- while loops are translated similar to for loops
+		*- break and continue are correctly handled
+		*- you can use @sync <expr> to disable async transformation in some code parts (for performance reason)
+		*- a few expressions are still not supported (complex calls, try/catch, and a few others)
 
-		In these examples ...rest represents the continuation of execution of the script after the expression
-	**/
+		* In these examples ...rest represents the continuation of execution of the script after the expression
+	*/
 	public static function toAsync(e:Expr, topLevelSync = false) {
 		var a = new Async();
 		return a.build(e, topLevelSync);
@@ -337,7 +339,6 @@ class Async {
 						}
 					case "||":
 						var id1 = "_r" + uid++;
-						var id2 = "_r" + uid++;
 						return toCps(e1, fun(id1, mk(EIf(binop("==", ident(id1, e1), ident("true", e1), e1), call(rest, [ident("true", e1)], e1), toCps(e2, rest, exit)), e)), exit);
 					case "&&":
 						var id1 = "_r" + uid++;

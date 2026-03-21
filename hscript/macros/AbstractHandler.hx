@@ -33,19 +33,19 @@ class AbstractHandler {
 
 			var key = cl.module;
 			var fkey = cl.module + "." + trimEnum;
-			if(key == "lime.system.Locale") return fields; // Error: Unknown identifier : currentLocale, Due to Func
-			if(key == "cpp.Function") return fields; // Error: Unknown identifier : nativeGetProcAddress, Due to Func
-			if(key == "haxe.ds.Vector") return fields; // Error: haxe.ds._Vector.VectorData<blit.T> has no field blit, Due to Func
-			if(key == "haxe.display.Display") return fields; // Error: haxe.display.DisplayItemKind<haxe.display.DisplayLiteral<Dynamic>> has no field Null, Due to Func
-			if(key == "cpp.Callable") return fields; // Error: cpp.Function.fromStaticFunction must be called on static function, Due to Func
-			if(key == "haxe.display.JsonAnonStatusKind") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
-			if(key == "cpp.CharStar") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
-			if(Config.DISALLOW_ABSTRACT_AND_ENUM.contains(cl.module) || Config.DISALLOW_ABSTRACT_AND_ENUM.contains(fkey)) return fields;
-			if(cl.module.contains("_")) return fields; // Weird issue, sorry
+			if (key == "lime.system.Locale") return fields; // Error: Unknown identifier : currentLocale, Due to Func
+			if (key == "cpp.Function") return fields; // Error: Unknown identifier : nativeGetProcAddress, Due to Func
+			if (key == "haxe.ds.Vector") return fields; // Error: haxe.ds._Vector.VectorData<blit.T> has no field blit, Due to Func
+			if (key == "haxe.display.Display") return fields; // Error: haxe.display.DisplayItemKind<haxe.display.DisplayLiteral<Dynamic>> has no field Null, Due to Func
+			if (key == "cpp.Callable") return fields; // Error: cpp.Function.fromStaticFunction must be called on static function, Due to Func
+			if (key == "haxe.display.JsonAnonStatusKind") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
+			if (key == "cpp.CharStar") return fields; // Error: cannot initialize a variable of type 'char *' with an rvalue of type 'const char *', Due to Func
+			if (Config.DISALLOW_ABSTRACT_AND_ENUM.contains(cl.module) || Config.DISALLOW_ABSTRACT_AND_ENUM.contains(fkey)) return fields;
+			if (cl.module.contains("_")) return fields; // Weird issue, sorry
 
 			var shadowClass = macro class {};
 			shadowClass.kind = TDClass();
-			shadowClass.params = switch(cl.params.length) {
+			shadowClass.params = switch (cl.params.length) {
 				case 0:
 					null;
 				case 1:
@@ -53,18 +53,17 @@ class AbstractHandler {
 						name: "T",
 					}];
 				default:
-					[for(k=>e in cl.params) {
-						name: "T" + Std.int(k+1)
+					[for (k => e in cl.params) {
+						name: "T" + Std.int(k + 1)
 					}];
 			};
 			shadowClass.name = '${cl.name.substr(0, cl.name.length - 6)}_HSC';
 
 			var imports = Context.getLocalImports().copy();
 			Utils.setupMetas(shadowClass, imports);
-			//trace(cl.module);
 
-			for(f in fields)
-				switch(f.kind) {
+			for (f in fields)
+				switch (f.kind) {
 					case FFun(fun):
 						if (f.access.contains(AStatic)) {
 							if (fun.expr != null) {
@@ -82,23 +81,21 @@ class AbstractHandler {
 							var enumType:String = cl.name;
 							var pack = cl.module.split(".");
 
-							//trace(pack, cl.name, name, cl.module);
-
-							if(pack[pack.length - 1] == trimEnum)
+							if (pack[pack.length - 1] == trimEnum)
 								pack.pop();
 
 							var complexType:ComplexType = t;
-							if(complexType == null && e != null) {
-								complexType = switch(e.expr) {
-									case EConst(CRegexp(_)): TPath({ name: "EReg", pack: [] });
+							if (complexType == null && e != null) {
+								complexType = switch (e.expr) {
+									case EConst(CRegexp(_)): TPath({name: "EReg", pack: []});
 
 									default: null;
 								}
 							}
-							if(complexType == null) {
+							if (complexType == null) {
 								complexType = TPath({
 									name: trimEnum,
-									pack: [],//pack
+									pack: [], // pack
 								});
 							}
 

@@ -1100,11 +1100,10 @@ class Parser {
 								buf.add(path[i]);
 							}
 							extend = buf.toString();
-						default:
-							error(ECustom('${Std.string(e)} is not a valid path.'), p1, tokenMax);
+						default: error(ECustom('${Std.string(e)} is not a valid path.'), p1, tokenMax);
 					}
 				}
-				
+
 				var interfaces:Array<String> = [];
 				var tk:Token = null;
 				if (maybe(TId("implements"))) {
@@ -1118,18 +1117,18 @@ class Parser {
 							case TId(_):
 								push(tk);
 								var e = parseType();
-								switch(e) {
+								switch (e) {
 									case CTPath(path, params):
 										var buf = new StringBuf();
 										for (i in 0...path.length) {
-											if(i > 0) buf.add(".");
+											if (i > 0) buf.add(".");
 											buf.add(path[i]);
 										}
 										interfaces.push(buf.toString());
 									default:
 										error(ECustom('${Std.string(e)} is not a valid path.'), p1, tokenMax);
 								}
-							default: 
+							default:
 								push(tk);
 								break;
 						}
@@ -1154,10 +1153,10 @@ class Parser {
 				var isAbstract = maybe(TId("abstract"));
 				var name = getIdent();
 				var underlyingType:CType = null;
-				
+
 				if (isAbstract) {
 					ensure(TPOpen);
-					if(allowTypes) {
+					if (allowTypes) {
 						underlyingType = parseType();
 						ensure(TPClose);
 					} else {
@@ -1177,7 +1176,7 @@ class Parser {
 
 				while (!maybe(TBrClose)) {
 					var tk = token();
-					switch(tk) {
+					switch (tk) {
 						case TSemicolon | TComma:
 							if (fieldName.trim().length == 0) continue;
 
@@ -1215,7 +1214,7 @@ class Parser {
 					}
 				}
 
-				mk(EEnum({ name: name, fields: fields, underlyingType: underlyingType }, isAbstract), p1);
+				mk(EEnum({name: name, fields: fields, underlyingType: underlyingType}, isAbstract), p1);
 			case "cast":
 				var tk = token();
 				var e:Expr = null;
@@ -1539,7 +1538,7 @@ class Parser {
 							params = [];
 							while (true) {
 								var tt = token();
-								switch( tt ) {
+								switch (tt) {
 									case TConst(c):
 										params.push(CTExpr(mk(EConst(c))));
 									default:
@@ -1707,7 +1706,7 @@ class Parser {
 		var exprs:Array<Expr> = [];
 		var dollarPos:Int = s.indexOf('$');
 
-		if(dollarPos == -1)
+		if (dollarPos == -1)
 			return mk(EConst(CString(s)));
 
 		final singleFirst:EReg = ~/[a-zA-Z_]/i;
@@ -1754,7 +1753,7 @@ class Parser {
 				#end
 				exprs.push(expr);
 				pos++;
-			} else if(singleFirst.match(next)) {
+			} else if (singleFirst.match(next)) {
 				if (pre != '')
 					exprs.push(mk(EConst(CString(pre))));
 				var ident:String = '';
@@ -2153,40 +2152,29 @@ class Parser {
 			}
 
 			var f = String.fromCharCode(c);
-			if (regexFlags.indexOf(f) != -1) 
-				b.addChar(c);
-			else
-				invalidChar(c);
+			if (regexFlags.indexOf(f) != -1) b.addChar(c);
+			else invalidChar(c);
 		}
 
 		return b.toString();
 	}
 
 	function token():Token {
-		// function token(?infos : Null<haxe.PosInfos>) {
-		// function ttrace(v:Dynamic, ?infos : Null<haxe.PosInfos>) {
-		//	Sys.print(infos.fileName+":"+infos.lineNumber+": " + Std.string(v));
-		//	Sys.print("\r\n");
-		// }
-
 	#if hscriptPos
-	var t = tokens.pop();
-	if (t != null) {
-		tokenMin = t.min;
-		tokenMax = t.max;
-		// ttrace(t.t, infos);
-		return t.t;
-	}
-	oldTokenMin = tokenMin;
-	oldTokenMax = tokenMax;
-	tokenMin = (this.char < 0) ? readPos : readPos - 1;
-	var t = _token();
-	// trace(t, infos);
-	// ttrace(t, infos);
-	tokenMax = (this.char < 0) ? readPos - 1 : readPos - 2;
-	return t;
-	} function _token():Token {
-
+		var t = tokens.pop();
+		if (t != null) {
+			tokenMin = t.min;
+			tokenMax = t.max;
+			return t.t;
+		}
+		oldTokenMin = tokenMin;
+		oldTokenMax = tokenMax;
+		tokenMin = (this.char < 0) ? readPos : readPos - 1;
+		var t = _token();
+		tokenMax = (this.char < 0) ? readPos - 1 : readPos - 2;
+		return t;
+	} 
+	function _token():Token {
 	#else
 	if (!tokens.isEmpty())
 		return tokens.pop();
@@ -2435,7 +2423,6 @@ class Parser {
 								char = 0;
 							if (!idents[char]) {
 								this.char = char;
-								// if(id == "is") return TOp("is");
 								return TId(buf.toString());
 							}
 							buf.addChar(char);

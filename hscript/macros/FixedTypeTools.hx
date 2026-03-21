@@ -21,8 +21,6 @@ package hscript.macros;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
@@ -88,12 +86,11 @@ class FixedTypeTools {
 					});
 				case [FMethod(_), TLazy(f)]:
 					Sys.println("Converting lazy " + cf.name + " in " + cf.pos);
-					switch(f()) {
+					switch (f()) {
 						case TFun(args, ret):
 							FFun({
 								args: [
-									for (a in args)
-									{
+									for (a in args) {
 										name: a.name,
 										opt: a.opt,
 										type: toComplexType(a.t),
@@ -120,10 +117,8 @@ class FixedTypeTools {
 		}
 		switch ([cf.kind, cf.type]) {
 			case [FMethod(kind), TFun(_, _)] | [FMethod(kind), TLazy(_)]:
-				if(kind == MethInline)
-					access.push(AInline);
-				if(kind == MethDynamic)
-					access.push(ADynamic);
+				if (kind == MethInline) access.push(AInline);
+				if (kind == MethDynamic) access.push(ADynamic);
 			default:
 		}
 		return access;
@@ -167,26 +162,26 @@ class FixedTypeTools {
 								{
 									name: a.name,
 									opt: a.opt,
-									type: null,//toComplexType(a.t),
+									type: null, // toComplexType(a.t),
 								}
 						],
-						ret: null,//toComplexType(ret),
+						ret: null, // toComplexType(ret),
 						expr: null,
 					});
 				case [FMethod(_), TLazy(f)]:
 					Sys.println("Converting lazy " + cf.name + " in " + cf.pos);
-					switch(f()) {
+					switch (f()) {
 						case TFun(args, ret):
 							FFun({
 								args: [
 									for (a in args)
-									{
-										name: a.name,
-										opt: a.opt,
-										type: null,//toComplexType(a.t),
-									}
+										{
+											name: a.name,
+											opt: a.opt,
+											type: null, // toComplexType(a.t),
+										}
 								],
-								ret: null,//toComplexType(ret),
+								ret: null, // toComplexType(ret),
 								expr: null,
 							});
 						default:
