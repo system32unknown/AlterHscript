@@ -294,7 +294,7 @@ class Async {
 			var efor = block([
 				mk(EVar("_i" + id, call(ident("makeIterator",eit),[eit],eit)),eit),
 				fun("_", block([
-					mk(EIf(mk(EUnop("!", true, call( field(it, "hasNext", it), [], it)),it), currentBreak(it)),it),
+					mk(EIf(mk(EUnop(Unop.OpNot, true, call( field(it, "hasNext", it), [], it)),it), currentBreak(it)),it),
 					mk(EVar(v, call(field(it, "next",it), [], it)), it),
 					toCps(eloop, loop, exit),
 				], it),"_loop" + id),
@@ -303,7 +303,7 @@ class Async {
 			currentLoop = oldLoop;
 			currentBreak = oldBreak;
 			return efor;
-		case EUnop(op = "!", prefix, eop):
+		case EUnop(op = Unop.OpNot, prefix, eop):
 			return toCps(eop, fun("_r",call(rest, [mk(EUnop(op, prefix, ident("_r",e)),e)], e)), exit);
 		case EBinop(op, e1, e2):
 			switch( op ) {

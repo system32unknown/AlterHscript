@@ -1073,10 +1073,10 @@ class Checker {
 		case EUnop(op, _, e):
 			var et = typeExpr(e, Value);
 			switch( op ) {
-			case "++", "--", "-":
+			case OpIncrement | OpDecrement | OpNeg:
 				unify(et,TInt,e);
 				return et;
-			case "!":
+			case OpNot:
 				unify(et,TBool,e);
 				return et;
 			default:
