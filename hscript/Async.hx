@@ -23,9 +23,6 @@
 package hscript;
 
 import hscript.Expr;
-#if hscript_test_reflect
-import hscript.UnsafeReflect as Reflect;
-#end
 
 enum VarMode {
 	Defined;
@@ -59,7 +56,7 @@ class Async {
 		* - object access such obj.bar(a,b,c) are translated to obj.a_bar(function(r) ...rest, a, b, c)
 		* - @async expr will execute the expression but continue without waiting for it to finish
 		* - @split [ e1, e2, e3 ] is transformed to split(function(_) ...rest, [e1, e2, e3]) which
-		  should execute asynchronously all expressions - until they return - before continuing the execution
+			should execute asynchronously all expressions - until they return - before continuing the execution
 		* - for(i in v) block; loops are translated to the following:
 		* ```haxe
 		* var _i = makeIterator(v);
@@ -70,10 +67,10 @@ class Async {
 		* }
 		* _loop()
 		* ```
-		*- while loops are translated similar to for loops
-		*- break and continue are correctly handled
-		*- you can use @sync <expr> to disable async transformation in some code parts (for performance reason)
-		*- a few expressions are still not supported (complex calls, try/catch, and a few others)
+		* - while loops are translated similar to for loops
+		* - break and continue are correctly handled
+		* - you can use @sync <expr> to disable async transformation in some code parts (for performance reason)
+		* - a few expressions are still not supported (complex calls, try/catch, and a few others)
 
 		* In these examples ...rest represents the continuation of execution of the script after the expression
 	*/
@@ -178,7 +175,7 @@ class Async {
 		return mk(EField(e, f), inf);
 	}
 
-	inline function binop(op, e1, e2, inf) {
+	inline function binop(op:Binop, e1, e2, inf) {
 		return mk(EBinop(op, e1, e2), inf);
 	}
 
@@ -250,8 +247,7 @@ class Async {
 	}
 
 	public function toCps(e:Expr, rest:Expr, exit:Expr):Expr {
-		if (isSync(e))
-			return call(rest, [buildSync(e, exit)], e);
+		if (isSync(e)) return call(rest, [buildSync(e, exit)], e);
 		switch (expr(e)) {
 			case EBlock(el):
 				var el = el.copy();
@@ -305,7 +301,7 @@ class Async {
 				var efor = block([
 					mk(EVar("_i" + id, call(ident("makeIterator", eit), [eit], eit)), eit),
 					fun("_", block([
-						mk(EIf(mk(EUnop("!", true, call(field(it, "hasNext", it), [], it)), it), currentBreak(it)), it),
+						mk(EIf(mk(EUnop(Unop.OpNot, true, call(field(it, "hasNext", it), [], it)), it), currentBreak(it)), it),
 						mk(EVar(v, call(field(it, "next", it), [], it)), it),
 						toCps(eloop, loop, exit),
 					], it), "_loop" + id),
@@ -314,11 +310,11 @@ class Async {
 				currentLoop = oldLoop;
 				currentBreak = oldBreak;
 				return efor;
-			case EUnop(op = "!", prefix, eop):
+			case EUnop(op = Unop.OpNot, prefix, eop):
 				return toCps(eop, fun("_r", call(rest, [mk(EUnop(op, prefix, ident("_r", e)), e)], e)), exit);
 			case EBinop(op, e1, e2):
 				switch (op) {
-					case "=", "+=", "-=", "/=", "*=", "%=", "&=", "|=", "^=":
+					case OpAssign, OpAddAssign, OpSubAssign, OpDivAssign, OpMultAssign, OpModAssign, OpAndAssign, OpOrAssign, OpXorAssign:
 						switch (expr(e1)) {
 							case EIdent(_):
 								var id = "_r" + uid++;
@@ -337,12 +333,14 @@ class Async {
 							default:
 								throw "assert " + e1;
 						}
-					case "||":
+					case OpBoolOr:
 						var id1 = "_r" + uid++;
-						return toCps(e1, fun(id1, mk(EIf(binop("==", ident(id1, e1), ident("true", e1), e1), call(rest, [ident("true", e1)], e1), toCps(e2, rest, exit)), e)), exit);
-					case "&&":
+						var id2 = "_r" + uid++;
+						return toCps(e1, fun(id1, mk(EIf(binop(OpEq, ident(id1, e1), ident("true", e1), e1), call(rest, [ident("true", e1)], e1), toCps(e2, rest, exit)), e)), exit);
+					case OpBoolAnd:
 						var id1 = "_r" + uid++;
-						return toCps(e1, fun(id1, mk(EIf(binop("!=", ident(id1, e1), ident("true", e1), e1), call(rest, [ident("false", e1)], e1), toCps(e2, rest, exit)), e)), exit);
+						var id2 = "_r" + uid++;
+						return toCps(e1, fun(id1, mk(EIf(binop(OpNeq, ident(id1, e1), ident("true", e1), e1), call(rest, [ident("false", e1)], e1), toCps(e2, rest, exit)), e)), exit);
 					default:
 						var id1 = "_r" + uid++;
 						var id2 = "_r" + uid++;
@@ -371,7 +369,7 @@ class Async {
 				fields.reverse();
 				for (f in fields)
 					rest = toCps(f.e, fun("_r", block([
-						binop("=", mk(EField(ident(id, f.e), f.name), f.e), ident("_r", f.e), f.e),
+						binop(OpAssign, mk(EField(ident(id, f.e), f.name), f.e), ident("_r", f.e), f.e),
 						rest,
 					], f.e)), exit);
 				return block([mk(EVar(id, mk(EObject([]), e)), e), rest,], e);
@@ -382,7 +380,7 @@ class Async {
 				while (i >= 0) {
 					var e = el[i];
 					rest = toCps(e, fun("_r", block([
-						binop("=", mk(EArray(ident(id, e), mk(EConst(CInt(i)), e)), e), ident("_r", e), e),
+						binop(OpAssign, mk(EArray(ident(id, e), mk(EConst(CInt(i)), e)), e), ident("_r", e), e),
 						rest,
 					], e)), exit);
 					i--;
@@ -397,12 +395,12 @@ class Async {
 					return block([e, retNull(rest, e)], e);
 				return block([
 					mk(EVar(v, t), e),
-					toCps(ev, fun("_r", block([binop("=", ident(v, e), ident("_r", e), e), retNull(rest, e)], e)), exit),
+					toCps(ev, fun("_r", block([binop(OpAssign, ident(v, e), ident("_r", e), e), retNull(rest, e)], e)), exit),
 				], e);
 			case EConst(_), EIdent(_), EUnop(_), EField(_):
 				return call(rest, [e], e);
 			case ENew(cl, args):
-				var names = [for (_ in 0...args.length) "_a" + uid++];
+				var names = [for (i in 0...args.length) "_a" + uid++];
 				var rargs = [for (i in 0...args.length) ident(names[i], args[i])];
 				var rest = call(rest, [mk(ENew(cl, rargs), e)], e);
 				var i = args.length - 1;
@@ -432,7 +430,7 @@ class Async {
 
 class AsyncInterp extends Interp {
 	public function setContext(api:Dynamic) {
-		var funs = new Array();
+		var funs = [];
 		for (v in variables.keys())
 			if (Reflect.isFunction(variables.get(v)))
 				funs.push({v: v, obj: null});

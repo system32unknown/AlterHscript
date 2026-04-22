@@ -157,11 +157,11 @@ class Bytes {
 				doEncode(e);
 				doEncodeString(f);
 			case EBinop(op, e1, e2):
-				doEncodeString(op);
+				doEncodeString(op.toString());
 				doEncode(e1);
 				doEncode(e2);
 			case EUnop(op, prefix, e):
-				doEncodeString(op);
+				doEncodeString(op.toString()); // maybe doEncodeInt
 				bout.addByte(prefix ? 1 : 0);
 				doEncode(e);
 			case ECall(e, el):
@@ -290,11 +290,11 @@ class Bytes {
 				var e = doDecode();
 				EField(e, doDecodeString());
 			case 6:
-				var op = doDecodeString();
+				var op = Binop.fromString(doDecodeString());
 				var e1 = doDecode();
 				EBinop(op, e1, doDecode());
 			case 7:
-				var op = doDecodeString();
+				var op = Unop.fromString(doDecodeString());
 				var prefix = bin.get(pin++) != 0;
 				EUnop(op, prefix, doDecode());
 			case 8:
