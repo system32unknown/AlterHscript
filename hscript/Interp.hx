@@ -330,7 +330,7 @@ class Interp {
 		return v;
 	}
 
-	function evalAssignOp(op:String, fop:Dynamic->Dynamic->Dynamic, e1:Expr, e2:Expr):Dynamic {
+	function evalAssignOp(op:Binop, fop:Dynamic->Dynamic->Dynamic, e1:Expr, e2:Expr):Dynamic {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
@@ -720,6 +720,8 @@ class Interp {
 				return UnsafeReflect.getProperty(scriptObject, 'get_$id')();
 			}
 		}
+
+		varLocationCache.set(id, VNotFound);
 		var cl = Type.resolveClass(id);
 		if (cl != null) return cl;
 		var en = Type.resolveEnum(id);
@@ -1488,7 +1490,7 @@ class Interp {
 		return v;
 	}
 
-	function makeArgs(params:Array<Expr>):Array<Dynamic> {
+	inline function makeArgs(params:Array<Expr>):Array<Dynamic> {
 		var args:Array<Dynamic> = [];
 		#if cpp
 		untyped __cpp__('{0}->reserve({1}->length)', args, params);
@@ -1511,7 +1513,7 @@ class Interp {
 		return args;
 	}
 
-	function forLoop(n:String, it:Expr, e:Expr, ?ithv:String):Void {
+	inline function forLoop(n:String, it:Expr, e:Expr, ?ithv:String):Void {
 		var isKeyValue = ithv != null;
 		var old = declared.length;
 		if (isKeyValue)
@@ -1589,7 +1591,7 @@ class Interp {
 			case EIdent(id): return id;
 			case EField(e2, f, _):
 				var parent = getExprPath(e2);
-				if(parent != null) return parent + "." + f;
+				if (parent != null) return parent + "." + f;
 				return null;
 			default: return null;
 		}
