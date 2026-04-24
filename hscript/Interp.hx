@@ -413,7 +413,7 @@ class Interp {
 					arr[index] = v;
 				}
 			default:
-				error(EInvalidOp(op));
+				error(EInvalidOp(op.toString()));
 				return null;
 		}
 		return v;

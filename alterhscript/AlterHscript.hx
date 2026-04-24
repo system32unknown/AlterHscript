@@ -309,7 +309,6 @@ class AlterHscript {
 	public function destroy():Void @:privateAccess {
 		//First, Stopping Hscript-improved variables
 		interp.__instanceFields = [];
-		interp.binops.clear();
 		interp.customClasses.clear();
 		interp.declared = [];
 		interp.importBlocklist = [];
