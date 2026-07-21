@@ -13,7 +13,6 @@ using Lambda;
  * @author Jamextreme140
  */
 @:access(hscript.CustomClassHandler)
-@:access(hscript.Property)
 class CustomClass implements IHScriptCustomClassBehaviour {
 	public var className(get, never):String;
 
@@ -170,9 +169,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var f = __interp.variables.get(name);
 		if (f != null && allowProperty && f is Property) {
 			var prop:Property = cast f;
-			prop.__allowSetGet = this.__allowSetGet;
-			var r = prop.callGetter(name);
-			prop.__allowSetGet = null;
+			//prop.__allowSetGet = this.__allowSetGet;
+			var r = prop.get(!__allowSetGet);
+			//prop.__allowSetGet = true;
 			return r;
 		}
 		return f;
@@ -182,9 +181,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var f = getField(name, false);
 		if (f != null && f is Property) {
 			var prop:Property = cast f;
-			prop.__allowSetGet = this.__allowSetGet;
-			var r = prop.callSetter(name, val);
-			prop.__allowSetGet = null;
+			//prop.__allowSetGet = this.__allowSetGet;
+			var r = prop.set(val, !__allowSetGet);
+			//prop.__allowSetGet = true;
 			return r;
 		}
 		__interp.variables.set(name, val);
@@ -344,6 +343,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		return cls;
 	}
 
+	// TODO: scriptable "toString" function
 	public function toString():String
 		return className;
 }
