@@ -56,7 +56,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 			if (!__interp.variables.exists(f))
 				__interp.variables.set(f, v);
 
-		for(i => e in fields.copy()) {
+		for (i => e in fields.copy()) {
 			var isValid:Bool = false;
 			var staticField:Bool = false;
 			var fieldName:String = null;
@@ -68,7 +68,7 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 				default:
 			}
 
-			if(staticField && isValid) {
+			if (staticField && isValid) {
 				__interp.exprReturn(e);
 				__staticFields.push(fieldName);
 				fields.remove(e);
@@ -81,36 +81,36 @@ class CustomClassHandler implements IHScriptCustomConstructor implements IHScrip
 
 	@:allow(hscript.Interp)
 	inline function hasField(name:String) {
-        return __staticFields.contains(name);
-    }
+		return __staticFields.contains(name);
+	}
 
-    function getField(name:String, allowProperty:Bool = true):Dynamic {
-        var f = __interp.variables.get(name);
-        if(f is Property && allowProperty) {
-            var prop:Property = cast f;
-            //prop.__allowSetGet = this.__allowSetGet;
-            var r = prop.get(!__allowSetGet);
-            //prop.__allowSetGet = true;
-            return r;
-        }
-        return f;
-    }
+	function getField(name:String, allowProperty:Bool = true):Dynamic {
+		var f = __interp.variables.get(name);
+		if (f is Property && allowProperty) {
+			var prop:Property = cast f;
+			// prop.__allowSetGet = this.__allowSetGet;
+			var r = prop.get(!__allowSetGet);
+			// prop.__allowSetGet = true;
+			return r;
+		}
+		return f;
+	}
 
-    function setField(name:String, val:Dynamic):Dynamic {
-        var f = getField(name, false);
-        if(f is Property) {
-            var prop:Property = cast f;
-            //prop.__allowSetGet = this.__allowSetGet;
-            var r = prop.set(val, !__allowSetGet);
-            //prop.__allowSetGet = true;
-            return r;
-        }
-        __interp.variables.set(name, val);
-        return val;
-    }
+	function setField(name:String, val:Dynamic):Dynamic {
+		var f = getField(name, false);
+		if (f is Property) {
+			var prop:Property = cast f;
+			// prop.__allowSetGet = this.__allowSetGet;
+			var r = prop.set(val, !__allowSetGet);
+			// prop.__allowSetGet = true;
+			return r;
+		}
+		__interp.variables.set(name, val);
+		return val;
+	}
 
 	public function hget(name:String):Dynamic {
-		if(name == 'new') {
+		if (name == 'new') {
 			return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic {
 				return inline this.hnew(args);
 			});

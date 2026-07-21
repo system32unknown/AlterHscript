@@ -144,6 +144,7 @@ class Interp {
 	public var customClasses:StringMap<CustomClassHandler>;
 	public var variables:StringMap<Dynamic>;
 	public var publicVariables:StringMap<Dynamic>;
+	// TODO: maybe turn this completely static
 	public var staticVariables:StringMap<Dynamic>;
 
 	// warning can be null
@@ -164,15 +165,20 @@ class Interp {
 	public var allowStaticVariables:Bool = false;
 	public var allowPublicVariables:Bool = false;
 
-	// TODO: move this to an external class
-	public var importBlocklist:Array<String> = [
-		// "flixel.FlxG"
-	];
+	public var importBlocklist(get, never):Array<String>;
+	private inline function get_importBlocklist():Array<String> {
+		return Config.IMPORT_BLACKLIST;
+	}
 
 	var usingHandler:UsingHandler;
 
-	var varLocationCache:Map<String, VarLocation> = new Map();
-	var cacheValid:Bool = true;
+	// TODO: separate cache into a class
+	var varLocationCache:Map<String, VarLocation> = [];
+
+	public var cacheValid(default, set):Bool = true;
+	function set_cacheValid(valid:Bool):Bool {
+		return cacheValid = valid;
+	}
 
 	#if hscriptPos
 	var curExpr:Expr;
@@ -200,8 +206,7 @@ class Interp {
 		variables.set("trace", Reflect.makeVarArgs(function(el) {
 			var inf:PosInfos = posInfos();
 			var v:Null<Dynamic> = el.shift();
-			if (el.length > 0)
-				inf.customParams = el;
+			if (el.length > 0) inf.customParams = el;
 			haxe.Log.trace(Std.string(v), inf);
 		}));
 	}
@@ -291,14 +296,14 @@ class Interp {
 						var obj = resolve(id, false, false);
 						if (obj != null && obj is Property) {
 							var prop:Property = cast obj;
-							return prop.callSetter(id, v);
+							return prop.set(v, isBypassAccessor);
 						}
 						varLocationCache.remove(id);
 						setVar(id, v);
 					}
 				} else if (l.r is Property) {
 					var prop:Property = cast l.r;
-					return prop.callSetter(id, v);
+					return prop.set(v, isBypassAccessor);
 				} else {
 					if (l.isFinal) warn(ECustom("Cannot reassign final variable '" + id + "'"));
 					l.r = v;
@@ -375,7 +380,7 @@ class Interp {
 						var obj = resolve(id, true, false);
 						if (obj != null && obj is Property) {
 							var prop:Property = cast obj;
-							return prop.callSetter(id, v);
+							return prop.set(v, isBypassAccessor);
 						}
 						varLocationCache.remove(id);
 						setVar(id, v);
@@ -384,7 +389,7 @@ class Interp {
 					var l = locals.get(id);
 					if (l.r is Property) {
 						var prop:Property = cast l.r;
-						return prop.callSetter(id, v);
+						return prop.set(v, isBypassAccessor);
 					}
 					l.r = v;
 					if (l.depth == 0) {
@@ -433,18 +438,18 @@ class Interp {
 					var prop:Property = null;
 					if (v is Property) {
 						prop = cast v;
-						v = prop.callGetter(id);
+						v = prop.get(isBypassAccessor);
 					}
 
 					if (prefix) {
 						v += delta;
 						if (prop != null)
-							prop.callSetter(id, v);
+							prop.set(v, isBypassAccessor);
 						else
 							l.r = v;
 					} else {
 						if (prop != null)
-							prop.callSetter(id, v + delta);
+							prop.set(v + delta, isBypassAccessor);
 						else
 							l.r = v + delta;
 					}
@@ -456,20 +461,20 @@ class Interp {
 					var prop:Property = null;
 					if (v is Property) {
 						prop = cast v;
-						v = prop.callGetter(id);
+						v = prop.get(isBypassAccessor);
 					}
 
 					if (prefix) {
 						v += delta;
 						if (prop != null)
-							prop.callSetter(id, v);
+							prop.set(v, isBypassAccessor);
 						else {
 							varLocationCache.remove(id);
 							setVar(id, v);
 						}
 					} else {
 						if (prop != null)
-							prop.callSetter(id, v + delta);
+							prop.set(v + delta, isBypassAccessor);
 						else {
 							varLocationCache.remove(id);
 							setVar(id, v + delta);
@@ -613,10 +618,10 @@ class Interp {
 	}
 
 	inline function getProperty(o:Null<Dynamic>, n:String, allowProperty:Bool = true):Dynamic {
-		if (allowProperty && o != null && o is Property)
-			return cast(o, Property).callGetter(n);
-		else
-			return o;
+		if (allowProperty && o != null && o is Property) {
+			var prop:Property = cast o;
+			return prop.get(isBypassAccessor);
+		} else return o;
 	}
 
 	public function resolve(id:String, doException:Bool = true, allowProperty:Bool = true):Dynamic {
@@ -630,10 +635,8 @@ class Interp {
 			return superClass == null ? customClass.hget('superConstructor') : superClass;
 		}
 
-		if (locals.exists(id)) {
-			var l = locals.get(id);
-			if (l != null) return getProperty(l.r, id, allowProperty);
-		}
+		var l = locals.get(id);
+		if (l != null) return getProperty(l.r, id, allowProperty);
 
 		if (cacheValid) {
 			var loc = varLocationCache.get(id);
@@ -742,10 +745,6 @@ class Interp {
 		cacheValid = true;
 	}
 
-	public function setCacheValid(valid:Bool):Void {
-		cacheValid = valid;
-	}
-
 	public static var importRedirects:Map<String, String> = new Map();
 
 	public static function getImportRedirect(className:String):String {
@@ -763,6 +762,7 @@ class Interp {
 		return className;
 	}
 
+	// TODO: separate large declarations (EClass, EEnum, etc...) into inline functions
 	public function expr(e:Expr):Dynamic {
 		#if hscriptPos
 		curExpr = e;
@@ -820,7 +820,10 @@ class Interp {
 
 				function importResolve(__clsName:String):Null<Dynamic> {
 					var _realClassName = getLocalImportRedirect(__clsName);
-					if (importBlocklist.contains(_realClassName)) return null;
+					if (importBlocklist.contains(_realClassName)) {
+						warn(ECustom('Invalid class: $_realClassName is blacklisted'));
+						return null;
+					}
 
 					var _cl = Type.resolveClass(_realClassName);
 					if (_cl == null) _cl = Type.resolveClass('${_realClassName}_HSC');
@@ -1003,20 +1006,12 @@ class Interp {
 					return null;
 				}
 				declared.push({n: n, old: locals.get(n), depth: depth});
-				var r:Dynamic = (e == null) ? null : expr(e);
-				var declProp:Property = null;
-				if (hasGetSet) {
-					declProp = {
-						r: r,
-						getter: getter,
-						setter: setter,
-						isVar: isVar,
-						isStatic: isStatic,
-						interp: this,
-					}
-				}
+				var v:Dynamic = (e == null) ? null : expr(e);
+				var r:Dynamic = null;
+				if (hasGetSet) r = new Property(n, v, getter, setter, isVar, isStatic, this);
+				else r = v;
 				var declVar:DeclaredVar = {
-					r: (!hasGetSet) ? r : declProp,
+					r: r,
 					depth: depth,
 					isFinal: isFinal
 				};
@@ -1784,6 +1779,7 @@ class Interp {
 		if (usingHandler.usingEntries.iterator().hasNext()) { // If is not empty
 			var v:Dynamic = null;
 			var clsName:String = o is CustomClassHandler ? cast(o, CustomClassHandler).name : Type.getClassName(Type.getClass(o));
+			// TODO: optimize this
 			if (!usingHandler.entryExists(clsName)) {
 				for (n => us in usingHandler.usingEntries) {
 					if (us.hasField(f)) {

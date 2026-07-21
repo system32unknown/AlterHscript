@@ -92,16 +92,16 @@ class Property {
 	final __isStatic:Bool = false;
 
 	public function get(isBypassAccessor:Bool) {
-		if(isBypassAccessor) __allowSetGet = false;
+		if (isBypassAccessor) __allowSetGet = false;
 		var r:Dynamic = callGetter();
-		if(isBypassAccessor) __allowSetGet = true;
+		if (isBypassAccessor) __allowSetGet = true;
 		return r;
 	}
 
 	public function set(value:Dynamic, isBypassAccessor:Bool) {
-		if(isBypassAccessor) __allowSetGet = false;
+		if (isBypassAccessor) __allowSetGet = false;
 		var r:Dynamic = callSetter(value);
-		if(isBypassAccessor) __allowSetGet = true;
+		if (isBypassAccessor) __allowSetGet = true;
 		return r;
 	}
 
@@ -117,9 +117,7 @@ class Property {
 				} else {
 					if ((setter == ADefault || setter == ANull) || isVar) {
 						return r;
-					}
-					else
-						interp.error(ECustom('Field $name cannot be accessed because it is not a real variable${interp.isBypassAccessor ? '. Add @:isVar to enable it' : ''}'));
+					} else interp.error(ECustom('Field $name cannot be accessed because it is not a real variable${interp.isBypassAccessor ? '. Add @:isVar to enable it' : ''}'));
 				}
 			case ANever:
 				interp.error(ECustom('This expression cannot be accessed for reading'));
@@ -141,9 +139,7 @@ class Property {
 				} else {
 					if ((getter == ADefault || getter == ANull) || isVar) {
 						return r = val;
-					}
-					else
-						interp.error(ECustom('Field $name cannot be accessed because it is not a real variable${interp.isBypassAccessor ? '. Add @:isVar to enable it' : ''}'));
+					} else interp.error(ECustom('Field $name cannot be accessed because it is not a real variable${interp.isBypassAccessor ? '. Add @:isVar to enable it' : ''}'));
 				}
 			case ANever:
 				interp.error(ECustom('This expression cannot be accessed for writing'));
@@ -166,8 +162,7 @@ class Property {
 			else __allowReadAccess = false;
 
 			return rt;
-		} else
-			interp.error(ECustom('Method $f required by property ${f.substr(3)} is missing'));
+		} else interp.error(ECustom('Method $f required by property ${f.substr(3)} is missing'));
 
 		return rt;
 	}
