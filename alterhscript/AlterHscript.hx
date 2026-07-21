@@ -311,7 +311,6 @@ class AlterHscript {
 		interp.__instanceFields = [];
 		interp.customClasses.clear();
 		interp.declared = [];
-		interp.importBlocklist = [];
 		interp.locals.clear();
 		interp.variables.clear();
 		interp.resetVariables();
