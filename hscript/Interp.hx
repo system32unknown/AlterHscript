@@ -549,8 +549,13 @@ class Interp {
 			return null;
 		} catch (e:Dynamic) {
 			var errStr = printCallStack ? Std.string(e) + "\n" + CallStack.toString(CallStack.exceptionStack(true)) : Std.string(e);
-			if (errorHandler != null) errorHandler(new Error(ECustom(errStr) #if hscriptPos , curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line #end));
-			else throw _errorString(e);
+			if (errorHandler != null) {
+				#if hscriptPos
+				errorHandler(new Error(ECustom(errStr), curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line));
+				#else
+				errorHandler(Error.ECustom(errStr));
+				#end
+			} else throw _errorString(e);
 			return null;
 		}
 		return null;
@@ -733,7 +738,7 @@ class Interp {
 	}
 
 	public function invalidateCache():Void {
-		varLocationCache = new Map();
+		varLocationCache.clear();
 		cacheValid = true;
 	}
 
