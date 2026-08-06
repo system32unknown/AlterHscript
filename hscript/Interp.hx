@@ -98,8 +98,7 @@ class Interp {
 	/** Converts an array of field names into a lookup map (O(1) membership checks). **/
 	static inline function fieldsToMap(fields:Array<String>):Map<String, Bool> {
 		var m:Map<String, Bool> = new Map();
-		for (f in fields)
-			m.set(f, true);
+		for (f in fields) m.set(f, true);
 		return m;
 	}
 
@@ -108,7 +107,7 @@ class Interp {
 	public function set_scriptObject(v:Dynamic) {
 		switch (Type.typeof(v)) {
 			case TClass(c): // Class Access
-				__instanceFields = Type.getInstanceFields(c);
+				__instanceFields = fieldsToMap(Type.getInstanceFields(c));
 				if (v is IHScriptCustomClassBehaviour) {
 					var v:IHScriptCustomClassBehaviour = cast v;
 					var classFields = v.__class__fields;
@@ -917,8 +916,7 @@ class Interp {
 		}
 
 		inline function importVar(thing:String):String {
-			if (thing == null)
-				return null;
+			if (thing == null) return null;
 			final variable:Class<Any> = variables.exists(thing) ? cast variables.get(thing) : null;
 			return variable == null ? thing : Type.getClassName(variable);
 		}
@@ -949,7 +947,6 @@ class Interp {
 		if (variables.exists(toSetName)) { // class is already imported
 			if (isUsing && !usingHandler.entryExists(toSetName))
 				setUsing(toSetName, variables.get(toSetName));
-
 			return;
 		}
 
@@ -959,7 +956,6 @@ class Interp {
 			// setting the extension
 			if (isUsing && !usingHandler.entryExists(toSetName))
 				setCustomClassUsing(toSetName, customClasses.get(toSetName));
-
 			return;
 		}
 
@@ -977,7 +973,6 @@ class Interp {
 
 		var cl = importResolve(realClassName);
 		var en = Type.resolveEnum(realClassName);
-		// trace(realClassName, cl, en, splitClassName);
 
 		// Allow for flixel.ui.FlxBar.FlxBarFillDirection;
 		if (cl == null && en == null) {
@@ -1026,11 +1021,9 @@ class Interp {
 				var enumThingy:HEnum = {};
 				for (c in en.getConstructors()) {
 					try {
-						// UnsafeReflect.setField(enumThingy, c, en.createByName(c));
 						enumThingy.setEnum(c, en.createByName(c));
 					} catch (e) {
 						try {
-							// UnsafeReflect.setField(enumThingy, c, UnsafeReflect.field(en, c));
 							enumThingy.setEnum(c, UnsafeReflect.field(en, c));
 						} catch (ex) {
 							throw e;
@@ -1183,11 +1176,11 @@ class Interp {
 					varLocationCache.remove(n);
 					if (allowStaticVariables && isStatic == true) {
 						if (!staticVariables.exists(n)) // make it so it only sets it once
-							staticVariables.set(n, locals[n].r);
+							staticVariables.set(n, locals.get(n).r);
 					} else if (allowPublicVariables && isPublic == true) {
-						publicVariables.set(n, locals[n].r);
+						publicVariables.set(n, locals.get(n).r);
 					} else {
-						variables.set(n, locals[n].r);
+						variables.set(n, locals.get(n).r);
 					}
 				}
 				return null;
@@ -1358,7 +1351,7 @@ class Interp {
 					}
 					var old = me.locals, depth = me.depth;
 					me.depth++;
-					me.locals = hasCaptured ? me.duplicate(capturedLocals) : new Map();
+					me.locals = hasCaptured ? me.duplicate(capturedLocals) : new StringMap();
 					for (i in 0...params.length)
 						me.locals.set(params[i].name, {r: args[i], depth: depth, isFinal: false});
 					var r:Null<Dynamic> = null;
@@ -1457,16 +1450,11 @@ class Interp {
 					}
 
 					var map:Dynamic = {
-						if (isAllInt)
-							new haxe.ds.IntMap<Dynamic>();
-						else if (isAllString)
-							new haxe.ds.StringMap<Dynamic>();
-						else if (isAllEnum)
-							new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
-						else if (isAllObject)
-							new haxe.ds.ObjectMap<Dynamic, Dynamic>();
-						else
-							throw 'Unknown Type Key';
+						if (isAllInt) new haxe.ds.IntMap<Dynamic>();
+						else if (isAllString) new StringMap<Dynamic>();
+						else if (isAllEnum) new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
+						else if (isAllObject) new haxe.ds.ObjectMap<Dynamic, Dynamic>();
+						else throw 'Unknown Type Key';
 					}
 					for (n in 0...keys.length) {
 						setMapValue(getMap(map), keys[n], values[n]);
@@ -1474,9 +1462,7 @@ class Interp {
 					return map;
 				} else {
 					var a = [];
-					for (e in arr) {
-						a.push(expr(e));
-					}
+					for (e in arr) a.push(expr(e));
 					return a;
 				}
 			case EArray(e, index):
