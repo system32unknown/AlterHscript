@@ -70,10 +70,14 @@ class UsingHandler {
 	@:allow(hscript.CustomClassHandler)
 	public var usingEntries(default, null):Map<String, UsingEntry> = [];
 
+	/** True once at least one entry is registered. Lets fcall skip the empty-map check without allocating an iterator. **/
+	public var hasUsingEntries:Bool = false;
+
 	public function new() {}
 
 	public function registerEntry(name:String, entry:Dynamic->String->Array<Dynamic>->Dynamic, fields:Array<String>) {
 		usingEntries.set(name, {call: entry, fields: fields});
+		hasUsingEntries = true;
 	}
 
 	public inline function entryExists(name:String):Bool {

@@ -186,6 +186,8 @@ class Parser {
 	function initParser(origin:String) {
 		// line=1 - don't reset line : it might be set manualy
 		preprocStack = [];
+		disableOrOp = false;
+		isVar = false;
 		#if hscriptPos
 		this.origin = origin;
 		readPos = 0;
@@ -199,10 +201,8 @@ class Parser {
 		ops = [];
 		idents = [];
 		uid = 0;
-		for (i in 0...opChars.length)
-			ops[opChars.charCodeAt(i)] = true;
-		for (i in 0...identChars.length)
-			idents[identChars.charCodeAt(i)] = true;
+		for (i in 0...opChars.length) ops[opChars.charCodeAt(i)] = true;
+		for (i in 0...identChars.length) idents[identChars.charCodeAt(i)] = true;
 	}
 
 	public function parseString(s:String, ?origin:String = "hscript"):Expr {
@@ -214,8 +214,7 @@ class Parser {
 		var a = [];
 		while (true) {
 			var tk = token();
-			if (tk == TEof)
-				break;
+			if (tk == TEof) break;
 			push(tk);
 			parseFullExpr(a);
 		}
@@ -239,20 +238,17 @@ class Parser {
 
 	@:analyzer(fusion) inline function ensure(tk:Token):Void {
 		var t = token();
-		if (t != tk)
-			unexpected(t);
+		if (t != tk) unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function ensureToken(tk:Token):Void {
 		var t = token();
-		if (!Type.enumEq(t, tk))
-			unexpected(t);
+		if (!Type.enumEq(t, tk)) unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function maybe(tk:Token):Bool {
 		var t = token();
-		if (Type.enumEq(t, tk))
-			return true;
+		if (Type.enumEq(t, tk)) return true;
 		push(t);
 		return false;
 	}

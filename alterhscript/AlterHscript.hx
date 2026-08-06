@@ -149,6 +149,26 @@ class AlterHscript {
 	**/
 	final interpErrStr:String = "Careful, the interpreter hasn't been initialized";
 
+	public static function initParser():Parser {
+		var parser:Parser = new Parser();
+		parser.allowJSON = parser.allowMetadata = parser.allowTypes = true;
+		return parser;
+	}
+
+	/** Pool of idle parsers, reused across script instances to avoid repeated Parser construction. **/
+	static var __parserPool:Array<Parser> = [];
+
+	static function getParser():Parser {
+		var parser:Null<Parser> = __parserPool.pop();
+		if (parser == null) return initParser();
+		parser.line = 1; // reusing a parser only requires resetting `line`; all other vars get reset on parse
+		return parser;
+	}
+
+	static function returnParser(parser:Parser) {
+		if (parser != null) __parserPool.push(parser);
+	}
+
 	/**
 	 * Instantiates a new Script with the string value.
 	 *
@@ -165,12 +185,11 @@ class AlterHscript {
 		this.config = AlterConfig.from(config);
 		this.config.name = fixScriptName(this.name);
 
-		parser = new Parser();
+		parser = getParser();
 		interp = new Interp();
 		interp.showPosOnLog = false;
 
 		interp.allowStaticVariables = interp.allowPublicVariables = true;
-		parser.allowJSON = parser.allowMetadata = parser.allowTypes = true;
 	
 		if (this.config.autoPreset) preset(); // set variables to the interpreter.
 		if (this.config.autoRun) execute(); // run the script.
@@ -253,7 +272,10 @@ class AlterHscript {
 			#end
 			return;
 		}
-		if (allowOverride || !interp.variables.exists(name)) interp.setVar(name, value);
+		if (allowOverride || !interp.variables.exists(name)) {
+			interp.setVar(name, value);
+			interp.invalidateCache();
+		}
 	}
 
 	/**
@@ -308,6 +330,7 @@ class AlterHscript {
 	**/
 	public function destroy():Void @:privateAccess {
 		//First, Stopping Hscript-improved variables
+		returnParser(parser);
 		interp.__instanceFields = [];
 		interp.customClasses.clear();
 		interp.declared = [];
