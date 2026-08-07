@@ -112,8 +112,7 @@ class Property {
 				if (!__allowReadAccess && __allowSetGet) {
 					if (varExists(fName)) {
 						return callAccessor(fName);
-					} else
-						interp.error(ECustom('Method $fName required by property $name is missing'));
+					} else interp.error(ECustom('Method $fName required by property $name is missing'));
 				} else {
 					if ((setter == ADefault || setter == ANull) || isVar) {
 						return r;
@@ -134,8 +133,7 @@ class Property {
 				if (!__allowWriteAccess && __allowSetGet) {
 					if (varExists(fName))
 						return callAccessor(fName, true, val);
-					else
-						interp.error(ECustom('Method $fName required by property $name is missing'));
+					else interp.error(ECustom('Method $fName required by property $name is missing'));
 				} else {
 					if ((getter == ADefault || getter == ANull) || isVar) {
 						return r = val;
