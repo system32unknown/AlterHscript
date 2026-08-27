@@ -329,7 +329,7 @@ class AlterHscript {
 	 * **WARNING**: this action CANNOT be undone.
 	**/
 	public function destroy():Void @:privateAccess {
-		//First, Stopping Hscript-improved variables
+		// First, Stopping Hscript-improved variables
 		returnParser(parser);
 		interp.__instanceFields = [];
 		interp.customClasses.clear();
@@ -340,7 +340,7 @@ class AlterHscript {
 
 		if (instances.exists(this.name)) instances.remove(this.name);
 
-		//Then, stops this script.
+		// Then, stops this script.
 		interp = null;
 		parser = null;
 	}

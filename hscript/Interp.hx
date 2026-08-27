@@ -88,31 +88,29 @@ class RedeclaredVar {
 @:access(hscript.CustomClass)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
-	private static var _EMPTY_ARGS:Array<Dynamic> = [];
+	private static final _EMPTY_ARGS:Array<Dynamic> = [];
 
 	private var hasScriptObject(default, null):Bool = false;
 	private var _scriptObjectType(default, null):ScriptObjectType = SNull;
 
-	var __instanceFields:Map<String, Bool> = new Map();
+	private var __instanceFields:Map<String, Bool>;
 
-	/** Converts an array of field names into a lookup map (O(1) membership checks). **/
-	static inline function fieldsToMap(fields:Array<String>):Map<String, Bool> {
-		var m:Map<String, Bool> = new Map();
+	/** Maps an array of field names into a lookup map (O(1) membership checks). **/
+	private static function fieldsToMap(m:Map<String, Bool>, fields:Array<String>, clear:Bool = true) {
+		if (clear) m.clear();
 		for (f in fields) m.set(f, true);
-		return m;
 	}
 
 	public var scriptObject(default, set):Dynamic;
 
 	public function set_scriptObject(v:Dynamic) {
+		if (__instanceFields == null) __instanceFields = []; // TODO: only create the map if the value is not null.
 		switch (Type.typeof(v)) {
 			case TClass(c): // Class Access
-				__instanceFields = fieldsToMap(Type.getInstanceFields(c));
+				fieldsToMap(__instanceFields, Type.getInstanceFields(c));
 				if (v is IHScriptCustomClassBehaviour) {
-					var v:IHScriptCustomClassBehaviour = cast v;
-					var classFields = v.__class__fields;
-					if (classFields != null)
-						for (f in classFields) __instanceFields.set(f, true);
+					var classFields:Array<String> = cast(v, IHScriptCustomClassBehaviour).__class__fields;
+					if (classFields != null) fieldsToMap(__instanceFields, classFields, false);
 					inCustomClass = true;
 					_scriptObjectType = SCustomClass;
 				} else if (v is IHScriptCustomAccessBehaviour) {
@@ -126,14 +124,14 @@ class Interp {
 				var cls = Type.getClass(v);
 				switch (Type.typeof(cls)) {
 					case TClass(c): // Static Class Access
-						__instanceFields = fieldsToMap(Type.getInstanceFields(c));
+						fieldsToMap(__instanceFields, Type.getInstanceFields(c));
 						_scriptObjectType = SStaticClass;
 					default: // Object Access
-						__instanceFields = fieldsToMap(Reflect.fields(v));
+						fieldsToMap(__instanceFields, Reflect.fields(v));
 						_scriptObjectType = SObject;
 				}
 			default: // Null or other
-				__instanceFields = new Map();
+				__instanceFields.clear();
 				_scriptObjectType = SNull;
 		}
 		hasScriptObject = v != null;
@@ -902,7 +900,6 @@ class Interp {
 		return className;
 	}
 
-
 	/** Handles `class Foo { ... }` declarations (extracted from the expr() switch). **/
 	function exprClass(name:String, fields:Array<Expr>, extend:String, interfaces:Array<String>, isFinal:Bool):Void {
 		// TODO: module isolation
@@ -1142,7 +1139,6 @@ class Interp {
 				exprClass(name, fields, extend, interfaces, isFinal);
 			case EImport(clsName, aliasAs, isUsing):
 				exprImport(clsName, aliasAs, isUsing);
-
 			case EEnum(en, isAbstract):
 				exprEnum(en, isAbstract);
 			case ERegex(e, f):
@@ -1265,7 +1261,7 @@ class Interp {
 					case OpNcoalAssign: evalAssignOp(OpNcoalAssign, function(v1, v2) return v1 == null ? v2 : v1, e1, e2);
 					default:
 						error(EInvalidOp(op.toString()));
-						return null;
+						null;
 				}
 			case EUnop(op, prefix, e):
 				switch (op) {
