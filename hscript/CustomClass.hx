@@ -27,7 +27,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 	var __class:CustomClassHandler;
 	var __superClass:IHScriptCustomClassBehaviour;
-	var __upperClass:IHScriptCustomClassBehaviour;
+	var __upperClass:Null<IHScriptCustomClassBehaviour>; // top class
 	var __constructor:Function;
 
 	var __overrideFields:Array<String> = [];
@@ -108,7 +108,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			return;
 		}
 
-		if (__class.cl is CustomClassHandler) {
+		if (__class.cl is CustomClassHandler) { // Custom class extends another...
 			var customClass = new CustomClass(__class.cl, args, __cachedFieldSet);
 			if (__overrideFields.length > 0) {
 				for (field in __overrideFields) {

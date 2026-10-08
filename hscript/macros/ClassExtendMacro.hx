@@ -13,10 +13,15 @@ import haxe.macro.*;
 
 using StringTools;
 
-// BIG TODO: make typed classes scriptable
+// TODO: remake this to change local classes instead of making new ones reducing compiler overhead and improving compiling times
+/**
+ * `ClassExtendMacro` is responsibe of creating additional classes to make them extendable
+ * for custom classes.
+ */
 class ClassExtendMacro {
 	public static inline final FUNC_PREFIX = "_HX_SUPER__";
 	public static inline final CLASS_SUFFIX = "_HSX";
+	public static inline final FINISHED_META:String = ":customClassBuilt"; // TODO: metadata check instead of hard check
 
 	public static var unallowedMetas:Array<String> = [":bitmap", ":noCustomClass", ":generic"];
 
@@ -32,10 +37,10 @@ class ClassExtendMacro {
 	}
 
 	public static function build():Array<Field> {
-		var fields = Context.getBuildFields();
 		var clRef = Context.getLocalClass();
-		if (clRef == null) return fields;
-		var cl = clRef.get();
+		if (clRef == null) return null; // Do nothing; skip.
+		var cl:ClassType = clRef.get();
+		var fields = Context.getBuildFields();
 
 		if (cl.isAbstract || cl.isExtern || cl.isFinal || cl.isInterface) return fields;
 		if (!cl.name.endsWith("_Impl_") && !cl.name.endsWith(CLASS_SUFFIX) && !cl.name.endsWith("_HSC")) {
@@ -62,6 +67,8 @@ class ClassExtendMacro {
 			if (fkey == "hscript.CustomClass") return fields; // Error: Redefined
 			if (key == "sys.thread.EventLoop") return fields; // Error: cant override force inlined
 			if (Config.DISALLOW_CUSTOM_CLASSES.contains(cl.module) || Config.DISALLOW_CUSTOM_CLASSES.contains(fkey)) return fields;
+
+			// TODO: Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
 			if (cl.module.contains("_")) return fields; // Weird issue, sorry
 
 			var superFields = [];
