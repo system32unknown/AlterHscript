@@ -188,6 +188,7 @@ enum abstract Unop(Int) from Int to Int {
 typedef UInt32 = #if cpp cpp.UInt32 #else Int #end;
 typedef UInt64 = #if cpp cpp.UInt64 #else Int #end;
 
+// TODO: Boolean Constant
 enum Const {
 	CInt(v:Int);
 	CFloat(f:Float);
@@ -383,7 +384,7 @@ typedef FieldDecl = {
 	var access:Array<FieldAccess>;
 }
 
-enum abstract FieldAccess(UInt8) {
+enum abstract FieldAccess(Int) from Int to Int {
 	var APublic:FieldAccess;
 	var APrivate:FieldAccess;
 	var AInline:FieldAccess;
@@ -392,7 +393,7 @@ enum abstract FieldAccess(UInt8) {
 	var AMacro:FieldAccess;
 }
 
-enum abstract FieldPropertyAccess(UInt8) {
+enum abstract FieldPropertyAccess(Int) from Int to Int {
 	var ADefault:FieldPropertyAccess;
 	var ANull:FieldPropertyAccess;
 	var AGet:FieldPropertyAccess;

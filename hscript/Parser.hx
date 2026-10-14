@@ -238,17 +238,20 @@ class Parser {
 
 	@:analyzer(fusion) inline function ensure(tk:Token):Void {
 		var t = token();
-		if (t != tk) unexpected(t);
+		if (t != tk)
+			unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function ensureToken(tk:Token):Void {
 		var t = token();
-		if (!Type.enumEq(t, tk)) unexpected(t);
+		if (!Type.enumEq(t, tk))
+			unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function maybe(tk:Token):Bool {
 		var t = token();
-		if (Type.enumEq(t, tk)) return true;
+		if (Type.enumEq(t, tk))
+			return true;
 		push(t);
 		return false;
 	}
@@ -2172,7 +2175,7 @@ class Parser {
 		var t = _token();
 		tokenMax = (this.char < 0) ? readPos - 1 : readPos - 2;
 		return t;
-	} 
+	}
 	function _token():Token {
 	#else
 	if (!tokens.isEmpty())
@@ -2229,6 +2232,7 @@ class Parser {
 								}
 								if (pow == null)
 									invalidChar(char);
+								if (exp == 0) exp = 10;
 								return TConst(CFloat((Math.pow(10, pow) / exp) * n * 10));
 							case ".".code:
 								if (exp > 0) {
@@ -2282,7 +2286,8 @@ class Parser {
 								}
 							default:
 								this.char = char;
-								return TConst((exp > 0) ? CFloat(n * 10 / exp) : ((n % 1 == 0) ? CInt(Std.int(n)) : CFloat(n)));
+								var i = Std.int(n);
+								return TConst((exp > 0) ? CFloat(n * 10 / exp) : ((i == n) ? CInt(i) : CFloat(n)));
 						}
 					}
 				case ";".code:
