@@ -34,6 +34,7 @@ import haxe.CallStack;
 import haxe.PosInfos;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
+import haxe.ds.ObjectMap;
 import hscript.HEnum.HEnumValue;
 import hscript.utils.UsingHandler;
 import hscript.utils.UnsafeReflect;
@@ -1425,7 +1426,7 @@ class Interp {
 						if (isAllInt) new haxe.ds.IntMap<Dynamic>();
 						else if (isAllString) new StringMap<Dynamic>();
 						else if (isAllEnum) new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
-						else if (isAllObject) new haxe.ds.ObjectMap<Dynamic, Dynamic>();
+						else if (isAllObject) new ObjectMap<Dynamic, Dynamic>();
 						else throw 'Unknown Type Key';
 					}
 					for (n in 0...keys.length) {
