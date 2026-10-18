@@ -51,6 +51,24 @@ class Bytes {
 		bout.addByte(255);
 	}
 
+	// region Operators
+	inline function doEncodeBinop(op:Binop) {
+		bout.addByte(op);
+	}
+
+	inline function doDecodeBinop():Binop {
+		return cast getByte();
+	}
+
+	inline function doEncodeUnop(unop:Unop) {
+		bout.addByte(unop);
+	}
+
+	inline function doDecodeUnop():Unop {
+		return cast getByte();
+	}
+	// endregion
+
 	function doEncodeString(v:String) {
 		var vid = hstrings.get(v);
 		if (vid == null) {
@@ -234,16 +252,15 @@ class Bytes {
 			case EBlock(el):
 				bout.addByte(el.length);
 				for (e in el) doEncode(e);
-			case EField(e, f, s):
+			case EField(e, f):
 				doEncode(e);
 				doEncodeString(f);
-				doEncodeBoolean(s ?? false);
 			case EBinop(op, e1, e2):
-				doEncodeString(op.toString());
+				doEncodeBinop(op);
 				doEncode(e1);
 				doEncode(e2);
 			case EUnop(op, prefix, e):
-				doEncodeString(op.toString()); // maybe doEncodeInt
+				doEncodeUnop(op);
 				bout.addByte(prefix ? 1 : 0);
 				doEncode(e);
 			case ECall(e, el):
@@ -435,16 +452,15 @@ class Bytes {
 				for (i in 0...getByte()) a.push(doDecode());
 				EBlock(a);
 			case BFIELD:
-				final e = doDecode();
-				final f = doDecodeString();
-				final s = doDecodeBoolean();
-				EField(e, f, s);
+				var op = doDecodeBinop();
+				var e1 = doDecode();
+				EBinop(op, e1, doDecode());
 			case BBINOP:
-				var op = Binop.fromString(doDecodeString());
+				var op = doDecodeBinop();
 				var e1 = doDecode();
 				EBinop(op, e1, doDecode());
 			case BUNOP:
-				var op = Unop.fromString(doDecodeString());
+				var op = doDecodeUnop();
 				var prefix = getByte() != 0;
 				EUnop(op, prefix, doDecode());
 			case BCALL:

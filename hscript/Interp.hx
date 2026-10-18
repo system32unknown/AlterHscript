@@ -290,13 +290,8 @@ class Interp {
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
 				}
-			case EField(e, f, s):
-				var obj = expr(e);
-				if (obj == null) {
-					if (!s) error(EInvalidAccess(f));
-					else return null;
-				}
-				v = set(obj, f, v);
+			case EField(e, f):
+				v = set(expr(e), f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
@@ -333,10 +328,8 @@ class Interp {
 				l.r = v;
 				if (l.depth == 0)
 					setVar(id, v);
-			case EField(e, f, s):
+			case EField(e, f):
 				var obj = expr(e);
-				if (s && obj == null)
-					return null;
 				v = applyAssignOp(op, get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -352,7 +345,8 @@ class Interp {
 					arr[index] = v;
 				}
 			default:
-				return error(EInvalidOp(op.toString()));
+				error(EInvalidOp(op.toString()));
+				return null;
 		}
 		return v;
 	}
@@ -544,18 +538,13 @@ class Interp {
 					}
 					return v;
 				}
-			case EField(e, f, s):
+			case EField(e, f):
 				var obj = expr(e);
-				if (obj == null) {
-					if (!s) error(EInvalidAccess(f));
-					else return null;
-				}
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
 					set(obj, f, v);
-				} else
-					set(obj, f, v + delta);
+				} else set(obj, f, v + delta);
 				return v;
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
@@ -1137,7 +1126,7 @@ class Interp {
 					v = expr(e);
 				restore(old);
 				return v;
-			case EField(e, f, s):
+			case EField(e, f):
 				#if hscriptPos
 				var fieldNode = curExpr; // the EField node itself; curExpr moves on while expr(e) runs
 				#else
@@ -1151,7 +1140,6 @@ class Interp {
 					if (info != null) {
 						var cl = resolveFieldTypeCached(info.fullPath);
 						if (cl != null) return cl;
-						if (s) return null;
 						error(EUnknownVariable(info.path));
 					}
 					throw exc;
@@ -1162,7 +1150,6 @@ class Interp {
 						var cl = resolveFieldTypeCached(info.fullPath);
 						if (cl != null) return cl;
 					}
-					if (s) return null;
 				}
 				return get(field, f);
 			case EBinop(op, e1, e2):
@@ -1222,12 +1209,9 @@ class Interp {
 				var args:Array<Dynamic> = (params.length > 0) ? makeArgs(params) : _EMPTY_ARGS;
 
 				switch (Tools.expr(e)) {
-					case EField(e, f, s):
+					case EField(e, f):
 						var obj:Null<Dynamic> = expr(e);
-						if (obj == null) {
-							if (s) return null;
-							error(EInvalidAccess(f));
-						}
+						if (obj == null) error(EInvalidAccess(f));
 						return fcall(obj, f, args);
 					default:
 						return call(null, expr(e), args);
@@ -1262,10 +1246,8 @@ class Interp {
 				var me = this;
 				var hasOpt = false, minParams = 0;
 				for (p in params)
-					if (p.opt)
-						hasOpt = true;
-					else
-						minParams++;
+					if (p.opt) hasOpt = true;
+					else minParams++;
 				var reuseParamVars = !bodyHasFunctionLiteral(fexpr);
 				var paramPool:Array<Array<DeclaredVar>> = [];
 				var f = function(args:Array<Dynamic>) {
@@ -1274,8 +1256,7 @@ class Interp {
 					if (((args == null) ? 0 : args.length) != params.length) {
 						if (args.length < minParams) {
 							var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
-							if (name != null)
-								str += " for function '" + name + "'";
+							if (name != null) str += " for function '" + name + "'";
 							error(ECustom(str));
 						}
 						// make sure mandatory args are forced
@@ -1287,10 +1268,8 @@ class Interp {
 								if (extraParams > 0) {
 									args2.push(args[pos++]);
 									extraParams--;
-								} else
-									args2.push(null);
-							} else
-								args2.push(args[pos++]);
+								} else args2.push(null);
+							} else args2.push(args[pos++]);
 						args = args2;
 					}
 					var old = me.locals, depth = me.depth;
@@ -1307,8 +1286,7 @@ class Interp {
 						pvs = paramPool.pop();
 						if (pvs == null) {
 							pvs = [];
-							for (p in params)
-								pvs.push({r: null, depth: 0});
+							for (p in params) pvs.push({r: null, depth: 0, isFinal: false});
 						}
 						for (i in 0...params.length) {
 							var pv = pvs[i];
@@ -1680,8 +1658,7 @@ class Interp {
 	inline function forLoop(n:String, it:Expr, e:Expr, ?ithv:String):Void {
 		var isKeyValue = ithv != null;
 		var old = declared.length;
-		if (isKeyValue)
-			declared.push({n: ithv, old: locals.get(ithv), depth: depth});
+		if (isKeyValue) declared.push({n: ithv, old: locals.get(ithv), depth: depth});
 		declared.push({n: n, old: locals.get(n), depth: depth});
 		var it = makeIterator(expr(it), isKeyValue);
 		var _hasNext = it.hasNext;
@@ -1690,8 +1667,7 @@ class Interp {
 		var kvDecl:DeclaredVar = null;
 		var varDecl:DeclaredVar = null;
 		if (reuseVar) {
-			if (isKeyValue)
-				kvDecl = {r: null, depth: depth, isFinal: false};
+			if (isKeyValue) kvDecl = {r: null, depth: depth, isFinal: false};
 			varDecl = {r: null, depth: depth, isFinal: false};
 		}
 		while (_hasNext()) {
@@ -1735,12 +1711,10 @@ class Interp {
 		var cached = __bodyHasFnCache.get(e);
 		if (cached != null)
 			return cached;
-		var found = true;
+		var found:Bool = true;
 		try {
 			found = walkHasFunctionLiteral(e);
-		} catch (err:Dynamic) {
-			found = true;
-		}
+		} catch (err:Dynamic) found = true;
 		__bodyHasFnCache.set(e, found);
 		return found;
 	}
@@ -1758,7 +1732,7 @@ class Interp {
 					if (walkHasFunctionLiteral(x))
 						return true;
 				false;
-			case EField(x, _, _) | EArray(x, _): walkHasFunctionLiteral(x);
+			case EField(x, _) | EArray(x, _): walkHasFunctionLiteral(x);
 			case EBinop(_, e1, e2): walkHasFunctionLiteral(e1) || walkHasFunctionLiteral(e2);
 			case ECall(x, params):
 				if (walkHasFunctionLiteral(x))
@@ -1838,7 +1812,7 @@ class Interp {
 	function getExprPath(e:Expr):Null<String> {
 		switch (Tools.expr(e)) {
 			case EIdent(id): return id;
-			case EField(e2, f, _):
+			case EField(e2, f):
 				var parent = getExprPath(e2);
 				if (parent != null) return parent + "." + f;
 				return null;
@@ -1885,10 +1859,8 @@ class Interp {
 	static function behaviourKindOf(o:Dynamic):Int {
 		var cls:Null<Class<Dynamic>> = Type.getClass(o);
 		if (cls == null) {
-			if (o is IHScriptCustomAccessBehaviour)
-				return 1;
-			if (o is IHScriptCustomBehaviour)
-				return 2;
+			if (o is IHScriptCustomAccessBehaviour) return 1;
+			if (o is IHScriptCustomBehaviour) return 2;
 			return 0;
 		}
 		var kind = __behaviourKindCache.get(cls);
@@ -1929,11 +1901,9 @@ class Interp {
 		if (isBypassAccessor) {
 			#if cpp
 			v = untyped __cpp__('{0}->__Field({1}, ::hx::paccNever)', o, f);
-			if (v == null && useRedirects)
-				v = Reflect.field(cls, f);
+			if (v == null && useRedirects) v = Reflect.field(cls, f);
 			#else
-			if ((v = UnsafeReflect.field(o, f)) == null && useRedirects)
-				v = Reflect.field(cls, f);
+			if ((v = UnsafeReflect.field(o, f)) == null && useRedirects) v = Reflect.field(cls, f);
 			#end
 		}
 

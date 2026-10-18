@@ -238,20 +238,17 @@ class Parser {
 
 	@:analyzer(fusion) inline function ensure(tk:Token):Void {
 		var t = token();
-		if (t != tk)
-			unexpected(t);
+		if (t != tk) unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function ensureToken(tk:Token):Void {
 		var t = token();
-		if (!Type.enumEq(t, tk))
-			unexpected(t);
+		if (!Type.enumEq(t, tk)) unexpected(t);
 	}
 
 	@:analyzer(fusion) inline function maybe(tk:Token):Bool {
 		var t = token();
-		if (Type.enumEq(t, tk))
-			return true;
+		if (Type.enumEq(t, tk)) return true;
 		push(t);
 		return false;
 	}
@@ -977,9 +974,7 @@ class Parser {
 					var old = vname;
 					vname = getIdent();
 					ithv = old;
-				} else {
-					push(tk);
-				}
+				} else push(tk);
 				ensureToken(TId("in"));
 				var eiter = parseExpr();
 				ensure(TPClose);
@@ -999,10 +994,10 @@ class Parser {
 
 				var tk = token();
 				push(tk);
-				mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline), p1,
-					pmax(inf.body));
+				mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline), p1, pmax(inf.body));
 			case "package":
 				var tk = token();
+				if (tk == TEof) error(ECustom('Missing ;'), tokenMin, tokenMax);
 				push(tk);
 				if (tk == TSemicolon)
 					return mk(EPackage(null), p1);
@@ -1380,10 +1375,10 @@ class Parser {
 		}
 	}
 
-	function parseExprNext(e1:Expr):Expr {
+	function parseExprNext(e1:Expr, noOp:Bool = false):Expr {
 		var tk = token();
 		switch (tk) {
-			case TOp(op):
+			case TOp(op) if (!noOp) :
 				if (op == "->") {
 					// single arg reinterpretation of `f -> e` , `(f) -> e` and `(f:T) -> e`
 					switch (expr(e1)) {
@@ -1428,18 +1423,31 @@ class Parser {
 					return parseExprNext(mk(EUnop(Unop.fromString(op), false, e1), pmin(e1)));
 				}
 				return makeBinop(op, e1, parseExpr());
-			case TId(op) if (opPriority.exists(op)):
+			case TId(op) if (!noOp && opPriority.exists(op)):
 				return parseExprNext(makeBinop(op, e1, parseExpr()));
-			case TDot | TQuestionDot:
+			case TDot:
 				var field = getIdent();
-				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
+				return parseExprNext(mk(EField(e1, field), pmin(e1)));
+			case TQuestionDot:
+				var tmp = "__a_" + (uid++);
+				push(TDot);
+				var e2 = parseExprNext(mk(EIdent(tmp), pmin(e1), pmax(e1)), true);
+				var e = mk(EBlock([
+					mk(EVar(tmp, null, e1), pmin(e1), pmax(e1)),
+					mk(ETernary(
+						mk(EBinop(OpEq, mk(EIdent(tmp), pmin(e1), pmax(e1)), mk(EIdent("null"), pmin(e1), pmax(e1)))),
+						mk(EIdent("null"),pmin(e1),pmax(e1)),
+						e2
+					))
+				]), pmin(e1));
+				return parseExprNext(e, noOp);
 			case TPOpen:
-				return parseExprNext(mk(ECall(e1, parseExprList(TPClose)), pmin(e1)));
+				return parseExprNext(mk(ECall(e1, parseExprList(TPClose)), pmin(e1)), noOp);
 			case TBkOpen:
 				var e2 = parseExpr();
 				ensure(TBkClose);
-				return parseExprNext(mk(EArray(e1, e2), pmin(e1)));
-			case TQuestion:
+				return parseExprNext(mk(EArray(e1, e2), pmin(e1)), noOp);
+			case TQuestion if (!noOp):
 				var e2 = parseExpr();
 				ensure(TDoubleDot);
 				var e3 = parseExpr();
