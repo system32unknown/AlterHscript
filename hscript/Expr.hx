@@ -330,11 +330,10 @@ class Error {
 	}
 }
 
-enum ErrorDef
+enum ErrorDef {
 #else
-enum Error
+enum Error {
 #end
-{
 	EInvalidChar(c:Int);
 	EUnexpected(s:String);
 	EUnterminatedString;
