@@ -23,6 +23,7 @@
 package hscript;
 
 import hscript.Expr;
+import haxe.ds.StringMap;
 
 using StringTools;
 
@@ -61,13 +62,13 @@ class Parser {
 	public var line:Int;
 	public var opChars:String;
 	public var identChars:String;
-	public var opPriority:Map<String, Int>;
-	public var opRightAssoc:Map<String, Bool>;
+	public var opPriority:StringMap<Int>;
+	public var opRightAssoc:StringMap<Bool>;
 
 	/**
 		allows to check for #if / #else in code
 	**/
-	public var preprocessorValues:Map<String, Dynamic> = new Map();
+	public var preprocessorValues:StringMap<Dynamic> = new StringMap();
 
 	/**
 		activate JSON compatiblity
@@ -149,8 +150,8 @@ class Parser {
 			["->", "??"],
 			["is"]
 		];
-		opPriority = new Map();
-		opRightAssoc = new Map();
+		opPriority = new StringMap();
+		opRightAssoc = new StringMap();
 		#if (haxe >= "4.0.0")
 		for (i => p in priorities)
 			for (x in p) {
@@ -938,19 +939,14 @@ class Parser {
 					nextType = t;
 				}
 				var e = null;
-				if (Type.enumEq(tk, TOp("=")))
-					e = parseExpr();
-				else
-					push(tk);
+				if (Type.enumEq(tk, TOp("="))) e = parseExpr();
+				else push(tk);
 
-				if (hasGetSet)
-					checkAccess(get, set, e, t);
+				if (hasGetSet) checkAccess(get, set, e, t);
 
 				nextType = null;
-				if (isVar)
-					isVar = false;
-				mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline, get, set, oldIsVar), p1,
-					(e == null) ? tokenMax : pmax(e));
+				if (isVar) isVar = false;
+				mk(EVar(ident, t, e, nextIsPublic, nextIsStatic, nextIsPrivate, id == "final", nextIsInline, get, set, oldIsVar), p1, (e == null) ? tokenMax : pmax(e));
 			case "while":
 				var econd = parseExpr();
 				var e = parseExpr();

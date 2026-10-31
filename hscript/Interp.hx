@@ -33,6 +33,7 @@ import haxe.Exception;
 import haxe.CallStack;
 import haxe.PosInfos;
 import haxe.Constraints.IMap;
+import haxe.ds.StringMap;
 import haxe.ds.ObjectMap;
 import hscript.HEnum.HEnumValue;
 import hscript.utils.UsingHandler;
@@ -75,7 +76,6 @@ enum abstract VarLocation(UInt8) {
 class DeclaredVar {
 	public var r:Dynamic;
 	public var depth:Int;
-	public var isFinal:Bool;
 }
 
 @:structInit
@@ -152,14 +152,14 @@ class Interp {
 	 */
 	public var importFailedCallback:Array<String>->Null<String>->Bool;
 
-	public var customClasses:Map<String, CustomClassHandler>;
-	public var variables:Map<String, Dynamic>;
-	public var publicVariables:Map<String, Dynamic>;
+	public var customClasses:StringMap<CustomClassHandler>;
+	public var variables:StringMap<Dynamic>;
+	public var publicVariables:StringMap<Dynamic>;
 	// TODO: maybe turn this completely static
-	public var staticVariables:Map<String, Dynamic>;
+	public var staticVariables:StringMap<Dynamic>;
 
 	// warning can be null
-	public var locals:Map<String, DeclaredVar>;
+	public var locals:StringMap<DeclaredVar>;
 
 	var depth:Int = 0;
 	var inTry:Bool;
@@ -205,16 +205,16 @@ class Interp {
 	public var showPosOnLog:Bool = true;
 
 	public function new() {
-		locals = new Map();
+		locals = new StringMap();
 		declared = [];
 		resetVariables();
 	}
 
 	private function resetVariables():Void {
-		customClasses = new Map<String, CustomClassHandler>();
-		variables = new Map<String, Dynamic>();
-		publicVariables = new Map<String, Dynamic>();
-		staticVariables = new Map<String, Dynamic>();
+		customClasses = new StringMap<CustomClassHandler>();
+		variables = new StringMap<Dynamic>();
+		publicVariables = new StringMap<Dynamic>();
+		staticVariables = new StringMap<Dynamic>();
 
 		usingHandler = new UsingHandler();
 
@@ -285,13 +285,15 @@ class Interp {
 					var prop:Property = cast l.r;
 					return prop.set(v, isBypassAccessor);
 				} else {
-					if (l.isFinal) warn(ECustom("Cannot reassign final variable '" + id + "'"));
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
 				}
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (s && obj == null) return null;
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
 				v = set(obj, f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
@@ -330,7 +332,10 @@ class Interp {
 				if (l.depth == 0) setVar(id, v);
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (s && obj == null) return null;
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
 				v = applyAssignOp(op, get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -490,7 +495,6 @@ class Interp {
 			case EIdent(id):
 				var l = locals.get(id);
 				if (l != null) {
-					if (l.isFinal) warn(ECustom("Cannot modify final variable '" + id + "'"));
 					var v:Dynamic = l.r;
 					var prop:Property = null;
 					if (v is Property) {
@@ -539,7 +543,10 @@ class Interp {
 				}
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (s && obj == null) return null;
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
@@ -575,7 +582,7 @@ class Interp {
 
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
-		(locals ??= new Map()).clear();
+		(locals ??= new StringMap()).clear();
 		(declared ??= []).resize(0);
 		return exprReturn(expr);
 	}
@@ -649,24 +656,15 @@ class Interp {
 		}
 	}
 
-	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
+	public inline function error(e:#if hscriptPos ErrorDef #else Error #end):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
-		if (rethrow) this.rethrow(e);
-		else throw e;
+		throw e;
 		return null;
 	}
 
 	public inline function warn(e:#if hscriptPos ErrorDef #else Error #end) {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 		AlterHscript.warn(Printer.errorToString(e, showPosOnLog), #if hscriptPos posInfos() #else null #end);
-	}
-
-	inline function rethrow(e:Dynamic):Void {
-		#if hl
-		hl.Api.rethrow(e);
-		#else
-		throw e;
-		#end
 	}
 
 	inline function getProperty(o:Null<Dynamic>, n:String, allowProperty:Bool = true):Dynamic {
@@ -1104,17 +1102,17 @@ class Interp {
 				var r:Dynamic = null;
 				if (hasGetSet) r = new Property(n, v, getter, setter, isVar, isStatic, this);
 				else r = v;
-				var declVar:DeclaredVar = {r: r, depth: depth, isFinal: isFinal};
+				var declVar:DeclaredVar = {r: r, depth: depth};
 				locals.set(n, declVar);
 				if (depth == 0) {
 					varLocationCache.remove(n);
 					if (allowStaticVariables && isStatic == true) {
 						if (!staticVariables.exists(n)) // make it so it only sets it once
-							staticVariables.set(n, locals[n].r);
+							staticVariables.set(n, locals.get(n).r);
 					} else if (allowPublicVariables && isPublic == true) {
-						publicVariables.set(n, locals[n].r);
+						publicVariables.set(n, locals.get(n).r);
 					} else {
-						variables.set(n, locals[n].r);
+						variables.set(n, locals.get(n).r);
 					}
 				}
 				return null;
@@ -1290,7 +1288,7 @@ class Interp {
 						pvs = paramPool.pop();
 						if (pvs == null) {
 							pvs = [];
-							for (p in params) pvs.push({r: null, depth: 0, isFinal: false});
+							for (p in params) pvs.push({r: null, depth: 0});
 						}
 						for (i in 0...params.length) {
 							var pv = pvs[i];
@@ -1300,7 +1298,7 @@ class Interp {
 						}
 					} else {
 						for (i in 0...params.length)
-							me.locals.set(params[i].name, {r: args[i], depth: depth, isFinal: false});
+							me.locals.set(params[i].name, {r: args[i], depth: depth});
 					}
 					var r:Null<Dynamic> = null;
 					var oldDecl:Int = declared.length;
@@ -1310,8 +1308,7 @@ class Interp {
 						} catch (e:Dynamic) {
 							me.locals = old;
 							me.depth = depth;
-							if (pvs != null)
-								paramPool.push(pvs);
+							if (pvs != null) paramPool.push(pvs);
 							newLocals.clear();
 							me.localsPool.push(newLocals);
 							#if neko
@@ -1343,7 +1340,7 @@ class Interp {
 					} else {
 						// function-in-function is a local function
 						declared.push({n: name, old: locals.get(name), depth: depth});
-						var ref:DeclaredVar = {r: f, depth: depth, isFinal: false};
+						var ref:DeclaredVar = {r: f, depth: depth};
 						locals.set(name, ref);
 						capturedLocals.set(name, ref); // allow self-recursion
 					}
@@ -1406,7 +1403,7 @@ class Interp {
 
 					var map:Dynamic = {
 						if (isAllInt) new haxe.ds.IntMap<Dynamic>();
-						else if (isAllString) new haxe.ds.StringMap<Dynamic>();
+						else if (isAllString) new StringMap<Dynamic>();
 						else if (isAllEnum) new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
 						else if (isAllObject) new ObjectMap<Dynamic, Dynamic>();
 						else throw 'Unknown Type Key';
@@ -1451,7 +1448,7 @@ class Interp {
 					inTry = oldTry;
 					// declare 'v'
 					declared.push({n: n, old: locals.get(n), depth: depth});
-					locals.set(n, {r: err, depth: depth, isFinal: false});
+					locals.set(n, {r: err, depth: depth});
 					var v:Dynamic = expr(ecatch);
 					restore(old);
 					return v;
@@ -1492,10 +1489,10 @@ class Interp {
 													case EIdent(n):
 														declared.push({
 															n: n,
-															old: {r: locals.get(n), depth: depth, isFinal: false},
+															old: {r: locals.get(n), depth: depth},
 															depth: depth
 														});
-														locals.set(n, {r: valParams[i], depth: depth, isFinal: false});
+														locals.set(n, {r: valParams[i], depth: depth});
 													default:
 												}
 											}
@@ -1669,8 +1666,8 @@ class Interp {
 		var kvDecl:DeclaredVar = null;
 		var varDecl:DeclaredVar = null;
 		if (reuseVar) {
-			if (isKeyValue) kvDecl = {r: null, depth: depth, isFinal: false};
-			varDecl = {r: null, depth: depth, isFinal: false};
+			if (isKeyValue) kvDecl = {r: null, depth: depth};
+			varDecl = {r: null, depth: depth};
 		}
 		while (_hasNext()) {
 			var next = _next();
@@ -1681,14 +1678,14 @@ class Interp {
 					varDecl.r = next.value;
 					locals.set(n, varDecl);
 				} else {
-					locals.set(ithv, {r: next.key, depth: depth, isFinal: false});
-					locals.set(n, {r: next.value, depth: depth, isFinal: false});
+					locals.set(ithv, {r: next.key, depth: depth});
+					locals.set(n, {r: next.value, depth: depth});
 				}
 			} else {
 				if (reuseVar) {
 					varDecl.r = next;
 					locals.set(n, varDecl);
-				} else locals.set(n, {r: next, depth: depth, isFinal: false});
+				} else locals.set(n, {r: next, depth: depth});
 			}
 			if (!loopBody(e)) break;
 		}

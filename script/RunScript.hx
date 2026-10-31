@@ -17,38 +17,23 @@ class RunScript {
 
 		try {
 			Sys.setCwd(workingDirectory);
-		} catch (e:Dynamic) {
-			error("Failed to set current working directory to [" + workingDirectory + "]");
-		}
+		} catch (e:Dynamic) error("Failed to set current working directory to [" + workingDirectory + "]");
 
-		if (args.length == 0) {
-			error("Argument missing. Expected 1 got 0");
-		}
+		if (args.length == 0) error("Argument missing. Expected 1 got 0");
 
 		if (args[0] == "-f" || args[0] == "--file") {
-			if (args.length == 1) {
-				error("Argument missing. Expected 2 got 1");
-			}
-			if (args.length > 2) {
-				error("Too many arguments. Expected 2 got " + args.length);
-			}
+			if (args.length == 1) error("Argument missing. Expected 2 got 1");
+			if (args.length > 2) error("Too many arguments. Expected 2 got " + args.length);
 			executeScriptFile(args[1]);
 		}
 
-		if (args[0] == "--help") {
-			printHelp();
-		}
-
+		if (args[0] == "--help") printHelp();
 		executeScript(args.join(" "));
 	}
 
 	static function executeScriptFile(scriptPath:String) {
-		if (!FileSystem.exists(scriptPath)) {
-			error("Specified file [" + scriptPath + "] not found");
-		}
-		if (FileSystem.isDirectory(scriptPath)) {
-			error("Specified file [" + scriptPath + "] is a directory");
-		}
+		if (!FileSystem.exists(scriptPath)) error("Specified file [" + scriptPath + "] not found");
+		if (FileSystem.isDirectory(scriptPath)) error("Specified file [" + scriptPath + "] is a directory");
 		var script = File.getContent(scriptPath);
 		executeScript(script);
 	}
