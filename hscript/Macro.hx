@@ -24,6 +24,8 @@ package hscript;
 
 #if hscriptPos
 import hscript.Expr.ErrorDef;
+#else
+import hscript.Expr.Error;
 #end
 import haxe.macro.Expr;
 
