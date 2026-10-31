@@ -593,10 +593,9 @@ class Interp {
 
 	public var printCallStack:Bool = false;
 
-	function exprReturn(e, returnDef:Bool = true):Dynamic {
+	function exprReturn(e):Dynamic {
 		try {
-			var dvalue = expr(e);
-			if (returnDef) return dvalue;
+			return expr(e);
 		} catch (e:Stop) {
 			switch (e) {
 				case SBreak:
@@ -1318,7 +1317,7 @@ class Interp {
 					var oldDecl:Int = declared.length;
 					if (inTry)
 						try {
-							r = me.exprReturn(fexpr, false);
+							r = me.exprReturn(fexpr);
 						} catch (e:Dynamic) {
 							me.locals = old;
 							me.depth = depth;
@@ -1332,7 +1331,7 @@ class Interp {
 							throw e;
 							#end
 						}
-					else r = me.exprReturn(fexpr, false);
+					else r = me.exprReturn(fexpr);
 					restore(oldDecl);
 					if (pvs != null) paramPool.push(pvs);
 					newLocals.clear();
@@ -1542,7 +1541,7 @@ class Interp {
 
 				isBypassAccessor = oldAccessor;
 				return val;
-			case ECheckType(e, _): 
+			case ECheckType(e, _):
 				return expr(e);
 			case ECast(e, _): // TODO: runtime explicit cast check
 				var v = expr(e);
