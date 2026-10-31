@@ -1,6 +1,6 @@
 {
-  "name": "hscript-improved",
-  "url": "https://github.com/HaxeFoundation/hscript",
+  "name": "AlterHscript",
+  "url": "https://github.com/system32unknown/AlterHscript",
   "license": "MIT",
   "description": "Haxe Script is a scripting engine for a subset of the Haxe language",
   "version": "2.4.0",
