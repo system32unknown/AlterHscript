@@ -130,19 +130,11 @@ class Tools {
 	}
 
 	public static inline function expr(e:Expr):ExprDef {
-		#if hscriptPos
-		return e.e;
-		#else
-		return e;
-		#end
+		return #if hscriptPos e.e #else e #end;
 	}
 
 	@:noUsing public static inline function mk(e:ExprDef, p:Expr):Expr {
-		#if hscriptPos
-		return {e: e, pmin: p.pmin, pmax: p.pmax, origin: p.origin, line: p.line};
-		#else
-		return e;
-		#end
+		return #if hscriptPos {e: e, pmin: p.pmin, pmax: p.pmax, origin: p.origin, line: p.line} #else e #end;
 	}
 
 	/**
@@ -156,8 +148,7 @@ class Tools {
 		return untyped js.Syntax.code("{0}.length", func);
 		#elseif hl
 		var ft = hl.Type.getDynamic(func);
-		if (ft.kind != HFun)
-			return -1;
+		if (ft.kind != HFun) return -1;
 		return ft.getArgsCount();
 		#else
 		return -1;

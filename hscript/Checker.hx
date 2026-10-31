@@ -407,11 +407,7 @@ class Checker {
 	}
 
 	inline function edef(e:Expr) {
-		#if hscriptPos
-		return e.e;
-		#else
-		return e;
-		#end
+		return #if hscriptPos e.e #else e #end;
 	}
 
 	inline function error(msg:String, curExpr:Expr) {
@@ -503,7 +499,7 @@ class Checker {
 		}
 	}
 
-	function link(a:TType, b:TType, r:{r:TType}) {
+	function link(a:TType, b:TType, r:{r:TType}):Bool {
 		if (linkLoop(a, b))
 			return follow(b) == a;
 		if (b == TDynamic)
@@ -512,7 +508,7 @@ class Checker {
 		return true;
 	}
 
-	function typeEq(t1:TType, t2:TType) {
+	function typeEq(t1:TType, t2:TType):Bool {
 		if (t1 == t2)
 			return true;
 		switch ([t1, t2]) {
@@ -584,7 +580,7 @@ class Checker {
 		return false;
 	}
 
-	function tryUnify(t1:TType, t2:TType) {
+	function tryUnify(t1:TType, t2:TType):Bool {
 		if (t1 == t2)
 			return true;
 		switch ([t1, t2]) {
@@ -630,17 +626,14 @@ class Checker {
 				if (a2.length == 0) // always unify with {}
 					return true;
 				var m = new Map();
-				for (f in a1)
-					m.set(f.name, f);
+				for (f in a1) m.set(f.name, f);
 				for (f2 in a2) {
 					var f1 = m.get(f2.name);
 					if (f1 == null) {
-						if (f2.opt)
-							continue;
+						if (f2.opt) continue;
 						return false;
 					}
-					if (!typeEq(f1.t, f2.t))
-						return false;
+					if (!typeEq(f1.t, f2.t)) return false;
 				}
 				return true;
 			case [TInst(cl1, pl1), TInst(cl2, pl2)]:
@@ -698,8 +691,7 @@ class Checker {
 	}
 
 	public function unify(t1:TType, t2:TType, e:Expr) {
-		if (!tryUnify(t1, t2))
-			error(typeStr(t1) + " should be " + typeStr(t2), e);
+		if (!tryUnify(t1, t2)) error(typeStr(t1) + " should be " + typeStr(t2), e);
 	}
 
 	public function apply(t:TType, params:Array<TType>, args:Array<TType>) {
@@ -722,8 +714,7 @@ class Checker {
 	public function mapType(t:TType, f:TType->TType) {
 		switch (t) {
 			case TMono(r):
-				if (r.r == null)
-					return t;
+				if (r.r == null) return t;
 				return f(t);
 			case TVoid, TInt, TFloat, TBool, TDynamic, TParam(_), TUnresolved(_):
 				return t;
@@ -748,7 +739,7 @@ class Checker {
 		}
 	}
 
-	public function follow(t:TType) {
+	public function follow(t:TType):TType {
 		return switch (t) {
 			case TMono(r): if (r.r != null) follow(r.r) else t;
 			case TType(t, args): follow(apply(t.t, t.params, args));
@@ -788,8 +779,7 @@ class Checker {
 							var curMap = map;
 							map = (t) -> curMap(apply(t, csup.params, args));
 							c = csup;
-						default:
-							break;
+						default: break;
 					}
 				}
 			case TAnon(fl):
@@ -816,29 +806,24 @@ class Checker {
 							t: unasync(cf.t),
 							complete: cf.complete
 						};
-						if (cf.t == null)
-							cf = null;
+						if (cf.t == null) cf = null;
 					}
 				}
 				if (cf == null && c.isInterface && c.interfaces != null) {
 					for (i in c.interfaces) {
 						var ft = getField(i, f, e, forWrite);
-						if (ft != null)
-							return apply(ft, c.params, args);
+						if (ft != null) return apply(ft, c.params, args);
 					}
 				}
 				if (cf == null) {
 					if (c.superClass == null)
 						return null;
 					var ft = getField(c.superClass, f, e, forWrite);
-					if (ft != null)
-						ft = apply(ft, c.params, args);
+					if (ft != null) ft = apply(ft, c.params, args);
 					return ft;
 				}
-				if (!cf.isPublic)
-					error("Can't access private field " + f + " on " + c.name, e);
-				if (forWrite && !cf.canWrite)
-					error("Can't write readonly field " + f + " on " + c.name, e);
+				if (!cf.isPublic) error("Can't access private field " + f + " on " + c.name, e);
+				if (forWrite && !cf.canWrite) error("Can't write readonly field " + f + " on " + c.name, e);
 				var t = cf.t;
 				if (cf.params != null)
 					t = apply(t, cf.params, [for (i in 0...cf.params.length) makeMono()]);
@@ -868,13 +853,13 @@ class Checker {
 		return null;
 	}
 
-	function typeExprWith(expr:Expr, t:TType) {
+	function typeExprWith(expr:Expr, t:TType):TType {
 		var et = typeExpr(expr, WithType(t));
 		unify(et, t, expr);
 		return t;
 	}
 
-	function makeMono() {
+	function makeMono():TType {
 		return TMono({r: null});
 	}
 
@@ -905,14 +890,12 @@ class Checker {
 	}
 
 	function onCompletion(expr:Expr, t:TType) {
-		if (isCompletion)
-			throw new Completion(expr, t);
+		if (isCompletion) throw new Completion(expr, t);
 	}
 
 	function typeField(o:Expr, f:String, expr:Expr, forWrite:Bool) {
 		var ot = typeExpr(o, Value);
-		if (f == null)
-			onCompletion(expr, ot);
+		if (f == null) onCompletion(expr, ot);
 		var ft = getField(ot, f, expr, forWrite);
 		if (ft == null) {
 			error(typeStr(ot) + " has no field " + f, expr);

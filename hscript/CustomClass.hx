@@ -209,8 +209,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	function superHasField(name:String) {
-		if (__superClass == null)
-			return false;
+		if (__superClass == null) return false;
 
 		var realFieldExists = __superClass.__real_fields != null && __superClass.__real_fields.contains(name);
 		var classFieldExists = __superClass.__class__fields != null && __superClass.__class__fields.contains(name);
@@ -328,8 +327,7 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		// returns the last super CustomClass parent.
 		while (cls != null && cls is CustomClass) {
 			var next = cast(cls, CustomClass).__superClass;
-			if (next == null)
-				break; // Return the Custom Class itself
+			if (next == null) break; // Return the Custom Class itself
 			cls = next;
 		}
 		return cls is CustomClass ? this : cls;

@@ -292,10 +292,7 @@ class Interp {
 				}
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (obj == null) {
-					if (!s) error(EInvalidAccess(f));
-					else return null;
-				}
+				if (s && obj == null) return null;
 				v = set(obj, f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
@@ -334,10 +331,7 @@ class Interp {
 				if (l.depth == 0) setVar(id, v);
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (obj == null) {
-					if (!s) error(EInvalidAccess(f));
-					else return null;
-				}
+				if (s && obj == null) return null;
 				v = applyAssignOp(op, get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -546,10 +540,7 @@ class Interp {
 				}
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (obj == null) {
-					if (!s) error(EInvalidAccess(f));
-					else return null;
-				}
+				if (s && obj == null) return null;
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
