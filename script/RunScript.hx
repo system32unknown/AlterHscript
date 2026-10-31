@@ -1,11 +1,8 @@
 package;
 
 import haxe.*;
-import hscript.*;
 import sys.*;
 import sys.io.*;
-import sys.net.*;
-
 #if neko
 import neko.Lib;
 #end
@@ -14,12 +11,10 @@ import cpp.Lib;
 #end
 
 class RunScript {
-	
-	public static function main () {
-		
-		var args = Sys.args ();
+	public static function main() {
+		var args = Sys.args();
 		var workingDirectory = args.pop();
-			
+
 		try {
 			Sys.setCwd(workingDirectory);
 		} catch (e:Dynamic) {
@@ -43,10 +38,10 @@ class RunScript {
 		if (args[0] == "--help") {
 			printHelp();
 		}
-		
+
 		executeScript(args.join(" "));
 	}
-	
+
 	static function executeScriptFile(scriptPath:String) {
 		if (!FileSystem.exists(scriptPath)) {
 			error("Specified file [" + scriptPath + "] not found");
@@ -57,12 +52,12 @@ class RunScript {
 		var script = File.getContent(scriptPath);
 		executeScript(script);
 	}
-	
+
 	static function executeScript(script:String) {
 		var parser = new hscript.Parser();
 		var program = parser.parseString(script);
 		var interp = new hscript.Interp();
-		
+
 		// export some useful classes
 		interp.variables.set("Array", Array);
 		interp.variables.set("DateTools", DateTools);
@@ -85,10 +80,10 @@ class RunScript {
 			"Serializer": haxe.Serializer,
 			"Unserializer": haxe.Unserializer
 		});
-		
-		info(interp.execute(program));		
+
+		info(interp.execute(program));
 	}
-	
+
 	static function printHelp(exit:Bool = true) {
 		var hscriptPath = getHaxelibPath("hscript");
 		var meta:Dynamic = Json.parse(File.getContent(hscriptPath + "haxelib.json"));
@@ -112,7 +107,7 @@ class RunScript {
 		info("   haxelib run hscript sys.net.Host.localhost()");
 		info("   mycomputer");
 		info("");
-		if(Sys.systemName() == "Windows") {
+		if (Sys.systemName() == "Windows") {
 			info("   for /f %i in ('haxelib run hscript \"new sys.net.Host('')\"') do @set MY_IP=%i");
 			info("   echo %MY_IP%");
 		} else {
@@ -120,33 +115,28 @@ class RunScript {
 			info("   echo $MY_IP");
 		}
 		info("   192.168.248.1");
-		if(exit)
-			Sys.exit(0);
+		if (exit) Sys.exit(0);
 	}
-	
+
 	static function info(msg:Dynamic) {
 		Sys.stdout().writeString("" + msg + "\n");
 	}
-	
+
 	static function error(msg:Dynamic, exit:Bool = true) {
 		Sys.stderr().writeString("Error: " + msg + "!\n");
-		if(exit)
-			Sys.exit(1);
+		if (exit) Sys.exit(1);
 	}
-	
+
 	static function getHaxelibPath(libraryName:String):String {
 		var proc = new Process("haxelib", ["path", libraryName]);
 		var result = "";
 		var ex:Dynamic = null;
 		try {
-			while(true)	{
+			while (true) {
 				var line = proc.stdout.readLine();
-				if (line.substr(0, 1) != "-")
-					result = line;
+				if (line.substr(0, 1) != "-") result = line;
 			}
-		} catch (e:Dynamic) { 
-			ex = e;
-		};
+		} catch (e:Dynamic) ex = e;
 		proc.close();
 		if (ex) error(ex);
 		return result;

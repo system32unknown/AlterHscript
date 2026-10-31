@@ -207,8 +207,7 @@ class Parser {
 
 	public function parseString(s:String, ?origin:String = "hscript"):Expr {
 		initParser(origin);
-		if (s == "")
-			s = "0;"; // fixing crash with empty file
+		if (s == "") s = "0;"; // fixing crash with empty file
 		input = s;
 		readPos = 0;
 		var a = [];
@@ -997,7 +996,6 @@ class Parser {
 				mk(EFunction(inf.args, inf.body, name, inf.ret, nextIsPublic, nextIsStatic, nextIsOverride, nextIsPrivate, nextIsFinal, nextIsInline), p1, pmax(inf.body));
 			case "package":
 				var tk = token();
-				if (tk == TEof) error(ECustom('Missing ;'), tokenMin, tokenMax);
 				push(tk);
 				if (tk == TSemicolon)
 					return mk(EPackage(null), p1);
@@ -1375,33 +1373,19 @@ class Parser {
 		}
 	}
 
-	function parseExprNext(e1:Expr, noOp:Bool = false):Expr {
+	function parseExprNext( e1 : Expr ):Expr {
 		var tk = token();
 		switch (tk) {
-			case TOp(op) if (!noOp) :
+			case TOp(op):
 				if (op == "->") {
 					// single arg reinterpretation of `f -> e` , `(f) -> e` and `(f:T) -> e`
 					switch (expr(e1)) {
 						case EIdent(i), EParent(expr(_) => EIdent(i)):
 							var eret = parseExpr();
-							return mk(EFunction([
-								{
-									name: i,
-									opt: false,
-									value: null,
-									t: null
-								}
-							], mk(EReturn(eret), pmin(eret))), pmin(e1));
+							return mk(EFunction([{name: i, opt: false, value: null, t: null}], mk(EReturn(eret), pmin(eret))), pmin(e1));
 						case ECheckType(expr(_) => EIdent(i), t):
 							var eret = parseExpr();
-							return mk(EFunction([
-								{
-									name: i,
-									t: t,
-									opt: false,
-									value: null
-								}
-							], mk(EReturn(eret), pmin(eret))), pmin(e1));
+							return mk(EFunction([{name: i, t: t, opt: false, value: null}], mk(EReturn(eret), pmin(eret))), pmin(e1));
 						default:
 					}
 					unexpected(tk);
@@ -1416,38 +1400,25 @@ class Parser {
 					if (isBlock(e1) || switch (expr(e1)) {
 							case EParent(_): true;
 							default: false;
-						}) {
+					}) {
 						push(tk);
 						return e1;
-						}
+					}
 					return parseExprNext(mk(EUnop(Unop.fromString(op), false, e1), pmin(e1)));
 				}
 				return makeBinop(op, e1, parseExpr());
-			case TId(op) if (!noOp && opPriority.exists(op)):
-				return parseExprNext(makeBinop(op, e1, parseExpr()));
-			case TDot:
+			case TId(op) if (opPriority.exists(op)):
+				return parseExprNext(makeBinop(op,e1,parseExpr()));
+			case TDot | TQuestionDot:
 				var field = getIdent();
-				return parseExprNext(mk(EField(e1, field), pmin(e1)));
-			case TQuestionDot:
-				var tmp = "__a_" + (uid++);
-				push(TDot);
-				var e2 = parseExprNext(mk(EIdent(tmp), pmin(e1), pmax(e1)), true);
-				var e = mk(EBlock([
-					mk(EVar(tmp, null, e1), pmin(e1), pmax(e1)),
-					mk(ETernary(
-						mk(EBinop(OpEq, mk(EIdent(tmp), pmin(e1), pmax(e1)), mk(EIdent("null"), pmin(e1), pmax(e1)))),
-						mk(EIdent("null"),pmin(e1),pmax(e1)),
-						e2
-					))
-				]), pmin(e1));
-				return parseExprNext(e, noOp);
+				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
 			case TPOpen:
-				return parseExprNext(mk(ECall(e1, parseExprList(TPClose)), pmin(e1)), noOp);
+				return parseExprNext(mk(ECall(e1,parseExprList(TPClose)),pmin(e1)));
 			case TBkOpen:
 				var e2 = parseExpr();
 				ensure(TBkClose);
-				return parseExprNext(mk(EArray(e1, e2), pmin(e1)), noOp);
-			case TQuestion if (!noOp):
+				return parseExprNext(mk(EArray(e1,e2),pmin(e1)));
+			case TQuestion:
 				var e2 = parseExpr();
 				ensure(TDoubleDot);
 				var e3 = parseExpr();
@@ -1470,10 +1441,8 @@ class Parser {
 					tk = token();
 				}
 				switch (tk) {
-					case TId(id):
-						name = id;
-					default:
-						unexpected(tk);
+					case TId(id): name = id;
+					default: unexpected(tk);
 				}
 				var arg:Argument = {
 					name: name,
@@ -1580,15 +1549,13 @@ class Parser {
 				return parseTypeNext(CTPath(path, params));
 			case TPOpen:
 				var a = token(), b = token();
-
 				push(b);
 				push(a);
 
 				function withReturn(args) {
 					switch token() { // I think it wouldn't hurt if ensure used enumEq
 						case TOp('->'):
-						case t:
-							unexpected(t);
+						case t: unexpected(t);
 					}
 
 					return CTFun(args, parseType());
@@ -1600,8 +1567,7 @@ class Parser {
 							for (arg in parseFunctionArgs()) {
 								switch arg.value {
 									case null:
-									case v:
-										error(ECustom('Default values not allowed in function types'), #if hscriptPos v.pmin, v.pmax #else 0, 0 #end);
+									case v: error(ECustom('Default values not allowed in function types'), #if hscriptPos v.pmin, v.pmax #else 0, 0 #end);
 								}
 
 								CTNamed(arg.name, if (arg.opt) CTOpt(arg.t) else arg.t);
@@ -1614,11 +1580,9 @@ class Parser {
 						return switch token() {
 							case TComma:
 								var args = [t];
-
 								while (true) {
 									args.push(parseType());
-									if (!maybe(TComma))
-										break;
+									if (!maybe(TComma)) break;
 								}
 								ensure(TPClose);
 								withReturn(args);

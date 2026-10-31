@@ -290,8 +290,13 @@ class Interp {
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
 				}
-			case EField(e, f):
-				v = set(expr(e), f, v);
+			case EField(e, f, s):
+				var obj = expr(e);
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
+				v = set(obj, f, v);
 			case EArray(e, index):
 				var arr:Dynamic = expr(e);
 				var index:Dynamic = expr(index);
@@ -326,10 +331,10 @@ class Interp {
 					return prop.set(v, isBypassAccessor);
 				}
 				l.r = v;
-				if (l.depth == 0)
-					setVar(id, v);
-			case EField(e, f):
+				if (l.depth == 0) setVar(id, v);
+			case EField(e, f, s):
 				var obj = expr(e);
+				if (s && obj == null) return null;
 				v = applyAssignOp(op, get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -538,8 +543,12 @@ class Interp {
 					}
 					return v;
 				}
-			case EField(e, f):
+			case EField(e, f, s):
 				var obj = expr(e);
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
 				var v:Dynamic = get(obj, f);
 				if (prefix) {
 					v += delta;
@@ -1126,7 +1135,7 @@ class Interp {
 					v = expr(e);
 				restore(old);
 				return v;
-			case EField(e, f):
+			case EField(e, f, s):
 				#if hscriptPos
 				var fieldNode = curExpr; // the EField node itself; curExpr moves on while expr(e) runs
 				#else
@@ -1140,6 +1149,7 @@ class Interp {
 					if (info != null) {
 						var cl = resolveFieldTypeCached(info.fullPath);
 						if (cl != null) return cl;
+						if (s) return null;
 						error(EUnknownVariable(info.path));
 					}
 					throw exc;
@@ -1150,6 +1160,7 @@ class Interp {
 						var cl = resolveFieldTypeCached(info.fullPath);
 						if (cl != null) return cl;
 					}
+					if (s) return null;
 				}
 				return get(field, f);
 			case EBinop(op, e1, e2):
@@ -1209,9 +1220,12 @@ class Interp {
 				var args:Array<Dynamic> = (params.length > 0) ? makeArgs(params) : _EMPTY_ARGS;
 
 				switch (Tools.expr(e)) {
-					case EField(e, f):
+					case EField(e, f, s):
 						var obj:Null<Dynamic> = expr(e);
-						if (obj == null) error(EInvalidAccess(f));
+						if (obj == null) {
+							if (s) return null;
+							error(EInvalidAccess(f));
+						}
 						return fcall(obj, f, args);
 					default:
 						return call(null, expr(e), args);
@@ -1526,8 +1540,13 @@ class Interp {
 
 				isBypassAccessor = oldAccessor;
 				return val;
-			case ECheckType(e, _), ECast(e, _):
+			case ECheckType(e, _): 
 				return expr(e);
+			case ECast(e, _): // TODO: runtime explicit cast check
+				var v = expr(e);
+				if (v is CustomClass && (cast v:CustomClass).hasSuperClass)
+					v = (cast v:CustomClass).getSuperclass();
+				return v;
 		}
 		return null;
 	}
@@ -1638,18 +1657,11 @@ class Interp {
 		untyped __cpp__('{0}->reserve({1}->length)', args, params);
 		#end
 		for (p in params) {
-			switch (Tools.expr(p)) {
-				case EIdent(id):
-					var ident:Dynamic = resolve(id);
-					if (ident is CustomClass) {
-						var customClass:CustomClass = cast ident; // Pass the underlying superclass if exist
-						args.push(customClass.__superClass != null ? customClass.getSuperclass() : customClass);
-					} else {
-						args.push(ident);
-					}
-				default:
-					args.push(expr(p));
+			var v:Dynamic = expr(p);
+			if (v is CustomClass && (cast v:CustomClass).hasSuperClass) {
+				v = (cast v:CustomClass).getSuperclass();
 			}
+			args.push(v);
 		}
 
 		return args;
@@ -1732,7 +1744,7 @@ class Interp {
 					if (walkHasFunctionLiteral(x))
 						return true;
 				false;
-			case EField(x, _) | EArray(x, _): walkHasFunctionLiteral(x);
+			case EField(x, _, _) | EArray(x, _): walkHasFunctionLiteral(x);
 			case EBinop(_, e1, e2): walkHasFunctionLiteral(e1) || walkHasFunctionLiteral(e2);
 			case ECall(x, params):
 				if (walkHasFunctionLiteral(x))
@@ -1812,7 +1824,7 @@ class Interp {
 	function getExprPath(e:Expr):Null<String> {
 		switch (Tools.expr(e)) {
 			case EIdent(id): return id;
-			case EField(e2, f):
+			case EField(e2, f, _):
 				var parent = getExprPath(e2);
 				if (parent != null) return parent + "." + f;
 				return null;
@@ -1978,23 +1990,18 @@ class Interp {
 		var cls = obj;
 
 		switch (Type.typeof(cls)) {
-			case TClass(c):
-				fields = Type.getClassFields(c);
-			case TObject:
-				fields = Reflect.fields(cls);
-			default:
-				error(ECustom('$name is not a class'));
+			case TClass(c): fields = Type.getClassFields(c);
+			case TObject: fields = Reflect.fields(cls);
+			default: error(ECustom('$name is not a class'));
 		}
 
 		fn = function(o:Dynamic, f:String, args:Array<Dynamic>) {
 			var field = Reflect.field(cls, f);
-			if (field == null || !Reflect.isFunction(field))
-				return null;
+			if (field == null || !Reflect.isFunction(field)) return null;
 
 			// invalid if the function has no arguments
 			var totalArgs = Tools.argCount(field);
-			if (totalArgs == 0)
-				return null;
+			if (totalArgs == 0) return null;
 
 			return UnsafeReflect.callMethodUnsafe(cls, field, [o].concat(args));
 		}
@@ -2026,17 +2033,17 @@ class Interp {
 		if (inCustomClass) {
 			var superCls:Dynamic = scriptObject.__superClass;
 			if (o == superCls) {
-				if (superCls is CustomClass) return cast(superCls, CustomClass).call(f, args, true);
+				if (superCls is CustomClass) return return (cast superCls:CustomClass).call(f, args, true);
 				else return UnsafeReflect.callMethodUnsafe(superCls, UnsafeReflect.field(superCls, '_HX_SUPER__$f'), args);
 			}
 			if (superCls is CustomClass) {
 				superCls = cast(superCls, CustomClass).__superClass;
 				while (superCls != null) {
 					if (o == superCls) {
-						if (superCls is CustomClass) return cast(superCls, CustomClass).call(f, args, true);
+						if (superCls is CustomClass) return (cast superCls:CustomClass).call(f, args, true);
 						else return UnsafeReflect.callMethodUnsafe(superCls, UnsafeReflect.field(superCls, '_HX_SUPER__$f'), args);
 					}
-					superCls = (superCls is CustomClass) ? cast(superCls, CustomClass).__superClass : null;
+					superCls = (superCls is CustomClass) ? (cast superCls:CustomClass).__superClass : null;
 				}
 			}
 		}
@@ -2049,8 +2056,7 @@ class Interp {
 				for (n => us in usingHandler.usingEntries) {
 					if (us.hasField(f)) {
 						v = us.call(o, f, args);
-						if (v != null)
-							return v;
+						if (v != null) return v;
 					}
 				}
 			}

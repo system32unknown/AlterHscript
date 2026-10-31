@@ -252,9 +252,10 @@ class Bytes {
 			case EBlock(el):
 				bout.addByte(el.length);
 				for (e in el) doEncode(e);
-			case EField(e, f):
+			case EField(e, f, s):
 				doEncode(e);
 				doEncodeString(f);
+				doEncodeBoolean(s ?? false);
 			case EBinop(op, e1, e2):
 				doEncodeBinop(op);
 				doEncode(e1);
@@ -452,9 +453,10 @@ class Bytes {
 				for (i in 0...getByte()) a.push(doDecode());
 				EBlock(a);
 			case BFIELD:
-				var op = doDecodeBinop();
-				var e1 = doDecode();
-				EBinop(op, e1, doDecode());
+				final e = doDecode();
+				final f = doDecodeString();
+				final s = doDecodeBoolean();
+				EField(e, f, s);
 			case BBINOP:
 				var op = doDecodeBinop();
 				var e1 = doDecode();
