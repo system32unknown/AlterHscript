@@ -302,7 +302,9 @@ class AlterHscript {
 			return {funName: fun, signature: ny, returnValue: ret};
 		}
 		#if hscriptPos
-		catch (e:Expr.Error) {error(Printer.errorToString(e, false), this.interp.posInfos());}
+		catch (e:Expr.Error) {
+			error(Printer.errorToString(e, false), this.interp.posInfos());
+		}
 		#end
 		catch (e:haxe.Exception) {
 			var pos:PosInfos = isFunction ? this.interp.posInfos() : getDefaultPos(this.name);

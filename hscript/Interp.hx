@@ -606,24 +606,24 @@ class Interp {
 			}
 		} catch (e:Error) {
 			if (errorHandler != null) errorHandler(e);
-			else throw #if hscriptPos _errorString(e) #else e #end;
+			else throw e;
 			return null;
 		} catch (e:Dynamic) {
-			var errStr = printCallStack ? Std.string(e) + "\n" + CallStack.toString(CallStack.exceptionStack(true)) : Std.string(e);
+			var errStr:String = printCallStack ? Std.string(e) + "\n" + CallStack.toString(CallStack.exceptionStack(true)) : Std.string(e);
 			if (errorHandler != null) {
 				#if hscriptPos
 				errorHandler(new Error(ECustom(errStr), curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line));
 				#else
 				errorHandler(Error.ECustom(errStr));
 				#end
-			} else throw #if hscriptPos _errorString(e) #else e #end;
+			} else throw e;
 			return null;
 		}
 		return null;
 	}
 
 	#if hscriptPos
-	function _errorString(e:Error):String {
+	public static function errorString(e:Error):String {
 		var origin:String = e.origin;
 		var oldfn:String = '$origin:${e.line}: ';
 		var fn:String = '$origin:${e.line}: ';

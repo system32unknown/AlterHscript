@@ -502,8 +502,7 @@ class Printer {
 			default: "Unknown Error.";
 		};
 		#if hscriptPos
-		if (showPos) return e.origin + ":" + e.line + ": " + message;
-		else return message;
+		return showPos ? Interp.errorString(e) + ": " + message : message;
 		#else
 		return message;
 		#end
