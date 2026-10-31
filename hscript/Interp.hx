@@ -610,7 +610,7 @@ class Interp {
 			}
 		} catch (e:Error) {
 			if (errorHandler != null) errorHandler(e);
-			else throw _errorString(e);
+			else throw #if hscriptPos _errorString(e) #else e #end;
 			return null;
 		} catch (e:Dynamic) {
 			var errStr = printCallStack ? Std.string(e) + "\n" + CallStack.toString(CallStack.exceptionStack(true)) : Std.string(e);
@@ -620,12 +620,13 @@ class Interp {
 				#else
 				errorHandler(Error.ECustom(errStr));
 				#end
-			} else throw _errorString(e);
+			} else throw #if hscriptPos _errorString(e) #else e #end;
 			return null;
 		}
 		return null;
 	}
 
+	#if hscriptPos
 	function _errorString(e:Error):String {
 		var origin:String = e.origin;
 		var oldfn:String = '$origin:${e.line}: ';
@@ -638,6 +639,7 @@ class Interp {
 		}
 		return err;
 	}
+	#end
 
 	public function duplicate<T>(h:Map<String, T>) {
 		var h2 = new Map();
