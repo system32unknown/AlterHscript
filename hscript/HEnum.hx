@@ -52,14 +52,10 @@ class HEnumValue {
 		return this.args;
 
 	public function compare(other:HEnumValue):Bool {
-		if (enumName != other.enumName || fieldName != other.fieldName)
-			return false;
-		if (args.length == 0 && other.args.length == 0)
-			return true;
-		if (args.length == 0 || other.args.length == 0)
-			return false;
-		if (args.length != other.args.length)
-			return false;
+		if (enumName != other.enumName || fieldName != other.fieldName) return false;
+		if (args.length == 0 && other.args.length == 0) return true;
+		if (args.length == 0 || other.args.length == 0) return false;
+		if (args.length != other.args.length) return false;
 
 		for (i in 0...args.length)
 			if (args[i] != other.args[i])
@@ -83,12 +79,9 @@ class EnumTools {
 		if (Std.isOfType(e, HEnum)) {
 			var henum:HEnum = cast e;
 			var constructor = henum.getEnum(constr);
-			if (constructor == null)
-				throw 'Constructor $constr not found in enum';
-			if (Std.isOfType(constructor, HEnumValue))
-				return constructor;
-			if (Reflect.isFunction(constructor))
-				return constructor(params == null ? [] : params);
+			if (constructor == null) throw 'Constructor $constr not found in enum';
+			if (Std.isOfType(constructor, HEnumValue)) return constructor;
+			if (Reflect.isFunction(constructor)) return constructor(params == null ? [] : params);
 			throw 'Invalid constructor type';
 		}
 		return Type.createEnum(cast e, constr, params);
@@ -113,8 +106,7 @@ class EnumValueTools {
 			return hv.enumName;
 		}
 		var en = Type.getEnum(e);
-		if (en != null)
-			return Type.getEnumName(en);
+		if (en != null) return Type.getEnumName(en);
 		return null;
 	}
 
@@ -156,23 +148,18 @@ class EnumValueTools {
 			var hv:HEnumValue = cast e;
 			if (Std.isOfType(pattern, HEnumValue)) {
 				var hp:HEnumValue = cast pattern;
-				if (hv.enumName != hp.enumName || hv.fieldName != hp.fieldName)
-					return false;
-				if (hp.args.length == 0)
-					return true;
-				if (hv.args.length != hp.args.length)
-					return false;
+				if (hv.enumName != hp.enumName || hv.fieldName != hp.fieldName) return false;
+				if (hp.args.length == 0) return true;
+				if (hv.args.length != hp.args.length) return false;
 				for (i in 0...hp.args.length) {
 					var pa = hp.args[i];
-					if (pa != null && hv.args[i] != pa)
-						return false;
+					if (pa != null && hv.args[i] != pa) return false;
 				}
 				return true;
 			}
 			if (Reflect.isObject(pattern)) {
 				var patternName = UnsafeReflect.hasField(pattern, "name") ? UnsafeReflect.field(pattern, "name") : null;
-				if (patternName != null && patternName != hv.fieldName)
-					return false;
+				if (patternName != null && patternName != hv.fieldName) return false;
 				return true;
 			}
 			return false;

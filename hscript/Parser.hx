@@ -997,8 +997,7 @@ class Parser {
 			case "package":
 				var tk = token();
 				push(tk);
-				if (tk == TSemicolon)
-					return mk(EPackage(null), p1);
+				if (tk == TSemicolon) return mk(EPackage(null), p1);
 				packageName = "";
 
 				var pkg:String = parsePath().join('.');
@@ -1408,16 +1407,16 @@ class Parser {
 				}
 				return makeBinop(op, e1, parseExpr());
 			case TId(op) if (opPriority.exists(op)):
-				return parseExprNext(makeBinop(op,e1,parseExpr()));
+				return parseExprNext(makeBinop(op, e1, parseExpr()));
 			case TDot | TQuestionDot:
 				var field = getIdent();
 				return parseExprNext(mk(EField(e1, field, tk == TQuestionDot), pmin(e1)));
 			case TPOpen:
-				return parseExprNext(mk(ECall(e1,parseExprList(TPClose)),pmin(e1)));
+				return parseExprNext(mk(ECall(e1, parseExprList(TPClose)), pmin(e1)));
 			case TBkOpen:
 				var e2 = parseExpr();
 				ensure(TBkClose);
-				return parseExprNext(mk(EArray(e1,e2),pmin(e1)));
+				return parseExprNext(mk(EArray(e1, e2), pmin(e1)));
 			case TQuestion:
 				var e2 = parseExpr();
 				ensure(TDoubleDot);

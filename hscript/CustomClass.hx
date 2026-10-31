@@ -151,11 +151,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 
 		if (fn != null && Reflect.isFunction(fn))
 			return UnsafeReflect.callMethodUnsafe(null, fn, (args == null) ? [] : args);
-		
+
 		// If not found in current class, try parent class recursively
 		if (__superClass != null && __superClass is CustomClass)
 			return cast(__superClass, CustomClass).call(name, args, toSuper);
-		
+
 		__interp.error(ECustom('$name doesn\'t exists or is not a function'));
 		return null;
 	}
@@ -172,9 +172,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var f = __interp.variables.get(name);
 		if (f != null && allowProperty && f is Property) {
 			var prop:Property = cast f;
-			//prop.__allowSetGet = this.__allowSetGet;
+			// prop.__allowSetGet = this.__allowSetGet;
 			var r = prop.get(!__allowSetGet);
-			//prop.__allowSetGet = true;
+			// prop.__allowSetGet = true;
 			return r;
 		}
 		return f;
@@ -184,9 +184,9 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 		var f = getField(name, false);
 		if (f != null && f is Property) {
 			var prop:Property = cast f;
-			//prop.__allowSetGet = this.__allowSetGet;
+			// prop.__allowSetGet = this.__allowSetGet;
 			var r = prop.set(val, !__allowSetGet);
-			//prop.__allowSetGet = true;
+			// prop.__allowSetGet = true;
 			return r;
 		}
 		__interp.variables.set(name, val);

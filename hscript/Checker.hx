@@ -446,7 +446,7 @@ class Checker {
 		}
 	}
 
-	public static function typeStr(t:TType) {
+	public static function typeStr(t:TType):String {
 		inline function makeArgs(args:Array<TType>)
 			return args.length == 0 ? "" : "<" + [for (t in args) typeStr(t)].join(",") + ">";
 		return switch (t) {
@@ -884,7 +884,7 @@ class Checker {
 		#end
 	}
 
-	function isString(t:TType) {
+	function isString(t:TType):Bool {
 		t = follow(t);
 		return t.match(TInst({name: "String"}, _));
 	}
@@ -1080,8 +1080,7 @@ class Checker {
 							ft = currentFunType;
 							tret = ret;
 							targs = args;
-						default:
-							throw "assert";
+						default: throw "assert";
 					}
 					currentFunType = null;
 				} else {
@@ -1095,8 +1094,7 @@ class Checker {
 				var withArgs = null;
 				if (name != null && !withType.match(WithType(follow(_) => TFun(_)))) {
 					var ev = events.get(name);
-					if (ev != null)
-						withType = WithType(ev);
+					if (ev != null) withType = WithType(ev);
 				}
 				switch (withType) {
 					case WithType(follow(_) => TFun(args, ret)):

@@ -33,7 +33,6 @@ import haxe.Exception;
 import haxe.CallStack;
 import haxe.PosInfos;
 import haxe.Constraints.IMap;
-import haxe.ds.StringMap;
 import haxe.ds.ObjectMap;
 import hscript.HEnum.HEnumValue;
 import hscript.utils.UsingHandler;
@@ -153,14 +152,14 @@ class Interp {
 	 */
 	public var importFailedCallback:Array<String>->Null<String>->Bool;
 
-	public var customClasses:StringMap<CustomClassHandler>;
-	public var variables:StringMap<Dynamic>;
-	public var publicVariables:StringMap<Dynamic>;
+	public var customClasses:Map<String, CustomClassHandler>;
+	public var variables:Map<String, Dynamic>;
+	public var publicVariables:Map<String, Dynamic>;
 	// TODO: maybe turn this completely static
-	public var staticVariables:StringMap<Dynamic>;
+	public var staticVariables:Map<String, Dynamic>;
 
 	// warning can be null
-	public var locals:StringMap<DeclaredVar>;
+	public var locals:Map<String, DeclaredVar>;
 
 	var depth:Int = 0;
 	var inTry:Bool;
@@ -206,16 +205,16 @@ class Interp {
 	public var showPosOnLog:Bool = true;
 
 	public function new() {
-		locals = new StringMap();
+		locals = new Map();
 		declared = [];
 		resetVariables();
 	}
 
 	private function resetVariables():Void {
-		customClasses = new StringMap<CustomClassHandler>();
-		variables = new StringMap<Dynamic>();
-		publicVariables = new StringMap<Dynamic>();
-		staticVariables = new StringMap<Dynamic>();
+		customClasses = new Map<String, CustomClassHandler>();
+		variables = new Map<String, Dynamic>();
+		publicVariables = new Map<String, Dynamic>();
+		staticVariables = new Map<String, Dynamic>();
 
 		usingHandler = new UsingHandler();
 
@@ -576,7 +575,7 @@ class Interp {
 
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
-		(locals ??= new StringMap()).clear();
+		(locals ??= new Map()).clear();
 		(declared ??= []).resize(0);
 		return exprReturn(expr);
 	}
@@ -1111,11 +1110,11 @@ class Interp {
 					varLocationCache.remove(n);
 					if (allowStaticVariables && isStatic == true) {
 						if (!staticVariables.exists(n)) // make it so it only sets it once
-							staticVariables.set(n, locals.get(n).r);
+							staticVariables.set(n, locals[n].r);
 					} else if (allowPublicVariables && isPublic == true) {
-						publicVariables.set(n, locals.get(n).r);
+						publicVariables.set(n, locals[n].r);
 					} else {
-						variables.set(n, locals.get(n).r);
+						variables.set(n, locals[n].r);
 					}
 				}
 				return null;
@@ -1407,7 +1406,7 @@ class Interp {
 
 					var map:Dynamic = {
 						if (isAllInt) new haxe.ds.IntMap<Dynamic>();
-						else if (isAllString) new StringMap<Dynamic>();
+						else if (isAllString) new haxe.ds.StringMap<Dynamic>();
 						else if (isAllEnum) new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
 						else if (isAllObject) new ObjectMap<Dynamic, Dynamic>();
 						else throw 'Unknown Type Key';
@@ -2019,7 +2018,7 @@ class Interp {
 		if (inCustomClass) {
 			var superCls:Dynamic = scriptObject.__superClass;
 			if (o == superCls) {
-				if (superCls is CustomClass) return return (cast superCls:CustomClass).call(f, args, true);
+				if (superCls is CustomClass) return (cast superCls:CustomClass).call(f, args, true);
 				else return UnsafeReflect.callMethodUnsafe(superCls, UnsafeReflect.field(superCls, '_HX_SUPER__$f'), args);
 			}
 			if (superCls is CustomClass) {
