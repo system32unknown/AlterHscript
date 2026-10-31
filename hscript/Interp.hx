@@ -334,7 +334,10 @@ class Interp {
 				if (l.depth == 0) setVar(id, v);
 			case EField(e, f, s):
 				var obj = expr(e);
-				if (s && obj == null) return null;
+				if (obj == null) {
+					if (!s) error(EInvalidAccess(f));
+					else return null;
+				}
 				v = applyAssignOp(op, get(obj, f), expr(e2));
 				v = set(obj, f, v);
 			case EArray(e, index):
@@ -349,9 +352,7 @@ class Interp {
 					v = applyAssignOp(op, arr[index], expr(e2));
 					arr[index] = v;
 				}
-			default:
-				error(EInvalidOp(op.toString()));
-				return null;
+			default: return error(EInvalidOp(op.toString()));
 		}
 		return v;
 	}
@@ -578,9 +579,7 @@ class Interp {
 						arr[index] = v + delta;
 					return v;
 				}
-			default:
-				error(EInvalidOp((delta > 0) ? "++" : "--"));
-				return null;
+			default: return error(EInvalidOp((delta > 0) ? "++" : "--"));
 		}
 	}
 
@@ -593,9 +592,10 @@ class Interp {
 
 	public var printCallStack:Bool = false;
 
-	function exprReturn(e):Dynamic {
+	function exprReturn(e, returnDef:Bool = true):Dynamic {
 		try {
-			return expr(e);
+			var dvalue:Dynamic = expr(e);
+			if (returnDef) return dvalue;
 		} catch (e:Stop) {
 			switch (e) {
 				case SBreak:
@@ -659,10 +659,11 @@ class Interp {
 		}
 	}
 
-	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false) {
+	public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
 		#if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
 		if (rethrow) this.rethrow(e);
 		else throw e;
+		return null;
 	}
 
 	public inline function warn(e:#if hscriptPos ErrorDef #else Error #end) {
@@ -1204,9 +1205,7 @@ class Interp {
 					case OpShrAssign: evalAssignOp(OpShrAssign, e1, e2);
 					case OpUshrAssign: evalAssignOp(OpUshrAssign, e1, e2);
 					case OpNcoalAssign: evalAssignOp(OpNcoalAssign, e1, e2);
-					default:
-						error(EInvalidOp(op.toString()));
-						null;
+					default: error(EInvalidOp(op.toString()));
 				}
 			case EUnop(op, prefix, e):
 				switch (op) {
@@ -1317,7 +1316,7 @@ class Interp {
 					var oldDecl:Int = declared.length;
 					if (inTry)
 						try {
-							r = me.exprReturn(fexpr);
+							r = me.exprReturn(fexpr, false);
 						} catch (e:Dynamic) {
 							me.locals = old;
 							me.depth = depth;
@@ -1331,7 +1330,7 @@ class Interp {
 							throw e;
 							#end
 						}
-					else r = me.exprReturn(fexpr);
+					else r = me.exprReturn(fexpr, false);
 					restore(oldDecl);
 					if (pvs != null) paramPool.push(pvs);
 					newLocals.clear();
@@ -1838,11 +1837,9 @@ class Interp {
 	#if hscriptPos
 	function getFieldPathInfo(e:Expr, f:String, node:Expr):Null<{path:String, fullPath:String}> {
 		var info = __fieldPathCache.get(node);
-		if (info != null)
-			return info;
+		if (info != null) return info;
 		var path = getExprPath(e);
-		if (path == null)
-			return null;
+		if (path == null) return null;
 		info = {path: path, fullPath: path + "." + f};
 		__fieldPathCache.set(node, info);
 		return info;
@@ -1850,8 +1847,7 @@ class Interp {
 	#else
 	function getFieldPathInfo(e:Expr, f:String, node:Dynamic):Null<{path:String, fullPath:String}> {
 		var path = getExprPath(e);
-		if (path == null)
-			return null;
+		if (path == null) return null;
 		return {path: path, fullPath: path + "." + f};
 	}
 	#end
@@ -1885,8 +1881,7 @@ class Interp {
 	}
 
 	function get(o:Dynamic, f:String):Dynamic {
-		if (o == null)
-			error(EInvalidAccess(f));
+		if (o == null) error(EInvalidAccess(f));
 
 		var cls:Null<Class<Dynamic>> = useRedirects ? Type.getClass(o) : null;
 		if (useRedirects && {
@@ -1939,8 +1934,7 @@ class Interp {
 	}
 
 	function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
-		if (o == null)
-			error(EInvalidAccess(f));
+		if (o == null) error(EInvalidAccess(f));
 
 		if (useRedirects && {
 			var cl:Null<String> = getClassType(o);

@@ -412,7 +412,7 @@ class Parser {
 						tk = token();
 						switch (tk) {
 							case TPClose:
-								return parseExprNext(mk(ECheckType(e, t), p1, tokenMax));
+								return parseExprNext(mk(ECheckType(e, t), p1, tokenMax)); // TODO: type promotion with "cast", ex: (cast value:String)
 							case TComma:
 								switch (expr(e)) {
 									case EIdent(v): return parseLambda([
@@ -1373,7 +1373,7 @@ class Parser {
 		}
 	}
 
-	function parseExprNext( e1 : Expr ):Expr {
+	function parseExprNext(e1:Expr):Expr {
 		var tk = token();
 		switch (tk) {
 			case TOp(op):
