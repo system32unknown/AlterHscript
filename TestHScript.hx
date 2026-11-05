@@ -360,7 +360,14 @@ class TestHScript extends TestCase {
 		assertPos.methodName = "testCast";
 		assertPos.lineNumber = 357;
 		assertScript('var a = cast b; a', 10, {b: 10});
-		assertScript('cast(m, Map).get(1)', 64, {m: [1 => 64]});
+		assertScript('cast(m, Map).get(1)', 64, {m: [1 => 64]}, true);
+	}
+
+	function testSwitchGuards() {
+		assertPos.methodName = "testSwitchGuards";
+		assertPos.lineNumber = 364;
+		assertScript('enum TP { NUM(n:Float); STR(s:String); } var t = switch( TP.STR("abc") ) { case TP.STR(str) if(StringTools.contains(str, "a")): str; default: null; }; t', "abc", {"StringTools": StringTools}, true);
+		assertScript('var a = 0xFF; var b = 0x101; var r = switch( c ) { case a if(a > c): a; case b if(b < c): b; default: 0x00;}; r', 0x00, {c: 0x100});
 	}
 
 	static function main() {

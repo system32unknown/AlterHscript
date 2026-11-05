@@ -243,9 +243,11 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 	}
 
 	private function getUpperClass():IHScriptCustomClassBehaviour {
+		if(__upperClass == null) return this;
+
 		var cls:IHScriptCustomClassBehaviour = this;
 		while (true) {
-			var upper:IHScriptCustomClassBehaviour = @:privateAccess cast(cls, CustomClass).__upperClass;
+			final upper:IHScriptCustomClassBehaviour = @:privateAccess (cast cls:CustomClass).__upperClass;
 			if (upper == null || !(upper is CustomClass)) break;
 			cls = upper;
 		}
@@ -353,21 +355,6 @@ class CustomClass implements IHScriptCustomClassBehaviour {
 			cls = next;
 		}
 		return cls is CustomClass ? this : cls;
-	}
-
-	// TODO: scripted safe cast for custom classes
-	public function getUpperclass():IHScriptCustomClassBehaviour {
-		if (__upperClass == null) return this;
-
-		var cls:CustomClass = cast __upperClass;
-
-		while (cls != null) {
-			var prev:CustomClass = cast cls.__upperClass;
-			if (prev == null) break;
-			cls = prev;
-		}
-
-		return cls;
 	}
 
 	// TODO: scriptable "toString" function

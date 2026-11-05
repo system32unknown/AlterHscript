@@ -446,6 +446,11 @@ class Printer {
 						else add(", ");
 						expr(v);
 					}
+					if (c.hasGuard){
+						add(" if(");
+						expr(c.guard);
+						add(")");
+					}
 					add(": ");
 					expr(c.expr);
 					add(";\n");

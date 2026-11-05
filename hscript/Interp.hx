@@ -76,6 +76,7 @@ enum abstract VarLocation(UInt8) {
 class DeclaredVar {
 	public var r:Dynamic;
 	public var depth:Int;
+	public var isFinal:Bool;
 }
 
 @:structInit
@@ -285,6 +286,7 @@ class Interp {
 					var prop:Property = cast l.r;
 					return prop.set(v, isBypassAccessor);
 				} else {
+					if (l.isFinal) warn(ECustom("Cannot reassign final variable '" + id + "'"));
 					l.r = v;
 					if (l.depth == 0) setVar(id, v);
 				}
@@ -304,8 +306,7 @@ class Interp {
 					arr[index] = v;
 				}
 
-			default:
-				error(EInvalidOp("="));
+			default: error(EInvalidOp("="));
 		}
 		return v;
 	}
@@ -343,7 +344,6 @@ class Interp {
 				var index:Dynamic = expr(index);
 				if (isMap(arr)) {
 					var map = getMap(arr);
-
 					v = applyAssignOp(op, map.get(index), expr(e2));
 					map.set(index, v);
 				} else {
@@ -495,6 +495,7 @@ class Interp {
 			case EIdent(id):
 				var l = locals.get(id);
 				if (l != null) {
+					if (l.isFinal) warn(ECustom("Cannot modify final variable '" + id + "'"));
 					var v:Dynamic = l.r;
 					var prop:Property = null;
 					if (v is Property) {
@@ -841,6 +842,7 @@ class Interp {
 	}
 
 	/** Handles `class Foo { ... }` declarations (extracted from the expr() switch). **/
+	@:noInline
 	function exprClass(name:String, fields:Array<Expr>, extend:String, interfaces:Array<String>, isFinal:Bool):Void {
 		// TODO: module isolation
 		var oldName:String = name;
@@ -871,6 +873,7 @@ class Interp {
 	}
 
 	/** Handles `import` / `using` statements (extracted from the expr() switch). **/
+	@:noInline
 	function exprImport(clsName:String, aliasAs:Null<String>, isUsing:Bool):Void {
 		if (!importEnabled) return;
 
@@ -976,6 +979,7 @@ class Interp {
 	}
 
 	/** Handles `enum` declarations (extracted from the expr() switch). **/
+	@:noInline
 	function exprEnum(en:EnumDecl, isAbstract:Bool):Void {
 		if (isAbstract) {
 			var enumObj:Dynamic = {};
@@ -1067,7 +1071,10 @@ class Interp {
 		}
 	}
 
-	// TODO: separate large declarations (EClass, EEnum, etc...) into inline functions
+	// TODO: extract large methods (EClass, EEnum, etc...) into separated functions
+	#if !debug
+	@:noDebug // Greatly reduce the size of stack frames at the expense of worse debugging for this function (if used on non-debug builds).
+	#end
 	public function expr(e:Expr):Dynamic {
 		#if hscriptPos
 		curExpr = e;
@@ -1102,7 +1109,7 @@ class Interp {
 				var r:Dynamic = null;
 				if (hasGetSet) r = new Property(n, v, getter, setter, isVar, isStatic, this);
 				else r = v;
-				var declVar:DeclaredVar = {r: r, depth: depth};
+				var declVar:DeclaredVar = {r: r, depth: depth, isFinal: isFinal};
 				locals.set(n, declVar);
 				if (depth == 0) {
 					varLocationCache.remove(n);
@@ -1288,7 +1295,7 @@ class Interp {
 						pvs = paramPool.pop();
 						if (pvs == null) {
 							pvs = [];
-							for (p in params) pvs.push({r: null, depth: 0});
+							for (p in params) pvs.push({r: null, depth: 0, isFinal: false});
 						}
 						for (i in 0...params.length) {
 							var pv = pvs[i];
@@ -1298,7 +1305,7 @@ class Interp {
 						}
 					} else {
 						for (i in 0...params.length)
-							me.locals.set(params[i].name, {r: args[i], depth: depth});
+							me.locals.set(params[i].name, {r: args[i], depth: depth, isFinal: false});
 					}
 					var r:Null<Dynamic> = null;
 					var oldDecl:Int = declared.length;
@@ -1340,7 +1347,7 @@ class Interp {
 					} else {
 						// function-in-function is a local function
 						declared.push({n: name, old: locals.get(name), depth: depth});
-						var ref:DeclaredVar = {r: f, depth: depth};
+						var ref:DeclaredVar = {r: f, depth: depth, isFinal: false};
 						locals.set(name, ref);
 						capturedLocals.set(name, ref); // allow self-recursion
 					}
@@ -1448,7 +1455,7 @@ class Interp {
 					inTry = oldTry;
 					// declare 'v'
 					declared.push({n: n, old: locals.get(n), depth: depth});
-					locals.set(n, {r: err, depth: depth});
+					locals.set(n, {r: err, depth: depth, isFinal: false});
 					var v:Dynamic = expr(ecatch);
 					restore(old);
 					return v;
@@ -1489,10 +1496,10 @@ class Interp {
 													case EIdent(n):
 														declared.push({
 															n: n,
-															old: {r: locals.get(n), depth: depth},
+															old: {r: locals.get(n), depth: depth, isFinal: false},
 															depth: depth
 														});
-														locals.set(n, {r: valParams[i], depth: depth});
+														locals.set(n, {r: valParams[i], depth: depth, isFinal: false});
 													default:
 												}
 											}
@@ -1508,6 +1515,8 @@ class Interp {
 								}
 						}
 					}
+					
+					if (c.hasGuard && expr(c.guard) == false) continue;
 
 					if (match) {
 						val = expr(c.expr);
@@ -1518,14 +1527,16 @@ class Interp {
 					val = def == null ? null : expr(def);
 				restore(old);
 				return val;
-			case EMeta(a, b, e):
-				var oldAccessor = isBypassAccessor;
-				if (a == ":bypassAccessor") {
-					isBypassAccessor = true;
+			case EMeta(n, a, e):
+				var val:Dynamic = null;
+				switch (n) {
+					case ":bypassAccessor":
+						final oldAccessor:Bool = isBypassAccessor;
+						isBypassAccessor = true;
+						val = expr(e);
+						isBypassAccessor = oldAccessor;
+					default: val = expr(e);
 				}
-				var val = expr(e);
-
-				isBypassAccessor = oldAccessor;
 				return val;
 			case ECheckType(e, _):
 				return expr(e);
@@ -1666,8 +1677,8 @@ class Interp {
 		var kvDecl:DeclaredVar = null;
 		var varDecl:DeclaredVar = null;
 		if (reuseVar) {
-			if (isKeyValue) kvDecl = {r: null, depth: depth};
-			varDecl = {r: null, depth: depth};
+			if (isKeyValue) kvDecl = {r: null, depth: depth, isFinal: false};
+			varDecl = {r: null, depth: depth, isFinal: false};
 		}
 		while (_hasNext()) {
 			var next = _next();
@@ -1678,14 +1689,14 @@ class Interp {
 					varDecl.r = next.value;
 					locals.set(n, varDecl);
 				} else {
-					locals.set(ithv, {r: next.key, depth: depth});
-					locals.set(n, {r: next.value, depth: depth});
+					locals.set(ithv, {r: next.key, depth: depth, isFinal: false});
+					locals.set(n, {r: next.value, depth: depth, isFinal: false});
 				}
 			} else {
 				if (reuseVar) {
 					varDecl.r = next;
 					locals.set(n, varDecl);
-				} else locals.set(n, {r: next, depth: depth});
+				} else locals.set(n, {r: next, depth: depth, isFinal: false});
 			}
 			if (!loopBody(e)) break;
 		}

@@ -1303,17 +1303,24 @@ class Parser {
 					var tk = token();
 					switch (tk) {
 						case TId("case"):
-							var c:SwitchCase = {values: [], expr: null};
+							var c:SwitchCase = {values: [], expr: null, guard : null, hasGuard : false};
 							cases.push(c);
 							disableOrOp = true;
 							while (true) {
-								var e = parseExpr();
-								c.values.push(e);
+								final caseExpr = parseExpr();
+								c.values.push(caseExpr);
 								tk = token();
 								switch (tk) {
 									case TComma | TOp("|"):
 										// next expr
 									case TDoubleDot:
+										break;
+									case TId("if"):
+										ensure(TPOpen);
+										c.guard = parseExpr();
+										ensure(TPClose);
+										ensure(TDoubleDot);
+										c.hasGuard = true;
 										break;
 									default:
 										unexpected(tk);
@@ -1321,7 +1328,7 @@ class Parser {
 								}
 							}
 							disableOrOp = false;
-							var exprs = [];
+							final exprs:Array<Expr> = [];
 							while (true) {
 								tk = token();
 								push(tk);
@@ -1337,10 +1344,9 @@ class Parser {
 							c.expr = if (exprs.length == 1) exprs[0]; else if (exprs.length == 0) mk(EBlock([]), tokenMin,
 								tokenMin); else mk(EBlock(exprs), pmin(exprs[0]), pmax(exprs[exprs.length - 1]));
 						case TId("default"):
-							if (def != null)
-								unexpected(tk);
+							if (def != null) unexpected(tk);
 							ensure(TDoubleDot);
-							var exprs = [];
+							final exprs:Array<Expr> = [];
 							while (true) {
 								tk = token();
 								push(tk);
